@@ -4,8 +4,8 @@
   "name": "Lunar PHP",
   "colors": {
     "primary": "#4bc7f8",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "light": "#4bc7f8",
+    "dark": "#4bc7f8"
   },
   "favicon": "/favicon.svg",
   "navigation": {
