@@ -89,8 +89,8 @@
     }
   },
   "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
+    "light": "/logo/lunar-logo.svg",
+    "dark": "/logo/lunar-logo-dark.svg"
   },
   "navbar": {
     "links": [
