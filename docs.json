@@ -11,6 +11,9 @@
   "navigation": {
     "versions": [
       {
+        "version": "v0.x"
+      },
+      {
         "version": "v1.x",
         "tabs": [
           {
