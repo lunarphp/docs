@@ -11,6 +11,9 @@
   "navigation": {
     "tabs": [
       {
+        "tab": "Getting Started"
+      },
+      {
         "tab": "Guides",
         "groups": [
           {
@@ -46,6 +49,12 @@
             ]
           }
         ]
+      },
+      {
+        "tab": "Reference"
+      },
+      {
+        "tab": "Add-ons"
       },
       {
         "tab": "API reference",
