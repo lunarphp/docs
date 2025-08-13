@@ -9,7 +9,8 @@
   },
   "favicon": "/favicon.svg",
   "banner": {
-    "content": "🚀 v1 is now live!!"
+    "content": "🚀 v1 is now live!!",
+    "dismissible": true
   },
   "navigation": {
     "versions": [
@@ -118,13 +119,14 @@
   "navbar": {
     "links": [
       {
-        "label": "Support",
-        "href": "https://dashboard.mintlify.com"
+        "label": "GitHub",
+        "icon": "github",
+        "href": "https://github.com/lunarphp"
       }
     ],
     "primary": {
       "type": "button",
-      "label": "Dashboard",
+      "label": "Demo",
       "href": "https://dashboard.mintlify.com"
     }
   },
