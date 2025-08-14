@@ -8,23 +8,95 @@
     "dark": "#4bc7f8"
   },
   "favicon": "/favicon.svg",
-  "banner": {
-    "content": "🚀 v1 is now live!!",
-    "dismissible": true
-  },
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "/1.x/getting-started/overview/introduction"
+    }
+  ],
   "navigation": {
     "versions": [
       {
-        "version": "v0.x"
+        "version": "v0.x",
+        "tabs": [
+          {
+            "tab": "Core",
+            "groups": [
+              {
+                "group": "Getting started",
+                "pages": [
+                  "index",
+                  "quickstart",
+                  "development"
+                ]
+              },
+              {
+                "group": "Customization",
+                "pages": [
+                  "essentials/settings",
+                  "essentials/navigation"
+                ]
+              },
+              {
+                "group": "Writing content",
+                "pages": [
+                  "essentials/markdown",
+                  "essentials/code",
+                  "essentials/images",
+                  "essentials/reusable-snippets"
+                ]
+              }
+            ]
+          },
+          {
+            "tab": "Admin Hub"
+          },
+          {
+            "tab": "Resources",
+            "pages": [
+              "ai-tools/cursor",
+              "ai-tools/claude-code",
+              "ai-tools/windsurf"
+            ]
+          }
+        ]
       },
       {
         "version": "v1.x",
         "tabs": [
           {
-            "tab": "Getting Started"
+            "tab": "Getting Started",
+            "groups": [
+              {
+                "group": "Overview",
+                "pages": [
+                  "1.x/getting-started/overview/introduction",
+                  "1.x/getting-started/overview/upgrade-guide",
+                  "1.x/getting-started/overview/release-schedule",
+                  "1.x/getting-started/overview/security",
+                  "1.x/getting-started/overview/contributing"
+                ]
+              },
+              {
+                "group": "Installation",
+                "pages": [
+                  "1.x/getting-started/installation",
+                  "1.x/getting-started/configuration",
+                  "1.x/getting-started/initial-setup"
+                ]
+              }
+            ,
+              {
+                "group": "Starter Kits",
+                "pages": [
+                  "1.x/getting-started/starter-kits/livewire",
+                  "1.x/getting-started/starter-kits/inertia"
+                ]
+              }
+            ]
           },
           {
-            "tab": "Guides",
+            "tab": "Reference",
             "groups": [
               {
                 "group": "Getting started",
@@ -61,7 +133,7 @@
             ]
           },
           {
-            "tab": "Reference"
+            "tab": "Guides"
           },
           {
             "tab": "Admin Panel"
@@ -91,26 +163,7 @@
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Community",
-          "href": "https://mintlify.com/community",
-          "icon": "slack"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
+    ]
   },
   "logo": {
     "light": "/logo/lunar-logo.svg",
