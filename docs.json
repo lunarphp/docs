@@ -170,19 +170,19 @@
   "footer": {
     "links": [
       {
-        "header": "Cachet",
+        "header": "Lunar",
         "items": [
           {
-            "label": "Cachet",
-            "href": "https://cachethq.io"
+            "label": "Home",
+            "href": "https://lunarphp.io"
           },
           {
             "label": "Blog",
-            "href": "https://blog.cachethq.io"
+            "href": "https://blog.lunarphp.io"
           },
           {
-            "label": "Sponsor Cachet",
-            "href": "https://github.com/sponsors/cachethq"
+            "label": "Sponsor Lunar",
+            "href": "https://github.com/sponsors/lunarphp"
           }
         ]
       },
@@ -190,12 +190,12 @@
         "header": "Open Source",
         "items": [
           {
-            "label": "Cachet",
-            "href": "https://github.com/cachethq/cachet"
+            "label": "One",
+            "href": "https://lunarphp.io"
           },
           {
-            "label": "Cachet Core",
-            "href": "https://github.com/cachethq/core"
+            "label": "Two",
+            "href": "https://lunarphp.io"
           }
         ]
       },
@@ -203,12 +203,12 @@
         "header": "Demo",
         "items": [
           {
-            "label": "Cachet v3.x",
-            "href": "https://dev.cachethq.io"
+            "label": "Admin Panel",
+            "href": "https://lunarphp.io"
           },
           {
-            "label": "Cachet v2.4",
-            "href": "https://demo.cachethq.io"
+            "label": "Storefront",
+            "href": "https://lunarphp.io"
           }
         ]
       }
