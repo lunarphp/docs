@@ -8,59 +8,8 @@
     "dark": "#4bc7f8"
   },
   "favicon": "/favicon.svg",
-  "redirects": [
-    {
-      "source": "/",
-      "destination": "/1.x/getting-started/overview/introduction"
-    }
-  ],
   "navigation": {
     "versions": [
-      {
-        "version": "v0.x",
-        "tabs": [
-          {
-            "tab": "Core",
-            "groups": [
-              {
-                "group": "Getting started",
-                "pages": [
-                  "index",
-                  "quickstart",
-                  "development"
-                ]
-              },
-              {
-                "group": "Customization",
-                "pages": [
-                  "essentials/settings",
-                  "essentials/navigation"
-                ]
-              },
-              {
-                "group": "Writing content",
-                "pages": [
-                  "essentials/markdown",
-                  "essentials/code",
-                  "essentials/images",
-                  "essentials/reusable-snippets"
-                ]
-              }
-            ]
-          },
-          {
-            "tab": "Admin Hub"
-          },
-          {
-            "tab": "Resources",
-            "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
-            ]
-          }
-        ]
-      },
       {
         "version": "v1.x",
         "tabs": [
@@ -78,19 +27,25 @@
                 ]
               },
               {
-                "group": "Installation",
+                "group": "Setup & Configuration",
                 "pages": [
-                  "1.x/getting-started/installation",
-                  "1.x/getting-started/configuration",
-                  "1.x/getting-started/initial-setup"
+                  "1.x/getting-started/setup/installation",
+                  "1.x/getting-started/setup/configuration",
+                  "1.x/getting-started/setup/system-settings"
                 ]
-              }
-            ,
+              },
               {
                 "group": "Starter Kits",
                 "pages": [
                   "1.x/getting-started/starter-kits/livewire",
-                  "1.x/getting-started/starter-kits/inertia"
+                  "1.x/getting-started/starter-kits/inertia-vue"
+                ]
+              },
+              {
+                "group": "Support",
+                "pages": [
+                  "1.x/getting-started/support/community",
+                  "1.x/getting-started/support/premium"
                 ]
               }
             ]
@@ -140,25 +95,50 @@
           },
           {
             "tab": "Add-ons"
-          },
+          }
+        ]
+      },
+      {
+        "version": "v0.x",
+        "tabs": [
           {
-            "tab": "API reference",
+            "tab": "Core",
             "groups": [
               {
-                "group": "API documentation",
+                "group": "Getting started",
                 "pages": [
-                  "api-reference/introduction"
+                  "index",
+                  "quickstart",
+                  "development"
                 ]
               },
               {
-                "group": "Endpoint examples",
+                "group": "Customization",
                 "pages": [
-                  "api-reference/endpoint/get",
-                  "api-reference/endpoint/create",
-                  "api-reference/endpoint/delete",
-                  "api-reference/endpoint/webhook"
+                  "essentials/settings",
+                  "essentials/navigation"
+                ]
+              },
+              {
+                "group": "Writing content",
+                "pages": [
+                  "essentials/markdown",
+                  "essentials/code",
+                  "essentials/images",
+                  "essentials/reusable-snippets"
                 ]
               }
+            ]
+          },
+          {
+            "tab": "Admin Hub"
+          },
+          {
+            "tab": "Resources",
+            "pages": [
+              "ai-tools/cursor",
+              "ai-tools/claude-code",
+              "ai-tools/windsurf"
             ]
           }
         ]
@@ -170,17 +150,9 @@
     "dark": "/logo/lunar-logo-dark.svg"
   },
   "navbar": {
-    "links": [
-      {
-        "label": "GitHub",
-        "icon": "github",
-        "href": "https://github.com/lunarphp"
-      }
-    ],
     "primary": {
-      "type": "button",
-      "label": "Demo",
-      "href": "https://dashboard.mintlify.com"
+      "type": "github",
+      "href": "https://github.com/lunarphp/lunar"
     }
   },
   "contextual": {
@@ -196,6 +168,51 @@
    ]
   },
   "footer": {
+    "links": [
+      {
+        "header": "Cachet",
+        "items": [
+          {
+            "label": "Cachet",
+            "href": "https://cachethq.io"
+          },
+          {
+            "label": "Blog",
+            "href": "https://blog.cachethq.io"
+          },
+          {
+            "label": "Sponsor Cachet",
+            "href": "https://github.com/sponsors/cachethq"
+          }
+        ]
+      },
+      {
+        "header": "Open Source",
+        "items": [
+          {
+            "label": "Cachet",
+            "href": "https://github.com/cachethq/cachet"
+          },
+          {
+            "label": "Cachet Core",
+            "href": "https://github.com/cachethq/core"
+          }
+        ]
+      },
+      {
+        "header": "Demo",
+        "items": [
+          {
+            "label": "Cachet v3.x",
+            "href": "https://dev.cachethq.io"
+          },
+          {
+            "label": "Cachet v2.4",
+            "href": "https://demo.cachethq.io"
+          }
+        ]
+      }
+    ],
     "socials": {
       "x": "https://x.com/lunarphp",
       "github": "https://github.com/lunarphp",
