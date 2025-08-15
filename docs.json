@@ -10,6 +10,11 @@
   "background": {
     "decoration": "grid"
   },
+  "fonts": {
+    "heading": {
+      "family": "Poppins"
+    }
+  },
   "favicon": "/favicon.svg",
   "navigation": {
     "versions": [
