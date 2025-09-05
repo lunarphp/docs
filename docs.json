@@ -62,47 +62,127 @@
             "tab": "Reference",
             "groups": [
               {
-                "group": "Getting started",
+                "group": "Core",
                 "pages": [
-                  "index",
-                  "quickstart",
-                  "development"
+                  {
+                    "group": "Catalog",
+                    "pages": [
+                      "1.x/reference/associations",
+                      "1.x/reference/attributes",
+                      "1.x/reference/collections",
+                      "1.x/reference/media",
+                      "1.x/reference/products",
+                      "1.x/reference/search",
+                      "1.x/reference/urls"
+                    ]
+                  },
+                  {
+                    "group": "Order Management",
+                    "pages": [
+                      "1.x/reference/addresses",
+                      "1.x/reference/carts",
+                      "1.x/reference/customers",
+                      "1.x/reference/discounts",
+                      "1.x/reference/orders",
+                      "1.x/reference/payments",
+                      "1.x/reference/pricing"
+                    ]
+                  },
+                  {
+                    "group": "Configuration",
+                    "pages": [
+                      "1.x/reference/activity-log",
+                      "1.x/reference/channels",
+                      "1.x/reference/currencies",
+                      "1.x/reference/languages",
+                      "1.x/reference/tags",
+                      "1.x/reference/taxation"
+                    ]
+                  }
                 ]
               },
               {
-                "group": "Customization",
+                "group": "Storefront",
                 "pages": [
-                  "essentials/settings",
-                  "essentials/navigation"
+                  "1.x/storefront-utils/storefront-session"
                 ]
               },
               {
-                "group": "Writing content",
+                "group": "Extending",
                 "pages": [
-                  "essentials/markdown",
-                  "essentials/code",
-                  "essentials/images",
-                  "essentials/reusable-snippets"
-                ]
-              },
-              {
-                "group": "AI tools",
-                "pages": [
-                  "ai-tools/cursor",
-                  "ai-tools/claude-code",
-                  "ai-tools/windsurf"
+                  "1.x/extending/carts",
+                  "1.x/extending/discounts",
+                  "1.x/extending/models",
+                  "1.x/extending/orders",
+                  "1.x/extending/payments",
+                  "1.x/extending/search",
+                  "1.x/extending/shipping",
+                  "1.x/extending/taxation"
                 ]
               }
             ]
           },
           {
-            "tab": "Guides"
+            "tab": "Guides",
+            "groups": [
+              {
+                "group": "Catalog",
+                "pages": [
+                  "1.x/guides/product-display-page"
+                ]
+              }
+            ]
           },
           {
-            "tab": "Admin Panel"
+            "tab": "Admin Panel",
+            "groups": [
+              {
+                "group": "Getting Started",
+                "pages": [
+                  "1.x/admin/introduction"
+                ]
+              },
+              {
+                "group": "Extending",
+                "pages": [
+                  "1.x/admin/extending/overview",
+                  "1.x/admin/extending/access-control",
+                  "1.x/admin/extending/addons",
+                  "1.x/admin/extending/attributes",
+                  "1.x/admin/extending/panel",
+                  "1.x/admin/extending/pages",
+                  "1.x/admin/extending/resources",
+                  "1.x/admin/extending/relation-managers",
+                  "1.x/admin/extending/order-management"
+                ]
+              }
+            ]
           },
           {
-            "tab": "Add-ons"
+            "tab": "Add-ons",
+            "groups": [
+              {
+                "group": "Payments",
+                "pages": [
+                  "1.x/addons/stripe",
+                  "1.x/addons/paypal",
+                  "1.x/addons/opayo"
+                ]
+              },
+              {
+                "group": "Shipping",
+                "pages": [
+                  "1.x/addons/table-rate-shipping"
+                ]
+              },
+              {
+                "group": "Search",
+                "pages": [
+                  "1.x/addons/meilisearch",
+                  "1.x/addons/search"
+                ]
+              }
+            ]
           }
         ]
       },
@@ -110,43 +190,90 @@
         "version": "v0.x",
         "tabs": [
           {
-            "tab": "Core",
+            "tab": "Getting Started",
             "groups": [
               {
-                "group": "Getting started",
+                "group": "Overview",
                 "pages": [
-                  "index",
-                  "quickstart",
-                  "development"
+                  "0.x/getting-started/overview/introduction",
+                  "0.x/getting-started/overview/upgrade-guide",
+                  "0.x/getting-started/overview/security",
+                  "0.x/getting-started/overview/contributing"
                 ]
               },
               {
-                "group": "Customization",
+                "group": "Setup & Configuration",
                 "pages": [
-                  "essentials/settings",
-                  "essentials/navigation"
+                  "0.x/getting-started/setup/installation",
+                  "0.x/getting-started/setup/configuration"
                 ]
               },
               {
-                "group": "Writing content",
+                "group": "Starter Kits",
                 "pages": [
-                  "essentials/markdown",
-                  "essentials/code",
-                  "essentials/images",
-                  "essentials/reusable-snippets"
+                  "0.x/getting-started/starter-kits/livewire"
                 ]
               }
             ]
           },
           {
-            "tab": "Admin Hub"
+            "tab": "Reference",
+            "groups": [
+              {
+                "group": "Core",
+                "pages": [
+                  "0.x/reference/activity-log",
+                  "0.x/reference/addresses",
+                  "0.x/reference/associations",
+                  "0.x/reference/attributes",
+                  "0.x/reference/carts",
+                  "0.x/reference/channels",
+                  "0.x/reference/collections",
+                  "0.x/reference/currencies",
+                  "0.x/reference/customers",
+                  "0.x/reference/discounts",
+                  "0.x/reference/languages",
+                  "0.x/reference/media",
+                  "0.x/reference/orders",
+                  "0.x/reference/payments",
+                  "0.x/reference/pricing",
+                  "0.x/reference/products",
+                  "0.x/reference/search",
+                  "0.x/reference/tags",
+                  "0.x/reference/taxation",
+                  "0.x/reference/urls"
+                ]
+              },
+              {
+                "group": "Storefront",
+                "pages": [
+                  "0.x/storefront-utils/storefront-session"
+                ]
+              },
+              {
+                "group": "Extending",
+                "pages": [
+                  "0.x/extending/carts",
+                  "0.x/extending/discounts",
+                  "0.x/extending/models",
+                  "0.x/extending/orders",
+                  "0.x/extending/payments",
+                  "0.x/extending/search",
+                  "0.x/extending/shipping",
+                  "0.x/extending/taxation"
+                ]
+              }
+            ]
           },
           {
-            "tab": "Resources",
-            "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+            "tab": "Admin Panel",
+            "groups": [
+              {
+                "group": "Core",
+                "pages": [
+                  "0.x/admin/overview"
+                ]
+              }
             ]
           }
         ]
