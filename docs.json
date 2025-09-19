@@ -183,6 +183,17 @@
                 ]
               }
             ]
+          },
+          {
+            "tab": "Blog",
+            "groups": [
+              {
+                "group": "2025",
+                "pages": [
+                  "blog/2025/september"
+                ]
+              }
+            ]
           }
         ]
       },
