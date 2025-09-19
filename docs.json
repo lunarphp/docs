@@ -367,5 +367,9 @@
       "github": "https://github.com/lunarphp",
       "linkedin": "https://linkedin.com/company/lunarphp"
     }
+  },
+  "banner": {
+    "content": "Support Lunar’s development by [**becoming a sponsor**](https://github.com/lunarphp) — enjoy exclusive perks and help shape the future of the project.",
+    "dismissible": true
   }
 }
