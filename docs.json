@@ -188,8 +188,11 @@
             "tab": "Blog",
             "groups": [
               {
-                "group": "2025",
+                "group": "Lunar Log",
                 "pages": [
+                  "blog/2025/december",
+                  "blog/2025/november",
+                  "blog/2025/october",
                   "blog/2025/september"
                 ]
               }
