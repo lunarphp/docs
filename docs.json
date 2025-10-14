@@ -16,6 +16,9 @@
     }
   },
   "favicon": "/favicon.svg",
+  "appearance": {
+    "default": "dark"
+  },
   "navigation": {
     "versions": [
       {
