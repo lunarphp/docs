@@ -51,13 +51,6 @@
                   "1.x/getting-started/starter-kits/livewire",
                   "1.x/getting-started/starter-kits/inertia-vue"
                 ]
-              },
-              {
-                "group": "Support",
-                "pages": [
-                  "1.x/getting-started/support/community",
-                  "1.x/getting-started/support/lunar-alliance"
-                ]
               }
             ]
           },
@@ -172,6 +165,38 @@
                 "pages": [
                   "1.x/addons/meilisearch",
                   "1.x/addons/search"
+                ]
+              }
+            ]
+          },
+          {
+            "tab": "Support",
+            "groups": [
+              {
+                "group": "Community",
+                "pages": [
+                  "support/community"
+                ]
+              },
+              {
+                "group": "Lunar Alliance",
+                "pages": [
+                  "support/lunar-alliance",
+                  {
+                    "group": "Europe",
+                    "expanded": true,
+                    "pages": [
+                      "support/alliance/neon-digital",
+                      "support/alliance/thought-collective"
+                    ]
+                  },
+                  {
+                    "group": "Asia Pacific",
+                    "expanded": true,
+                    "pages": [
+                      "support/alliance/weby-digital"
+                    ]
+                  }
                 ]
               }
             ]
