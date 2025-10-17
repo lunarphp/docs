@@ -340,54 +340,12 @@
    ]
   },
   "footer": {
-    "links": [
-      {
-        "header": "Lunar",
-        "items": [
-          {
-            "label": "Home",
-            "href": "https://lunarphp.io"
-          },
-          {
-            "label": "Blog",
-            "href": "https://blog.lunarphp.io"
-          },
-          {
-            "label": "Sponsor Lunar",
-            "href": "https://github.com/sponsors/lunarphp"
-          }
-        ]
-      },
-      {
-        "header": "Open Source",
-        "items": [
-          {
-            "label": "One",
-            "href": "https://lunarphp.io"
-          },
-          {
-            "label": "Two",
-            "href": "https://lunarphp.io"
-          }
-        ]
-      },
-      {
-        "header": "Demo",
-        "items": [
-          {
-            "label": "Admin Panel",
-            "href": "https://lunarphp.io"
-          },
-          {
-            "label": "Storefront",
-            "href": "https://lunarphp.io"
-          }
-        ]
-      }
-    ],
+
     "socials": {
+      "website": "https://lunarphp.io",
       "x": "https://x.com/lunarphp",
       "github": "https://github.com/lunarphp",
+      "discord": "https://discord.gg/v6qVWaf",
       "linkedin": "https://linkedin.com/company/lunarphp"
     }
   }
