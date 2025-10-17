@@ -188,10 +188,10 @@
               {
                 "group": "Mission Log",
                 "pages": [
-                  "logs/2025/december",
-                  "logs/2025/november",
                   "logs/2025/october",
-                  "logs/2025/september"
+                  "logs/2025/september",
+                  "logs/2025/august",
+                  "logs/2025/july"
                 ]
               }
             ]
