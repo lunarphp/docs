@@ -177,26 +177,24 @@
             ]
           },
           {
-            "tab": "Lunar Log",
+            "tab": "Mission Log",
             "groups": [
               {
-                "group": "Lunar Log",
+                "group": "Trajectory\n",
                 "pages": [
-                  "blog/2025/december",
-                  "blog/2025/november",
-                  "blog/2025/october",
-                  "blog/2025/september"
+                  "logs/roadmap"
+                ]
+              },
+              {
+                "group": "Mission Log",
+                "pages": [
+                  "logs/2025/december",
+                  "logs/2025/november",
+                  "logs/2025/october",
+                  "logs/2025/september"
                 ]
               }
             ]
-          },
-          {
-            "tab": "Roadmap",
-
-                "pages": [
-                  "roadmap/roadmap"
-                ]
-
           }
         ]
       },
