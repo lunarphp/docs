@@ -126,17 +126,6 @@
             ]
           },
           {
-            "tab": "Guides",
-            "groups": [
-              {
-                "group": "Catalog",
-                "pages": [
-                  "1.x/guides/product-display-page"
-                ]
-              }
-            ]
-          },
-          {
             "tab": "Admin Panel",
             "groups": [
               {
@@ -188,7 +177,7 @@
             ]
           },
           {
-            "tab": "Blog",
+            "tab": "Lunar Log",
             "groups": [
               {
                 "group": "Lunar Log",
@@ -200,6 +189,14 @@
                 ]
               }
             ]
+          },
+          {
+            "tab": "Roadmap",
+
+                "pages": [
+                  "roadmap/roadmap"
+                ]
+
           }
         ]
       },
@@ -370,9 +367,5 @@
       "github": "https://github.com/lunarphp",
       "linkedin": "https://linkedin.com/company/lunarphp"
     }
-  },
-  "banner": {
-    "content": "Support Lunar’s development by [**becoming a sponsor**](https://github.com/lunarphp) — enjoy exclusive perks and help shape the future of the project.",
-    "dismissible": true
   }
 }
