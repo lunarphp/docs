@@ -177,12 +177,12 @@
             ]
           },
           {
-            "tab": "Mission Log",
+            "tab": "Mission Control",
             "groups": [
               {
-                "group": "Trajectory\n",
+                "group": "Trajectory",
                 "pages": [
-                  "logs/roadmap"
+                  "logs/flight-plan"
                 ]
               },
               {
