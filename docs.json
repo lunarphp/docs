@@ -33,8 +33,7 @@
                   "1.x/getting-started/overview/introduction",
                   "1.x/getting-started/overview/upgrade-guide",
                   "1.x/getting-started/overview/security",
-                  "1.x/getting-started/overview/contributing",
-                  "1.x/getting-started/overview/changelog"
+                  "1.x/getting-started/overview/contributing"
                 ]
               },
               {
@@ -144,32 +143,6 @@
             ]
           },
           {
-            "tab": "Add-ons",
-            "groups": [
-              {
-                "group": "Payments",
-                "pages": [
-                  "1.x/addons/stripe",
-                  "1.x/addons/paypal",
-                  "1.x/addons/opayo"
-                ]
-              },
-              {
-                "group": "Shipping",
-                "pages": [
-                  "1.x/addons/table-rate-shipping"
-                ]
-              },
-              {
-                "group": "Search",
-                "pages": [
-                  "1.x/addons/meilisearch",
-                  "1.x/addons/search"
-                ]
-              }
-            ]
-          },
-          {
             "tab": "Support",
             "groups": [
               {
@@ -213,10 +186,7 @@
               {
                 "group": "Mission Log",
                 "pages": [
-                  "logs/2025/october",
-                  "logs/2025/september",
-                  "logs/2025/august",
-                  "logs/2025/july"
+                  "logs/2025/new-docs"
                 ]
               }
             ]
