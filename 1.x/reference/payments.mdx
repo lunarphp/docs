@@ -158,7 +158,7 @@ This essentially does the same as above, except we already catch the exceptions 
 
 If you need to programmatically change the Order values or add in new behaviour, you will want to extend the Order system.
 
-You can find out more in the Extending Lunar section for [Order Modifiers](/extending/order-modifiers).
+You can find out more in the Extending Lunar section for [Orders](/1.x/extending/orders).
 
 ## Order Lines
 
@@ -259,7 +259,7 @@ $order->billingAddress;
 A Shipping Tables addon is planned to make setting up shipping in the admin hub easy for most scenarios.
 </Tip>
 
-To add Shipping Options you will need to [extend Lunar](/extending/shipping) to add in your own logic.
+To add Shipping Options you will need to [extend Lunar](/1.x/extending/shipping) to add in your own logic.
 
 Then in your checkout, or where ever you want, you can fetch these options:
 
@@ -330,7 +330,7 @@ $order->refunds; // Get all transactions that are refunds.
 
 ### Payment Checks
 
-Some providers return information based on checks that can occur before payment is validated and completed. 
+Some providers return information based on checks that can occur before payment is validated and completed.
 This is usually related to 3DSecure but in some cases can relate to credit checks or anything the payment provider has deemed relevant to the transaction.
 
 You can get access to these checks via the `paymentChecks()` method on the `Transaction`.
