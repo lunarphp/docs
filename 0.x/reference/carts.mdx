@@ -123,7 +123,7 @@ foreach ($cart->shippingBreakdown->items as $shippingBreakdown) {
     $shippingBreakdown->identifier;
     $shippingBreakdown->price->formatted();
 }
-    
+
 
 foreach ($cart->discountBreakdown as $discountBreakdown) {
     $discountBreakdown->discount_id
@@ -153,7 +153,7 @@ If you need to programmatically change the Cart values, e.g. custom discounts or
 prices, you will want to extend the Cart.
 
 You can find out more in the Extending Lunar section for
-[Cart Extending](/core/extending/carts).
+[Cart Extending](/0.x/extending/carts).
 
 ## Calculating Tax
 
@@ -261,7 +261,7 @@ created for no good reason. If you want to enable this functionality, you can
 adjust the config in `lunar/cart_session.php`
 
 ### Forgetting the cart
-Forgetting the cart will remove it from the user session and also soft-delete 
+Forgetting the cart will remove it from the user session and also soft-delete
 the cart in the database.
 
 ```php

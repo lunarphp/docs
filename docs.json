@@ -225,12 +225,6 @@
                   "0.x/getting-started/setup/installation",
                   "0.x/getting-started/setup/configuration"
                 ]
-              },
-              {
-                "group": "Starter Kits",
-                "pages": [
-                  "0.x/getting-started/starter-kits/livewire"
-                ]
               }
             ]
           },
@@ -284,15 +278,30 @@
             ]
           },
           {
-            "tab": "Admin Panel",
+            "tab": "Admin Hub",
             "groups": [
               {
                 "group": "Core",
                 "pages": [
-                  "0.x/admin/overview"
+                  "0.x/admin-hub/overview",
+                  "0.x/admin-hub/extending",
+                  "0.x/admin-hub/activity-log",
+                  "0.x/admin-hub/assets",
+                  "0.x/admin-hub/branding",
+                  "0.x/admin-hub/discounts",
+                  "0.x/admin-hub/field-types",
+                  "0.x/admin-hub/preview",
+                  "0.x/admin-hub/staff",
+                  "0.x/admin-hub/tables",
+                  "0.x/admin-hub/validation"
                 ]
               }
             ]
+          },
+          {
+            "tab": "Latest version",
+            "icon": "external-link",
+            "href": "https://docs.lunarphp.com/1.x"
           }
         ]
       }

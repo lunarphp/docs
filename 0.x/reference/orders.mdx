@@ -15,22 +15,22 @@ Lunar\Models\Order
 | cart_id               | The related cart                                                                                                   |
 | channel_id            | Which channel this was purchased through                                                                           |
 | status                | A status that makes sense to you as the store owner                                                                |
-| reference             | Your store's own reference                                                                                          
-| customer_reference    | If you want customers to add their own reference, it goes here.                                                    
-| sub_total             | The sub total minus any discounts, excl. tax                                                                       
-| discount_breakdown    | A json field for the discount breakdown e.g. `[{"discount_id": 1, "lines": [{"id": 1, "qty": 1}]], "total": 200}]` 
-| discount_total        | Any discount amount excl. tax                                                                                      
+| reference             | Your store's own reference
+| customer_reference    | If you want customers to add their own reference, it goes here.
+| sub_total             | The sub total minus any discounts, excl. tax
+| discount_breakdown    | A json field for the discount breakdown e.g. `[{"discount_id": 1, "lines": [{"id": 1, "qty": 1}]], "total": 200}]`
+| discount_total        | Any discount amount excl. tax
 | shipping_breakdown| A json field for the shipping breakdown e.g. `[{"name": "Standard Delivery", "identifier": "STD", "price": 123}]`
-| shipping_total        | The shipping total with tax                                                                                       
-| tax_breakdown         | A json field for the tax breakdown e.g. `[{"description": "VAT", "identifier" : "vat", "value": 123, "percentage": 20, "currency_code": "GBP"}]`                        
-| tax_total             | The total amount of tax applied                                                                                    
-| total                 | The grand total with tax                                                                                           
-| notes                 | Any additional order notes                                                                                         
-| currency_code         | The code of the currency the order was placed in                                                                   
-| compare_currency_code | The code of the default currency at the time                                                                       
-| exchange_rate         | The exchange rate between `currency_code` and `compare_currency_code`                                              
-| placed_at             | The datetime the order was considered placed.                                                                      
-| meta                  | Any additional meta info you wish to store                                                                         
+| shipping_total        | The shipping total with tax
+| tax_breakdown         | A json field for the tax breakdown e.g. `[{"description": "VAT", "identifier" : "vat", "value": 123, "percentage": 20, "currency_code": "GBP"}]`
+| tax_total             | The total amount of tax applied
+| total                 | The grand total with tax
+| notes                 | Any additional order notes
+| currency_code         | The code of the currency the order was placed in
+| compare_currency_code | The code of the default currency at the time
+| exchange_rate         | The exchange rate between `currency_code` and `compare_currency_code`
+| placed_at             | The datetime the order was considered placed.
+| meta                  | Any additional meta info you wish to store
 | created_at            |                                                                                                                    |
 | updated_at            |                                                                                                                    |
 
@@ -118,11 +118,11 @@ class MyCustomValidator extends \Lunar\Validation\BaseValidator
     public function validate(): bool
     {
         $cart = $this->parameters['cart'];
-        
+
         if ($somethingWentWrong) {
             return $this->fail('There was an issue');
         }
-        
+
         return $this->pass();
     }
 }
@@ -180,7 +180,7 @@ class MyCustomGenerator implements OrderReferenceGeneratorInterface
 If you need to programmatically change the Order values or add in new behaviour, you will want to extend the Order
 system.
 
-You can find out more in the Extending Lunar section for [Order Modifiers](/core/extending/orders).
+You can find out more in the Extending Lunar section for [Order Modifiers](/0.x/extending/orders).
 
 ## Order Lines
 
@@ -194,20 +194,20 @@ Lunar\Models\OrderLine
 | order_id         |                                                                                                                                                  |
 | purchasable_type | Morph reference for the purchasable item e.g. `product_variant`                                                                                  |
 | purchasable_id   |
-| type             | Whether `digital`,`physical` etc                                                            
-| description      | A description of the line item                                                              
-| option           | If this was a variant, the option info is here                                              
-| identifier       | Something to identify the purchasable item, usually an `sku`                                
-| unit_price       | The unit price of the line                                                                  
-| unit_quantity    | The line unit quantity, usually this is 1                                                   
-| quantity         | The amount of this item purchased                                                           
-| sub_total        | The sub total minus any discounts, excl. tax                                                
-| discount_total   | Any discount amount excl. tax                                                               
+| type             | Whether `digital`,`physical` etc
+| description      | A description of the line item
+| option           | If this was a variant, the option info is here
+| identifier       | Something to identify the purchasable item, usually an `sku`
+| unit_price       | The unit price of the line
+| unit_quantity    | The line unit quantity, usually this is 1
+| quantity         | The amount of this item purchased
+| sub_total        | The sub total minus any discounts, excl. tax
+| discount_total   | Any discount amount excl. tax
 | tax_breakdown    | A json field for the tax breakdown e.g. `[{"description": "VAT", "identifier" : "vat", "value": 123, "percentage": 20, "currency_code": "GBP"}]`
-| tax_total        | The total amount of tax applied                                                             
-| total            | The grand total with tax                                                                    
-| notes            | Any additional order notes                                                                  
-| meta             | Any additional meta info you wish to store                                                  
+| tax_total        | The total amount of tax applied
+| total            | The grand total with tax
+| notes            | Any additional order notes
+| meta             | Any additional meta info you wish to store
 | created_at       |                                                                                             |
 | updated_at       |                                                                                             |
 
@@ -280,7 +280,7 @@ $order->billingAddress;
 A Shipping Tables addon is planned to make setting up shipping in the admin hub easy for most scenarios.
 </Tip>
 
-To add Shipping Options you will need to [extend Lunar](/core/extending/shipping) to add in your own logic.
+To add Shipping Options you will need to [extend Lunar](/0.x/extending/shipping) to add in your own logic.
 
 Then in your checkout, or where ever you want, you can fetch these options:
 
@@ -312,12 +312,12 @@ Lunar\Models\Transaction
 | refund     | `true` if this was a refund                                                                   |
 | driver     | The payment driver used e.g. `stripe`                                                         |
 | amount     | An integer amount                                                                             |
-| reference  | The reference returned from the payment Provider. Used to identify the transaction with them. 
+| reference  | The reference returned from the payment Provider. Used to identify the transaction with them.
 | status     | A string representation of the status, unlinked to Lunar e.g. `settled`                       |
-| notes      | Any relevant notes for the transaction                                                        
-| card_type  | e.g. `visa`                                                                                   
-| last_four  | Last 4 digits of the card                                                                     
-| meta       | Any additional meta info you wish to store                                                    
+| notes      | Any relevant notes for the transaction
+| card_type  | e.g. `visa`
+| last_four  | Last 4 digits of the card
+| meta       | Any additional meta info you wish to store
 | created_at |                                                                                               |
 | updated_at |                                                                                               |
 

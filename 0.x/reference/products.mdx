@@ -71,7 +71,7 @@ Lunar\Models\ProductType::create([
 ]);
 ```
 
-Product Types also have [Attributes](/core/reference/attributes) associated to them. These associated attributes will
+Product Types also have [Attributes](/0.x/reference/attributes) associated to them. These associated attributes will
 determine what fields are available to products when editing. For example if you had an attribute of `Screen Type`
 associated to a `TVs` product type, any products with that product type would have access to that attribute when
 editing.
@@ -457,7 +457,7 @@ $price = \Lunar\Models\Price::create([
 
 ## Price formatting
 
-For the full reference on how to format prices for your storefront see the [Pricing Reference](/core/reference/pricing)
+For the full reference on how to format prices for your storefront see the [Pricing Reference](/0.x/reference/pricing)
 
 <Tip>
 The same methods apply to the compare_price attribute
@@ -639,7 +639,7 @@ available on the `Lunar\Models\Price` model.
 ```php
 $price->priceIncTax();
 $price->priceExTax();
-$price->comparePriceIncTax(); // to retrieve the tax inclusive compare price 
+$price->comparePriceIncTax(); // to retrieve the tax inclusive compare price
 ```
 
 ### Customising Prices with Pipelines
@@ -692,7 +692,7 @@ Pipelines will run from top to bottom
 
 For this example, we're going to be creating some Dr. Martens boots. Below is a screenshot of what we're aiming for:
 
-![](/images/products/dr-martens.png)
+![](/0.x/images/products/dr-martens.png)
 
 Here are the steps we're going to take:
 
