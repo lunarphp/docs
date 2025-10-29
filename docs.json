@@ -24,6 +24,12 @@
       "siteId": "KMZGQTYE"
     }
   },
+  "redirects": [
+    {
+      "source": "/core/installation.html",
+      "destination": "/1.x/getting-started/setup/installation"
+    }
+  ],
   "navigation": {
     "versions": [
       {
