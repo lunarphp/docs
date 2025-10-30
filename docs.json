@@ -51,7 +51,6 @@
                 "group": "Setup & Configuration",
                 "pages": [
                   "1.x/getting-started/setup/installation",
-                  "1.x/getting-started/setup/configuration",
                   "1.x/getting-started/setup/system-settings"
                 ]
               },
