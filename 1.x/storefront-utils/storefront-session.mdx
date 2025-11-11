@@ -17,7 +17,7 @@ StorefrontSession::initChannel();
 ```
 
 <Info>
-This is automatically called when using the facade.
+    This is automatically called when using the facade.
 </Info>
 
 ### Set the Channel
@@ -49,7 +49,7 @@ StorefrontSession::initCustomerGroups();
 ```
 
 <Info>
-This is automatically called when using the facade.
+    This is automatically called when using the facade.
 </Info>
 
 ### Set the Customer Groups
@@ -84,7 +84,7 @@ StorefrontSession::initCustomer();
 ```
 
 <Info>
-This is automatically called when using the facade.
+    This is automatically called when using the facade.
 </Info>
 
 ### Set the Customer
@@ -102,6 +102,18 @@ StorefrontSession::getCustomer();
 ```
 
 ## Currencies
+
+### Initialise the Currency
+
+This will set the Currency based on what's been previously set (from the session), otherwise it will use the default record.
+
+```php
+StorefrontSession::initCurrency();
+```
+
+<Tip>
+    This is automatically called when using the facade.
+</Tip>
 
 ### Set the Currency
 
