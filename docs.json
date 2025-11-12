@@ -159,8 +159,7 @@
                 "group": "General",
                 "pages": [
                   "1.x/addons/table-rate-shipping",
-                  "1.x/addons/search",
-                  "1.x/addons/meilisearch"
+                  "1.x/addons/search"
                 ]
               },
               {
