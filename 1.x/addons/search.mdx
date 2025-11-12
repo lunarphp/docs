@@ -23,20 +23,20 @@ Most configuration is done via `config/lunar/search.php`. Here you can specify w
 
 ```php
 'facets' => [
-        \Lunar\Models\Product::class => [
-            'brand' => [
-                'label' => 'Brand',
-            ],
-            'colour' => [
-                'label' => 'Colour',
-            ],
-            'size' => [
-                'label' => 'Size',
-            ],
-            'shoe-size' => [
-                'label' => 'Shoe Size',
-            ]
+    \Lunar\Models\Product::class => [
+        'brand' => [
+            'label' => 'Brand',
+        ],
+        'colour' => [
+            'label' => 'Colour',
+        ],
+        'size' => [
+            'label' => 'Size',
+        ],
+        'shoe-size' => [
+            'label' => 'Shoe Size',
         ]
+    ]
 ],
 ```
 
@@ -94,7 +94,7 @@ use Lunar\Search\Facades\Search;
 $results = Search::query('Hoodies')->get();
 ```
 
-```bladehtml
+```blade
 <!-- Loop through results-->
 @foreach($results->hits as $hit)
     {{ $hit->document['name'] }}
