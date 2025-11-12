@@ -13,6 +13,13 @@ Run any migrations
 php artisan migrate
 ```
 
+## [Unreleased]
+
+### Medium Impact
+
+#### Renamed Order resource "OrderSummaryInfolist" extension hook
+There was a typo in the extension hook. You should rename `exendOrderSummaryInfolist` to `extendOrderSummaryInfolist`.
+
 ## 1.0.0 (stable release)
 
 This release introduces anonymous usage insights, which are sent via a deferred API call to Lunar. The reason for this addition

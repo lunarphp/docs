@@ -1,0 +1,64 @@
+---
+title: "PayPal"
+---
+
+This addon enables PayPal on your Lunar storefront.
+
+## Installation
+
+### Require the composer package
+
+```sh
+composer require lunarphp/paypal
+```
+
+### Enable the driver
+
+Set the driver in `config/lunar/payments.php`.
+
+```php
+<?php
+
+return [
+    // ...
+    'types' => [
+        'card' => [
+            // ...
+            'driver' => 'paypal',
+        ],
+    ],
+];
+```
+
+### Add your PayPal credentials
+
+Add your PayPal credentials to `config/services.php` (or set the ENV vars below):
+
+```php
+    // ...
+    'paypal' => [
+        'env' => env('PAYPAL_ENV', 'sandbox'),
+        'client_id' => env('PAYPAL_CLIENT_ID'),
+        'secret' => env('PAYPAL_SECRET'),
+    ],
+```
+
+> You can create REST API credentials and Webhooks in the PayPal Developer Dashboard: https://developer.paypal.com/dashboard
+
+## Usage
+
+```php
+use Lunar\Facades\Payments;
+
+$response = Payments::driver('paypal')->cart(
+    $cart
+)->withData([
+    'paypal_order_id' => $request->get('orderID'),
+    'paypal_payment_id' => $request->get('paymentID'),
+    'status' => 'payment-received',
+])->authorize();
+
+if (! $response->success) {
+    abort(401);
+}
+```
