@@ -169,6 +169,12 @@
                   "1.x/addons/payments/paypal",
                   "1.x/addons/payments/opayo"
                 ]
+              },
+              {
+                "group": "Community",
+                "pages": [
+                  "1.x/addons/community/overview"
+                ]
               }
             ]
           },
