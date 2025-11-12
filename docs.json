@@ -153,6 +153,27 @@
             ]
           },
           {
+            "tab": "Add-ons",
+            "groups": [
+              {
+                "group": "General",
+                "pages": [
+                  "1.x/addons/table-rate-shipping",
+                  "1.x/addons/search",
+                  "1.x/addons/meilisearch"
+                ]
+              },
+              {
+                "group": "Payments",
+                "pages": [
+                  "1.x/addons/payments/stripe",
+                  "1.x/addons/payments/paypal",
+                  "1.x/addons/payments/opayo"
+                ]
+              }
+            ]
+          },
+          {
             "tab": "Support",
             "groups": [
               {
