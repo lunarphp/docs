@@ -204,7 +204,25 @@ $option->values()->createMany([
 ]);
 ```
 
-This Product option and it's values are now ready to be used to with Product Variants.
+This Product option and its values are now ready to be used to with Product Variants.
+
+### Product Option Meta
+
+Both `ProductOption` and `ProductOptionValue` models include a meta field for you to include custom information.
+For example, you may wish to store color values, links to images, etc.
+
+Lunar makes no assumptions here, you are free to store your values in the `meta` JSON field however you like.
+
+# Product Associations
+
+Lunar allows you to associate products with other products. These will typically be for defining upsells, cross-sells
+and alternative products.
+
+You can customize the association types by creating your own ENUM definition in the `products.php` config file.
+
+```php
+    'association_types_enum' => \Lunar\Base\Enums\ProductAssociation::class,
+```
 
 # Product Shipping
 
