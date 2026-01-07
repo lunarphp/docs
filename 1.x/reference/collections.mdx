@@ -36,6 +36,9 @@ $collection = \Lunar\Models\Collection::create([
 ]);
 ```
 
+<Warning>
+Lunar internally expects and uses the ``name`` added to Collection Attribute data. You must add it in attributes, and utilize it; Otherwise, Admin Panel may throw unexpected errors.
+</Warning>
 
 ### Add a child collection
 
@@ -51,6 +54,11 @@ This results in the following
 - Clearance
     - Child
 ```
+
+<Info>
+Lunar expects to have at least one Root/Parent collection. If you do not have a root collection, you can't create child collections. This is important to consider for those who use seeder
+to setup initial state of their ecommerce system.
+</Info>
 
 Lunar uses the [Laravel Nested Set](https://github.com/lazychaser/laravel-nestedset) package, so feel free to take a look at it to see what's possible.
 
