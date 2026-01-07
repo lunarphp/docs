@@ -23,6 +23,10 @@ Lunar\Models\Product::create([
 ]);
 ```
 
+<Warning>
+Lunar internally expects and uses the ``name`` added to Product Attribute data. You must add it in attributes, and utilize it; Otherwise, Admin Panel may throw unexpected errors.
+</Warning>
+
 ## Customer Groups
 
 You can assign customer groups to a product, this allows you to either always have that product enabled for the customer
