@@ -13,7 +13,19 @@ Run any migrations
 php artisan migrate
 ```
 
-## [Unreleased]
+## 1.2
+
+### Low Impact
+
+#### Product association types ENUM
+Product association types have now been moved to a dedicated ENUM and the model constants have been deprecated.
+The ENUM class can be switched in config to allow for extending.
+
+#### Added meta fields to product options
+The ProductOption and ProductOptionValue models now include a `meta` field. If you have added your own `meta` fields
+you may experience a migration conflict.
+
+## 1.1
 
 ### Medium Impact
 
