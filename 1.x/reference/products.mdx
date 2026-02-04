@@ -660,8 +660,10 @@ available on the `Lunar\Models\Price` model.
 
 ```php
 $price->priceIncTax();
+$price->priceIncTax($yourTaxZone); // TaxIncl Price based on your Tax Zone and Tax Rate.
 $price->priceExTax();
 $price->comparePriceIncTax(); // to retrieve the tax inclusive compare price
+$price->comparePriceIncTax($yourTaxZone); // TaxIncl Price based on your Tax Zone and Tax Rate.
 ```
 
 ### Customising Prices with Pipelines
