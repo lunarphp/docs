@@ -39,3 +39,7 @@ mint update          # Update CLI if dev environment isn't working
 Navigation in `docs.json` is organized under `navigation.versions`:
 - **v1.x** has tabs: Getting Started, Reference, Admin Panel, Add-ons, Support, Mission Control
 - **v0.x** has tabs: Getting Started, Reference, Admin Hub
+
+## Source Code
+
+The monorepo for the Lunar project can be found at `../lunar`. We should use this codebase as a reference when creating documentation and we should always test example code to ensure it is accurate and correct.
