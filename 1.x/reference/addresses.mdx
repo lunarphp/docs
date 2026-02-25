@@ -66,7 +66,7 @@ $address = $customer->addresses()->create([
 ]);
 ```
 
-You can also create an address directly.
+An address can also be created directly.
 
 ```php
 $address = \Lunar\Models\Address::create([
@@ -118,7 +118,7 @@ $address->update([
 ```
 
 <Tip>
-When you set an address as the default, Lunar automatically unsets the previous default for that customer via an observer. You don't need to manually manage this.
+When an address is set as the default, Lunar automatically unsets the previous default for that customer via an observer. There is no need to manually manage this.
 </Tip>
 
 ### Relationships
@@ -226,5 +226,5 @@ php artisan lunar:import:address-data
 ```
 
 <Info>
-You should run this command after installing Lunar and after any updates that may include new country or state data.
+This command should be run after installing Lunar and after any updates that may include new country or state data.
 </Info>
