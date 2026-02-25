@@ -69,7 +69,9 @@
               {
                 "group": "Storefront",
                 "pages": [
-                  "1.x/guides/product-display-page"
+                  "1.x/guides/product-listing-page",
+                  "1.x/guides/product-display-page",
+                  "1.x/guides/cart"
                 ]
               }
             ]

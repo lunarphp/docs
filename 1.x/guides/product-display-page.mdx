@@ -24,8 +24,9 @@ Route::get('/products/{slug}', [ProductController::class, 'show'])->name('produc
 ### Resolve the Product
 
 ```php
-use Lunar\Models\Url;
+use Lunar\Facades\StorefrontSession;
 use Lunar\Models\Product;
+use Lunar\Models\Url;
 
 class ProductController extends Controller
 {
@@ -35,8 +36,13 @@ class ProductController extends Controller
             ->where('element_type', (new Product)->getMorphClass())
             ->firstOrFail();
 
+        $channel = StorefrontSession::getChannel();
+        $customerGroups = StorefrontSession::getCustomerGroups();
+
         $product = Product::where('id', $url->element_id)
             ->where('status', 'published')
+            ->channel($channel)
+            ->customerGroup($customerGroups)
             ->with([
                 'variants.prices.currency',
                 'variants.values.option',
@@ -55,6 +61,8 @@ class ProductController extends Controller
 <Tip>
 Eager loading relationships in a single query avoids N+1 performance issues. The `with()` call above loads everything needed to render the full PDP.
 </Tip>
+
+The `channel()` and `customerGroup()` scopes ensure that a product not published to the current channel or customer group returns a 404 rather than rendering. See the [Storefront Session reference](/1.x/storefront-utils/storefront-session) for how to manage these values.
 
 ## Displaying Product Information
 
@@ -187,11 +195,18 @@ Pricing in Lunar is resolved through the `Pricing` facade, which accounts for th
 
 ### Displaying the Price
 
+The `Pricing` facade accepts an optional currency and customer group. Pass these from `StorefrontSession` so the returned price matches the browsing context.
+
 ```php
 use Lunar\Facades\Pricing;
+use Lunar\Facades\StorefrontSession;
 
 $variant = $product->variants->first();
-$pricing = Pricing::for($variant)->get();
+
+$pricing = Pricing::for($variant)
+    ->currency(StorefrontSession::getCurrency())
+    ->customerGroups(StorefrontSession::getCustomerGroups())
+    ->get();
 ```
 
 The `get()` method returns a `PricingResponse` with the following properties:
@@ -207,7 +222,10 @@ The `get()` method returns a `PricingResponse` with the following properties:
 
 ```blade
 @php
-    $pricing = \Lunar\Facades\Pricing::for($product->variants->first())->get();
+    $pricing = \Lunar\Facades\Pricing::for($product->variants->first())
+        ->currency(\Lunar\Facades\StorefrontSession::getCurrency())
+        ->customerGroups(\Lunar\Facades\StorefrontSession::getCustomerGroups())
+        ->get();
     $price = $pricing->matched;
 @endphp
 
@@ -416,6 +434,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Lunar\Facades\Pricing;
+use Lunar\Facades\StorefrontSession;
 use Lunar\Models\Product;
 use Lunar\Models\Url;
 
@@ -427,8 +446,14 @@ class ProductController extends Controller
             ->where('element_type', (new Product)->getMorphClass())
             ->firstOrFail();
 
+        $channel = StorefrontSession::getChannel();
+        $customerGroups = StorefrontSession::getCustomerGroups();
+        $currency = StorefrontSession::getCurrency();
+
         $product = Product::where('id', $url->element_id)
             ->where('status', 'published')
+            ->channel($channel)
+            ->customerGroup($customerGroups)
             ->with([
                 'variants.prices.currency',
                 'variants.values.option',
@@ -442,10 +467,17 @@ class ProductController extends Controller
             ->firstOrFail();
 
         $defaultVariant = $product->variants->first();
-        $pricing = Pricing::for($defaultVariant)->get();
 
-        $variantOptionMap = $product->variants->map(function ($variant) {
-            $variantPricing = Pricing::for($variant)->get();
+        $pricing = Pricing::for($defaultVariant)
+            ->currency($currency)
+            ->customerGroups($customerGroups)
+            ->get();
+
+        $variantOptionMap = $product->variants->map(function ($variant) use ($currency, $customerGroups) {
+            $variantPricing = Pricing::for($variant)
+                ->currency($currency)
+                ->customerGroups($customerGroups)
+                ->get();
 
             return [
                 'id' => $variant->id,
