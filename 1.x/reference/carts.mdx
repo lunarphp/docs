@@ -191,6 +191,110 @@ try {
 }
 ```
 
+## Exceptions
+
+Lunar throws specific exceptions during cart operations to help identify what went wrong. All cart exceptions extend `Lunar\Exceptions\LunarException`.
+
+### CartException
+
+```php
+Lunar\Exceptions\Carts\CartException
+```
+
+The primary exception for cart validation failures. It is thrown by the validation pipeline when adding, updating, or removing cart lines, or when creating an order. It wraps a `MessageBag` containing one or more error messages.
+
+```php
+use Lunar\Exceptions\Carts\CartException;
+
+try {
+    $cart->add($purchasable, quantity: 500);
+} catch (CartException $e) {
+    $e->getMessage(); // Summary of the first error
+    $e->errors();     // Returns the full MessageBag
+}
+```
+
+When creating an order, the `ValidateCartForOrderCreation` validator may throw a `CartException` with one of the following messages:
+
+| Error Key | Cause |
+|:--|:--|
+| `carts.order_exists` | The cart already has a completed order. |
+| `carts.billing_missing` | No billing address has been set on the cart. |
+| `carts.billing_incomplete` | The billing address is missing required fields (`country_id`, `first_name`, `line_one`, `city`, `postcode`). |
+| `carts.shipping_missing` | The cart contains shippable items but has no shipping address. |
+| `carts.shipping_incomplete` | The shipping address is missing required fields. |
+| `carts.shipping_option_missing` | The cart contains shippable items but no shipping option has been selected. |
+
+### InvalidCartLineQuantityException
+
+```php
+Lunar\Exceptions\InvalidCartLineQuantityException
+```
+
+Thrown when attempting to add a purchasable to the cart with a quantity of zero or less.
+
+```php
+use Lunar\Exceptions\InvalidCartLineQuantityException;
+
+try {
+    $cart->add($purchasable, quantity: 0);
+} catch (InvalidCartLineQuantityException $e) {
+    // Quantity must be at least 1
+}
+```
+
+### NonPurchasableItemException
+
+```php
+Lunar\Exceptions\NonPurchasableItemException
+```
+
+Thrown when creating or updating a cart line with a model that does not implement the `Lunar\Base\Purchasable` interface. This is checked automatically by the `CartLineObserver`.
+
+### CartLineIdMismatchException
+
+```php
+Lunar\Exceptions\CartLineIdMismatchException
+```
+
+Thrown when attempting to remove a cart line that does not belong to the specified cart.
+
+```php
+use Lunar\Exceptions\CartLineIdMismatchException;
+
+try {
+    $cart->remove($cartLineId);
+} catch (CartLineIdMismatchException $e) {
+    // The cart line ID does not belong to this cart
+}
+```
+
+### DisallowMultipleCartOrdersException
+
+```php
+Lunar\Exceptions\DisallowMultipleCartOrdersException
+```
+
+Thrown when calling `createOrder()` on a cart that already has a completed order, unless `allowMultipleOrders: true` is passed.
+
+```php
+use Lunar\Exceptions\DisallowMultipleCartOrdersException;
+
+try {
+    $order = $cart->createOrder();
+} catch (DisallowMultipleCartOrdersException $e) {
+    // Cart already has a completed order
+}
+```
+
+### FingerprintMismatchException
+
+```php
+Lunar\Exceptions\FingerprintMismatchException
+```
+
+Thrown when the fingerprint passed to `checkFingerprint()` does not match the cart's current fingerprint. See [Detecting Cart Changes](#detecting-cart-changes) for usage details.
+
 ## Calculating Totals
 
 Call `calculate()` to hydrate the cart with computed prices and tax breakdowns.
