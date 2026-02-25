@@ -48,4 +48,6 @@ The monorepo for the Lunar project can be found at `../lunar`. We should use thi
 
 Write all documentation in third person. Never use "we", "our", or "us" — always refer to Lunar, the package, or the feature directly.
 
+Write using American English.
+
 Ensure the language can be understood by a global audience, avoid using British or American sayings that may not be understood by others. Some readers may not have English as their first language.
