@@ -46,6 +46,21 @@ The monorepo for the Lunar project can be found at `../lunar`. We should use thi
 
 Lunar is heavily based around Eloquent models. When documenting these, we should ensure we have all the relationships, scopes and methods covered.
 
+Always include the full namespace for code references, either by showing a "use" statement, or writing out the full namespace. E.g. 
+
+```php
+Lunar\Models\Cart
+```
+
+or
+
+```php
+use Lunar\Models\Cart;
+
+$unmergedCarts = Cart::unmerged()->get();
+```
+
+
 ## Writing
 
 Write all documentation in third person. Never use "we", "our", or "us" — always refer to Lunar, the package, or the feature directly.
@@ -55,3 +70,25 @@ Write using American English.
 Ensure the language can be understood by a global audience, avoid using British or American sayings that may not be understood by others. Some readers may not have English as their first language.
 
 Use em dashes sparingly. Prefer commas, colons, or parentheses where appropriate instead.
+
+## Eloquent model fields
+
+Show them as a table with the columns: Field, Type, Description.
+
+When describing the fields of an Eloquent model, follow these rules: 
+
+- `id` should be described as "primary key"
+- Show if a field is nullable (we don't need to show not-nullable)
+  - Show nullable formatted as inline code in the Type column, always at the end, e.g. "`foreignId` `nullable`"
+- We don't need a description for standard Laravel timestamps (created_at, updated_at, deleted_at), but they should still be included
+- Fields that are obvious need not be described, e.g. first_name
+- Show the Laravel column type, e.g. `longText`
+- Ensure the order of the fields is the same as the database schema
+
+### Relationships
+
+Show them as a table with the columns: Relationship, Type, Related Model, Description.
+
+### Scopes
+
+Show them as a table with the columns: Scope, Description.
