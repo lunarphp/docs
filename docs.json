@@ -72,13 +72,16 @@
                   "1.x/guides/catalog-menu",
                   "1.x/guides/product-listing-page",
                   "1.x/guides/product-display-page",
+                  "1.x/guides/search",
                   "1.x/guides/cart",
-                  "1.x/guides/checkout"
+                  "1.x/guides/checkout",
+                  "1.x/guides/payment-integration"
                 ]
               },
               {
                 "group": "Customer Account",
                 "pages": [
+                  "1.x/guides/customer-authentication",
                   "1.x/guides/order-history",
                   "1.x/guides/customer-addresses"
                 ]
