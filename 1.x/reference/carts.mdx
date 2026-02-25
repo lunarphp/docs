@@ -8,7 +8,7 @@ description: "Manage shopping carts, calculate totals, and handle cart sessions 
 Carts hold a collection of purchasable items (typically product variants) that a customer intends to order. They belong to users (which relate to customers) and support a single currency each.
 
 <Info>
-Cart prices are dynamically calculated on the fly and are **not** stored in the database. Once a cart is converted to an order, the prices are persisted on the order instead.
+Cart prices are dynamically calculated and are **not** stored in the database. Once a cart is converted to an order, the prices are persisted on the order instead.
 </Info>
 
 ## Cart Model
@@ -72,7 +72,7 @@ $cart->lines()->create([
     'purchasable_id' => $purchasable->id,
     'quantity' => 2,
     'meta' => [
-        'personalization' => 'Love you mum xxx',
+        'personalization' => 'Happy Birthday!',
     ],
 ]);
 ```
@@ -296,7 +296,7 @@ public function __construct(
 }
 ```
 
-When `current()` is called, the behaviour depends on the `auto_create` config. With `auto_create` set to `false` (default), `null` is returned if no cart exists — preventing unnecessary database records.
+When `current()` is called, the behavior depends on the `auto_create` config. With `auto_create` set to `false` (default), `null` is returned if no cart exists — preventing unnecessary database records.
 
 ### Managing Lines
 
@@ -382,7 +382,7 @@ CartSession::estimateShippingUsing([
     'country' => Country::first(),
 ]);
 
-// Default behaviour — no shipping estimate applied
+// Default behavior — no shipping estimate applied
 CartSession::current();
 
 // Apply the shipping estimate set above
@@ -409,7 +409,7 @@ try {
 }
 ```
 
-The fingerprint generator class can be customised in `config/lunar/cart.php`:
+The fingerprint generator class can be customized in `config/lunar/cart.php`:
 
 ```php
 return [
