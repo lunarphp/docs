@@ -54,4 +54,4 @@ Write using American English.
 
 Ensure the language can be understood by a global audience, avoid using British or American sayings that may not be understood by others. Some readers may not have English as their first language.
 
-Do not use em dashes.
+Use em dashes sparingly. Prefer commas, colons, or parentheses where appropriate instead.
