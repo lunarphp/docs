@@ -382,7 +382,7 @@ $cart->billingAddress;
 ```
 
 <Info>
-During a cart's early lifetime, address information may not yet be available. Some countries don't display tax until checkout. The address-based tax calculation is designed to handle this — the addresses can be set when they become available.
+During a cart's early lifetime, address information may not yet be available. Some countries don't display tax until checkout. The address-based tax calculation is designed to handle this: the addresses can be set when they become available.
 </Info>
 
 ## Shipping Options
@@ -430,7 +430,7 @@ $shippingOption = $cart->getEstimatedShipping([
 ```
 
 <Info>
-When `setOverride` is enabled, the returned shipping option bypasses other shipping logic in the cart pipelines — but only for that single request.
+When `setOverride` is enabled, the returned shipping option bypasses other shipping logic in the cart pipelines, but only for that single request.
 </Info>
 
 The override can also be set manually:
@@ -495,7 +495,7 @@ try {
 
 ## Associating Users and Customers
 
-A user can be associated directly on the cart model. The `policy` parameter controls how the association behaves when the user already has an existing cart — `merge` combines the carts, while `override` replaces the existing one.
+A user can be associated directly on the cart model. The `policy` parameter controls how the association behaves when the user already has an existing cart: `merge` combines the carts, while `override` replaces the existing one.
 
 ```php
 $cart->associate($user, policy: 'merge');
@@ -547,7 +547,7 @@ public function __construct(
 }
 ```
 
-When `current()` is called, the behavior depends on the `auto_create` config. With `auto_create` set to `false` (default), `null` is returned if no cart exists — preventing unnecessary database records.
+When `current()` is called, the behavior depends on the `auto_create` config. With `auto_create` set to `false` (default), `null` is returned if no cart exists, preventing unnecessary database records.
 
 ### Managing Lines
 
@@ -633,7 +633,7 @@ CartSession::estimateShippingUsing([
     'country' => Country::first(),
 ]);
 
-// Default behavior — no shipping estimate applied
+// Default behavior: no shipping estimate applied
 CartSession::current();
 
 // Apply the shipping estimate set above
@@ -648,7 +648,7 @@ When a user logs in, Lunar automatically listens to authentication events and ha
 
 ## Detecting Cart Changes
 
-Carts are dynamic — items, quantities, and prices can change at any moment. To detect whether a cart has been modified (e.g. on a different browser tab during checkout), use the fingerprint system:
+Carts are dynamic: items, quantities, and prices can change at any moment. To detect whether a cart has been modified (e.g. on a different browser tab during checkout), use the fingerprint system:
 
 ```php
 $fingerprint = $cart->fingerprint();
