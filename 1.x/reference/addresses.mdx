@@ -3,7 +3,7 @@ title: "Addresses"
 ---
 ## Overview
 
-Customers may save addresses to make checking-out easier and quicker.
+Addresses belong to [Customers](/1.x/reference/customers) and are used to store shipping and billing information. A customer can have multiple addresses, with the ability to mark defaults for both shipping and billing. Addresses are linked to a [Country](#countries) and optionally a [State](#states).
 
 ## Addresses
 
@@ -14,29 +14,131 @@ Lunar\Models\Address
 |Field|Description|
 |:-|:-|
 |`id`||
-|`customer_id`||
-|`title`|nullable|
-|`first_name`||
-|`last_name`||
+|`customer_id`|The related customer|
+|`title`|Salutation e.g. Mr, Mrs, Dr. nullable|
+|`first_name`|Recipient first name|
+|`last_name`|Recipient last name|
 |`company_name`|nullable|
-|`line_one`||
+|`line_one`|Primary address line|
 |`line_two`|nullable|
 |`line_three`|nullable|
 |`city`||
 |`state`|nullable|
 |`postcode`|nullable|
-|`country_id`||
-|`delivery_instructions`||
-|`contact_email`||
-|`contact_phone`||
-|`last_used_at`|Timestamp for when the address was last used in an order.|
-|`meta`|JSON|
-|`shipping_default`|Boolean|
-|`billing_default`|Boolean|
+|`country_id`|The related country|
+|`delivery_instructions`|Any special delivery notes|
+|`contact_email`|Contact email for this address|
+|`contact_phone`|Contact phone for this address|
+|`last_used_at`|Timestamp for when the address was last used in an order|
+|`meta`|JSON field for any additional data|
+|`shipping_default`|Whether this is the default shipping address|
+|`billing_default`|Whether this is the default billing address|
 |`created_at`||
 |`updated_at`||
 
+### Creating an address
+
+The recommended way to create an address is through the customer relationship.
+
+```php
+$customer = \Lunar\Models\Customer::find(1);
+
+$address = $customer->addresses()->create([
+    'title' => 'Mr',
+    'first_name' => 'Tony',
+    'last_name' => 'Stark',
+    'company_name' => 'Stark Industries',
+    'line_one' => '10880 Malibu Point',
+    'line_two' => null,
+    'line_three' => null,
+    'city' => 'Malibu',
+    'state' => 'California',
+    'postcode' => '90265',
+    'country_id' => $country->id,
+    'delivery_instructions' => 'Leave at the front gate',
+    'contact_email' => 'tony@starkindustries.com',
+    'contact_phone' => '555-0123',
+    'shipping_default' => true,
+    'billing_default' => true,
+    'meta' => [
+        'type' => 'headquarters',
+    ],
+]);
+```
+
+You can also create an address directly.
+
+```php
+$address = \Lunar\Models\Address::create([
+    'customer_id' => $customer->id,
+    'first_name' => 'Tony',
+    'last_name' => 'Stark',
+    'line_one' => '200 Park Avenue',
+    'city' => 'New York',
+    'postcode' => '10166',
+    'country_id' => $country->id,
+    'contact_email' => 'tony@starkindustries.com',
+    'contact_phone' => '555-0456',
+    'shipping_default' => false,
+    'billing_default' => false,
+]);
+```
+
+### Retrieving addresses
+
+```php
+// Get all addresses for a customer
+$addresses = $customer->addresses;
+
+// Get the default shipping address
+$shippingAddress = $customer->addresses()
+    ->where('shipping_default', true)
+    ->first();
+
+// Get the default billing address
+$billingAddress = $customer->addresses()
+    ->where('billing_default', true)
+    ->first();
+```
+
+### Default addresses
+
+Each customer can have one default shipping address and one default billing address. These are controlled by the `shipping_default` and `billing_default` boolean fields.
+
+```php
+// Set an address as the default shipping address
+$address->update([
+    'shipping_default' => true,
+]);
+
+// Set an address as the default billing address
+$address->update([
+    'billing_default' => true,
+]);
+```
+
+<Tip>
+When you set an address as the default, Lunar automatically unsets the previous default for that customer via an observer. You don't need to manually manage this.
+</Tip>
+
+### Relationships
+
+|Relationship|Type|
+|:-|:-|
+|`customer`|`BelongsTo`|
+|`country`|`BelongsTo`|
+
+```php
+// Get the country for an address
+$country = $address->country;
+
+// Get the customer for an address
+$customer = $address->customer;
+```
+
 ## Countries
+
+Lunar ships with a full dataset of countries that can be imported into your database. Countries are used when creating addresses and can also be useful for shipping zone configuration.
 
 ```php
 Lunar\Models\Country
@@ -45,20 +147,42 @@ Lunar\Models\Country
 |Field|Description|
 |:-|:-|
 |`id`||
-|`name`||
-|`iso3`||
-|`iso2`||
-|`phonecode`||
-|`capital`||
-|`currency`||
-|`native`||
-|`emoji`|Flag|
-|`emoji_u`|Flag|
+|`name`|Full country name e.g. United States|
+|`iso3`|ISO 3166-1 alpha-3 code e.g. USA|
+|`iso2`|ISO 3166-1 alpha-2 code e.g. US|
+|`phonecode`|International dialling code e.g. 1|
+|`capital`|Capital city|
+|`currency`|Currency code e.g. USD|
+|`native`|Native name of the country|
+|`emoji`|Country flag emoji|
+|`emoji_u`|Country flag unicode|
 |`created_at`||
 |`updated_at`||
 
+### Retrieving countries
+
+```php
+use Lunar\Models\Country;
+
+// Find a country by ISO code
+$country = Country::where('iso2', 'US')->first();
+
+// Get all countries
+$countries = Country::all();
+
+// Get a country with its states
+$country = Country::with('states')->where('iso2', 'GB')->first();
+```
+
+### Relationships
+
+|Relationship|Type|
+|:-|:-|
+|`states`|`HasMany`|
 
 ## States
+
+States (also known as provinces or regions) belong to a country. They are useful for tax calculations and shipping zone configuration.
 
 ```php
 Lunar\Models\State
@@ -67,18 +191,40 @@ Lunar\Models\State
 |Field|Description|
 |:-|:-|
 |`id`||
-|`country_id`||
-|`name`||
-|`code`||
+|`country_id`|The related country|
+|`name`|Full state name e.g. California|
+|`code`|State code e.g. CA|
 |`created_at`||
 |`updated_at`||
 
-## Address Data
+### Retrieving states
 
-Data for Countries and States is provided by https://github.com/dr5hn/countries-states-cities-database.
+```php
+use Lunar\Models\State;
 
-You can use the following command to import countries and states.
+// Get all states for a country
+$states = $country->states;
+
+// Find a state by code within a country
+$state = State::where('country_id', $country->id)
+    ->where('code', 'CA')
+    ->first();
+```
+
+### Relationships
+
+|Relationship|Type|
+|:-|:-|
+|`country`|`BelongsTo`|
+
+## Importing Address Data
+
+Country and state data is provided by the [countries-states-cities-database](https://github.com/dr5hn/countries-states-cities-database). Use the following Artisan command to import the data into your database.
 
 ```sh
 php artisan lunar:import:address-data
 ```
+
+<Info>
+You should run this command after installing Lunar and after any updates that may include new country or state data.
+</Info>
