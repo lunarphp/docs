@@ -64,6 +64,17 @@
             ]
           },
           {
+            "tab": "Guides",
+            "groups": [
+              {
+                "group": "Storefront",
+                "pages": [
+                  "1.x/guides/product-display-page"
+                ]
+              }
+            ]
+          },
+          {
             "tab": "Reference",
             "groups": [
               {
