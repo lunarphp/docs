@@ -44,8 +44,14 @@ Navigation in `docs.json` is organized under `navigation.versions`:
 
 The monorepo for the Lunar project can be found at `../lunar`. We should use this codebase as a reference when creating documentation and we should always test example code to ensure it is accurate and correct.
 
+Lunar is heavily based around Eloquent models. When documenting these, we should ensure we have all the relationships, scopes and methods covered.
+
 ## Writing
 
 Write all documentation in third person. Never use "we", "our", or "us" — always refer to Lunar, the package, or the feature directly.
 
+Write using American English.
+
 Ensure the language can be understood by a global audience, avoid using British or American sayings that may not be understood by others. Some readers may not have English as their first language.
+
+Do not use em dashes.
