@@ -25,10 +25,13 @@ Lunar\Models\Cart
 | merged_id   | If this cart was merged with another, references the cart it was merged into.   |
 | currency_id | Carts can only be for a single currency.                                       |
 | channel_id  | The channel associated with the cart.                                          |
+| order_id    | References the order created from this cart. Can be `null`.                    |
 | coupon_code | Stores a promotional coupon code, e.g. `SALE20`. Can be `null`.               |
+| completed_at| Timestamp for when the cart was completed. Can be `null`.                      |
 | meta        | JSON data for saving any custom information.                                   |
 | created_at  |                                                                                |
 | updated_at  |                                                                                |
+| deleted_at  | Soft delete timestamp. Can be `null`.                                          |
 
 ### Creating a Cart
 
@@ -95,7 +98,7 @@ $cart->calculate();
 ```
 
 <Tip>
-All monetary values return a `Lunar\Datatypes\Price` object, giving you access to `value`, `formatted`, and `decimal` properties.
+All monetary values return a `Lunar\DataTypes\Price` object, giving you access to `value`, `formatted`, and `decimal` properties.
 </Tip>
 
 ### Cart-Level Properties
@@ -108,6 +111,7 @@ All monetary values return a `Lunar\Datatypes\Price` object, giving you access t
 | `taxTotal`            | The total tax applied.                                           |
 | `discountTotal`       | The total discount applied.                                      |
 | `shippingSubTotal`    | The shipping total, excluding tax.                               |
+| `shippingTaxTotal`    | The tax amount applied to shipping.                              |
 | `shippingTotal`       | The shipping total, including tax.                               |
 
 ### Line-Level Properties
@@ -122,6 +126,7 @@ After calculation, each cart line is also hydrated with its own totals:
 | `subTotal`           | Sub total, excluding tax.                            |
 | `subTotalDiscounted` | Sub total, minus the discount amount.                |
 | `taxAmount`          | Tax applied to this line.                            |
+| `taxBreakdown`       | Collection of all taxes applied to this line.        |
 | `discountTotal`      | Discount applied to this line.                       |
 
 ```php
@@ -336,14 +341,20 @@ $cart = \Lunar\Models\Cart::first();
 CartSession::use($cart);
 ```
 
-### Associating Users and Customers
+### Associating a User
 
 ```php
-// Associate a user (second argument is the auth policy: 'merge' or 'override')
-CartSession::associate($user, 'merge');
+// Associate a cart with a user and set it as the session cart
+// The third argument is the auth policy: 'merge' or 'override'
+CartSession::associate($cart, $user, 'merge');
+```
 
-// Associate a customer
-CartSession::setCustomer($customer);
+### Associating a Customer
+
+You can associate a customer directly on the cart model:
+
+```php
+$cart->setCustomer($customer);
 ```
 
 ### Forgetting the Cart
