@@ -656,7 +656,7 @@ $fingerprint = $cart->fingerprint();
 try {
     $cart->checkFingerprint('previously_stored_fingerprint');
 } catch (\Lunar\Exceptions\FingerprintMismatchException $e) {
-    // Cart has changed — refresh it
+    // Cart has changed, refresh it
 }
 ```
 
