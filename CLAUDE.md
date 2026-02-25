@@ -43,3 +43,7 @@ Navigation in `docs.json` is organized under `navigation.versions`:
 ## Source Code
 
 The monorepo for the Lunar project can be found at `../lunar`. We should use this codebase as a reference when creating documentation and we should always test example code to ensure it is accurate and correct.
+
+## Writing
+
+Write all documentation in third person. Never use "we", "our", or "us" — always refer to Lunar, the package, or the feature directly.
