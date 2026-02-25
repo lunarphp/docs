@@ -644,7 +644,22 @@ Cart configuration lives in `config/lunar/cart.php`:
 | Option        | Description                                                                   | Default |
 |:--------------|:------------------------------------------------------------------------------|:--------|
 | `auth_policy` | How to handle merging when a user logs in (`merge` or `override`).            | `merge` |
-| `eager_load`  | Relationships to eager load by default when calculating cart totals.          |         |
+| `eager_load`  | Relationships to eager load by default when calculating cart totals.          | See below |
+
+The default `eager_load` relationships are:
+
+```php
+'eager_load' => [
+    'currency',
+    'lines.purchasable.taxClass',
+    'lines.purchasable.values',
+    'lines.purchasable.product.thumbnail',
+    'lines.purchasable.prices.currency',
+    'lines.purchasable.prices.priceable',
+    'lines.purchasable.product',
+    'lines.cart.currency',
+],
+```
 
 Additional session-specific config is in `config/lunar/cart_session.php`:
 
