@@ -98,7 +98,7 @@ $cart->calculate();
 ```
 
 <Tip>
-All monetary values return a `Lunar\DataTypes\Price` object, giving you access to `value`, `formatted`, and `decimal` properties.
+All monetary values return a `Lunar\DataTypes\Price` object, providing access to `value`, `formatted`, and `decimal` properties.
 </Tip>
 
 ### Cart-Level Properties
@@ -170,11 +170,11 @@ foreach ($cart->shippingBreakdown->items as $shippingBreakdown) {
 
 ### Extending Cart Calculations
 
-If you need to programmatically change cart values (e.g. custom discounts or prices), see [Cart Extending](/1.x/extending/carts).
+To programmatically change cart values (e.g. custom discounts or prices), see [Cart Extending](/1.x/extending/carts).
 
 ## Setting Addresses
 
-You can set shipping and billing addresses on the cart, which are used when calculating tax breakdowns.
+Shipping and billing addresses can be set on the cart, which are used when calculating tax breakdowns.
 
 ```php
 $cart->setShippingAddress([
@@ -202,7 +202,7 @@ $cart->setBillingAddress([
 ]);
 ```
 
-You can also pass an `Address` model or a `CartAddress` model:
+An `Address` model or a `CartAddress` model can also be passed:
 
 ```php
 $shippingAddress = \Lunar\Models\Address::first();
@@ -221,12 +221,12 @@ $cart->billingAddress;
 ```
 
 <Info>
-During a cart's early lifetime you may not have address information yet. Some countries don't display tax until checkout. The address-based tax calculation is designed to handle this — simply set the addresses when they become available.
+During a cart's early lifetime, address information may not yet be available. Some countries don't display tax until checkout. The address-based tax calculation is designed to handle this — the addresses can be set when they become available.
 </Info>
 
 ## Shipping Estimates
 
-You may want to show an estimated shipping cost before the user provides a full address. The `getEstimatedShipping` method returns the cheapest available shipping option based on partial address data.
+It may be useful to show an estimated shipping cost before a full address is provided. The `getEstimatedShipping` method returns the cheapest available shipping option based on partial address data.
 
 ```php
 $shippingOption = $cart->getEstimatedShipping([
@@ -250,7 +250,7 @@ $shippingOption = $cart->getEstimatedShipping([
 When `setOverride` is enabled, the returned shipping option bypasses other shipping logic in the cart pipelines — but only for that single request.
 </Info>
 
-You can also set the override manually:
+The override can also be set manually:
 
 ```php
 $cart->shippingOptionOverride = new \Lunar\DataTypes\ShippingOption(/* .. */);
@@ -259,7 +259,7 @@ $cart->shippingOptionOverride = new \Lunar\DataTypes\ShippingOption(/* .. */);
 ## Cart Session Manager
 
 <Tip>
-The cart session manager is useful if you're building a traditional Laravel storefront that uses sessions.
+The cart session manager is useful when building a traditional Laravel storefront that uses sessions.
 </Tip>
 
 The session manager provides a convenient API for managing carts tied to the current user's session.
@@ -296,7 +296,7 @@ public function __construct(
 }
 ```
 
-When you call `current()`, the behaviour depends on the `auto_create` config. With `auto_create` set to `false` (default), `null` is returned if no cart exists — preventing unnecessary database records.
+When `current()` is called, the behaviour depends on the `auto_create` config. With `auto_create` set to `false` (default), `null` is returned if no cart exists — preventing unnecessary database records.
 
 ### Managing Lines
 
@@ -351,7 +351,7 @@ CartSession::associate($cart, $user, 'merge');
 
 ### Associating a Customer
 
-You can associate a customer directly on the cart model:
+A customer can be associated directly on the cart model:
 
 ```php
 $cart->setCustomer($customer);
@@ -373,7 +373,7 @@ CartSession::forget(delete: false);
 
 ### Shipping Estimates
 
-When using the `CartSession` manager, you can persist shipping estimation parameters so you don't need to pass them each time:
+When using the `CartSession` manager, shipping estimation parameters can be persisted so they do not need to be passed each time:
 
 ```php
 CartSession::estimateShippingUsing([
