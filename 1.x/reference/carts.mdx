@@ -42,6 +42,45 @@ $cart = \Lunar\Models\Cart::create([
 ]);
 ```
 
+### Relationships
+
+| Relationship      | Type       | Related Model   | Description                                            |
+|:------------------|:-----------|:----------------|:-------------------------------------------------------|
+| `lines`           | Has many   | `CartLine`      | The line items in the cart.                             |
+| `addresses`       | Has many   | `CartAddress`   | All addresses associated with the cart.                 |
+| `shippingAddress` | Has one    | `CartAddress`   | The shipping address (filtered by `type = shipping`).   |
+| `billingAddress`  | Has one    | `CartAddress`   | The billing address (filtered by `type = billing`).     |
+| `currency`        | Belongs to | `Currency`      | The currency for the cart.                              |
+| `user`            | Belongs to | Auth user model | The authenticated user who owns the cart.               |
+| `customer`        | Belongs to | `Customer`      | The customer associated with the cart.                  |
+| `orders`          | Has many   | `Order`         | All orders created from the cart.                       |
+| `draftOrder`      | Has one    | `Order`         | The unplaced (draft) order.                             |
+| `completedOrder`  | Has one    | `Order`         | A single placed (completed) order.                      |
+| `completedOrders` | Has many   | `Order`         | All placed (completed) orders.                          |
+
+The `draftOrder` and `completedOrder` relationships accept an optional order ID parameter to filter to a specific order:
+
+```php
+$cart->draftOrder;
+$cart->completedOrder;
+
+// Filter to a specific order
+$cart->draftOrder($orderId)->first();
+```
+
+### Scopes
+
+| Scope      | Description                                                                         |
+|:-----------|:------------------------------------------------------------------------------------|
+| `unmerged` | Filters to carts that have not been merged into another cart (`merged_id` is null). |
+| `active`   | Filters to carts that have no orders, or only have unplaced (draft) orders.         |
+
+```php
+$unmergedCarts = \Lunar\Models\Cart::unmerged()->get();
+
+$activeCarts = \Lunar\Models\Cart::active()->get();
+```
+
 ## Cart Lines
 
 Each item in a cart is represented by a `CartLine`. Lines link to a purchasable model (usually a `ProductVariant`) and track the desired quantity.
@@ -61,12 +100,44 @@ Lunar\Models\CartLine
 | created_at       |                                              |
 | updated_at       |                                              |
 
+### Relationships
+
+| Relationship   | Type            | Related Model | Description                                          |
+|:---------------|:----------------|:--------------|:-----------------------------------------------------|
+| `cart`         | Belongs to      | `Cart`        | The cart this line belongs to.                        |
+| `purchasable`  | Morph to        | (polymorphic) | The purchasable item, typically a `ProductVariant`.   |
+| `taxClass`     | Has one through | `TaxClass`    | The tax class, resolved through the purchasable item. |
+| `discounts`    | Belongs to many | `Discount`    | Discounts applied to this line.                       |
+
 ### Adding Lines
 
-```php
-$purchasable = \Lunar\Models\ProductVariant::create([/** ... */]);
+Use the `add` method to add a purchasable item to the cart. If the item already exists in the cart, its quantity is updated instead.
 
-// Using the relationship
+```php
+$cart->add($purchasable, quantity: 2, meta: [
+    'personalization' => 'Happy Birthday!',
+]);
+```
+
+Multiple lines can be added at once using `addLines`:
+
+```php
+$cart->addLines([
+    [
+        'purchasable' => \Lunar\Models\ProductVariant::find(1),
+        'quantity' => 2,
+        'meta' => ['foo' => 'bar'],
+    ],
+    [
+        'purchasable' => \Lunar\Models\ProductVariant::find(2),
+        'quantity' => 1,
+    ],
+]);
+```
+
+Lines can also be created directly via the relationship:
+
+```php
 $cart->lines()->create([
     'purchasable_type' => $purchasable->getMorphClass(),
     'purchasable_id' => $purchasable->id,
@@ -77,13 +148,36 @@ $cart->lines()->create([
 ]);
 ```
 
+### Updating Lines
+
+```php
+// Update a single line's quantity and meta
+$cart->updateLine($cartLineId, quantity: 3, meta: ['foo' => 'bar']);
+
+// Update multiple lines at once
+$cart->updateLines(collect([
+    ['id' => 1, 'quantity' => 5, 'meta' => ['foo' => 'bar']],
+    ['id' => 2, 'quantity' => 3],
+]));
+```
+
+### Removing Lines
+
+```php
+// Remove a specific line
+$cart->remove($cartLineId);
+
+// Remove all lines
+$cart->clear();
+```
+
 ### Line Validation
 
-When adding items to a cart, a series of validation actions are run (defined in `config/lunar/cart.php`). These throw a `CartException` on failure.
+When adding, updating, or removing items, a series of validation actions are run (defined in `config/lunar/cart.php`). These throw a `CartException` on failure.
 
 ```php
 try {
-    $cart->add($purchasable, 500);
+    $cart->add($purchasable, quantity: 500);
 } catch (\Lunar\Exceptions\Carts\CartException $e) {
     $error = $e->getMessage();
 }
@@ -100,6 +194,20 @@ $cart->calculate();
 <Tip>
 All monetary values return a `Lunar\DataTypes\Price` object, providing access to `value`, `formatted`, and `decimal` properties.
 </Tip>
+
+To force recalculation (bypassing the cached result), use `recalculate`:
+
+```php
+$cart->recalculate();
+```
+
+To check whether a cart has already been calculated:
+
+```php
+if ($cart->isCalculated()) {
+    // Totals are available
+}
+```
 
 ### Cart-Level Properties
 
@@ -128,6 +236,7 @@ After calculation, each cart line is also hydrated with its own totals:
 | `taxAmount`          | Tax applied to this line.                            |
 | `taxBreakdown`       | Collection of all taxes applied to this line.        |
 | `discountTotal`      | Discount applied to this line.                       |
+| `promotionDescription` | Description of the promotion applied to this line. |
 
 ```php
 foreach ($cart->lines as $cartLine) {
@@ -171,6 +280,58 @@ foreach ($cart->shippingBreakdown->items as $shippingBreakdown) {
 ### Extending Cart Calculations
 
 To programmatically change cart values (e.g. custom discounts or prices), see [Cart Extending](/1.x/extending/carts).
+
+## Cart Addresses
+
+Each cart can have a shipping and billing address, represented by the `CartAddress` model. These addresses are used when calculating tax breakdowns and shipping costs.
+
+```php
+Lunar\Models\CartAddress
+```
+
+| Field                 | Description                                             |
+|:----------------------|:--------------------------------------------------------|
+| id                    |                                                         |
+| cart_id               | The cart this address belongs to.                       |
+| country_id            | References a country. Can be `null`.                    |
+| title                 | Address title or label. Can be `null`.                  |
+| first_name            | Can be `null`.                                          |
+| last_name             | Can be `null`.                                          |
+| company_name          | Can be `null`.                                          |
+| tax_identifier        | Tax ID or VAT number. Can be `null`.                    |
+| line_one              | Can be `null`.                                          |
+| line_two              | Can be `null`.                                          |
+| line_three            | Can be `null`.                                          |
+| city                  | Can be `null`.                                          |
+| state                 | Can be `null`.                                          |
+| postcode              | Can be `null`.                                          |
+| delivery_instructions | Special delivery notes. Can be `null`.                  |
+| contact_email         | Can be `null`.                                          |
+| contact_phone         | Can be `null`.                                          |
+| type                  | Either `shipping` or `billing`. Defaults to `shipping`. |
+| shipping_option       | The selected shipping option identifier. Can be `null`. |
+| meta                  | JSON data for saving any custom information.            |
+| created_at            |                                                         |
+| updated_at            |                                                         |
+
+### Relationships
+
+| Relationship | Type       | Related Model | Description                      |
+|:-------------|:-----------|:--------------|:---------------------------------|
+| `cart`       | Belongs to | `Cart`        | The cart this address belongs to. |
+| `country`    | Belongs to | `Country`     | The country for this address.     |
+
+### Cached Properties
+
+After the cart is calculated, shipping addresses are hydrated with shipping-related totals:
+
+| Property           | Description                                 |
+|:-------------------|:--------------------------------------------|
+| `shippingOption`   | The resolved `ShippingOption` data type.    |
+| `shippingSubTotal` | The shipping sub total, excluding tax.      |
+| `shippingTaxTotal` | The tax amount applied to shipping.         |
+| `shippingTotal`    | The shipping total, including tax.          |
+| `taxBreakdown`     | Breakdown of all taxes applied to shipping. |
 
 ## Setting Addresses
 
@@ -224,6 +385,28 @@ $cart->billingAddress;
 During a cart's early lifetime, address information may not yet be available. Some countries don't display tax until checkout. The address-based tax calculation is designed to handle this — the addresses can be set when they become available.
 </Info>
 
+## Shipping Options
+
+A shipping option can be set on the cart after an address has been provided. The available options are determined by the shipping manifest.
+
+```php
+$cart->setShippingOption($shippingOption);
+```
+
+To retrieve the currently selected shipping option:
+
+```php
+$shippingOption = $cart->getShippingOption();
+```
+
+To check whether the cart contains any shippable items:
+
+```php
+if ($cart->isShippable()) {
+    // Cart has items that require shipping
+}
+```
+
 ## Shipping Estimates
 
 It may be useful to show an estimated shipping cost before a full address is provided. The `getEstimatedShipping` method returns the cheapest available shipping option based on partial address data.
@@ -254,6 +437,74 @@ The override can also be set manually:
 
 ```php
 $cart->shippingOptionOverride = new \Lunar\DataTypes\ShippingOption(/* .. */);
+```
+
+## Creating Orders
+
+Once a cart has been calculated and all required information (addresses, shipping, etc.) has been provided, an order can be created from the cart.
+
+```php
+$order = $cart->createOrder();
+```
+
+By default, a cart can only have one order. To allow multiple orders from the same cart (e.g. for split shipments), pass `allowMultipleOrders`:
+
+```php
+$order = $cart->createOrder(allowMultipleOrders: true);
+```
+
+To update an existing order instead of creating a new one, pass the order ID:
+
+```php
+$order = $cart->createOrder(orderIdToUpdate: $existingOrderId);
+```
+
+### Checking Order Readiness
+
+Before attempting to create an order, check whether the cart has sufficient information:
+
+```php
+if ($cart->canCreateOrder()) {
+    $order = $cart->createOrder();
+}
+```
+
+To check whether the cart already has completed (placed) orders:
+
+```php
+$cart->hasCompletedOrders(); // bool
+```
+
+To retrieve the current draft order (matching the cart's fingerprint and total):
+
+```php
+$draftOrder = $cart->currentDraftOrder();
+```
+
+### Stock Validation
+
+Stock levels can be validated before order creation. This checks each cart line against the available stock for its purchasable item.
+
+```php
+try {
+    $cart->validateStock();
+} catch (\Illuminate\Validation\ValidationException $e) {
+    // One or more items are out of stock
+}
+```
+
+## Associating Users and Customers
+
+A user can be associated directly on the cart model. The `policy` parameter controls how the association behaves when the user already has an existing cart — `merge` combines the carts, while `override` replaces the existing one.
+
+```php
+$cart->associate($user, policy: 'merge');
+```
+
+A customer can also be associated:
+
+```php
+$cart->setCustomer($customer);
 ```
 
 ## Cart Session Manager
@@ -445,3 +696,21 @@ return [
 | `enabled`        | Whether automatic pruning is active.                                        | `false` |
 | `prune_interval` | Number of days to retain carts before pruning.                              | `90`    |
 | `pipelines`      | Pipeline classes that determine which carts are eligible for removal.        |         |
+
+## Activity Logging
+
+The Cart model uses [Spatie Activity Log](https://spatie.be/docs/laravel-activitylog) to automatically record changes. All attribute changes are logged except for `updated_at`.
+
+## Macros
+
+The Cart model supports macros, allowing custom methods to be added at runtime:
+
+```php
+use Lunar\Models\Cart;
+
+Cart::macro('myCustomMethod', function () {
+    // ...
+});
+
+$cart->myCustomMethod();
+```
