@@ -3,7 +3,7 @@ title: "Addresses"
 ---
 ## Overview
 
-Addresses belong to [Customers](/1.x/reference/customers) and are used to store shipping and billing information. A customer can have multiple addresses, with the ability to mark defaults for both shipping and billing. Addresses are linked to a [Country](#countries) and have an optional `state` string field for storing state or province information.
+Addresses belong to [Customers](/1.x/reference/customers) and are used to store shipping and billing information. A customer can have multiple addresses, with the ability to mark defaults for both shipping and billing. Addresses are linked to a [Country](/1.x/reference/countries-states#countries) and have an optional `state` string field for storing state or province information.
 
 ## Addresses
 
@@ -15,6 +15,7 @@ Lunar\Models\Address
 |:-|:-|
 |`id`||
 |`customer_id`|The related customer|
+|`country_id`|The related country|
 |`title`|Salutation e.g. Mr, Mrs, Dr. nullable|
 |`first_name`|Recipient first name|
 |`last_name`|Recipient last name|
@@ -25,7 +26,6 @@ Lunar\Models\Address
 |`city`||
 |`state`|nullable|
 |`postcode`|nullable|
-|`country_id`|The related country|
 |`delivery_instructions`|Any special delivery notes|
 |`contact_email`|Contact email for this address|
 |`contact_phone`|Contact phone for this address|
@@ -135,96 +135,3 @@ $country = $address->country;
 // Get the customer for an address
 $customer = $address->customer;
 ```
-
-## Countries
-
-Lunar ships with a full dataset of countries that can be imported into your database. Countries are used when creating addresses and can also be useful for shipping zone configuration.
-
-```php
-Lunar\Models\Country
-```
-
-|Field|Description|
-|:-|:-|
-|`id`||
-|`name`|Full country name e.g. United States|
-|`iso3`|ISO 3166-1 alpha-3 code e.g. USA|
-|`iso2`|ISO 3166-1 alpha-2 code e.g. US|
-|`phonecode`|International dialling code e.g. 1|
-|`capital`|Capital city|
-|`currency`|Currency code e.g. USD|
-|`native`|Native name of the country|
-|`emoji`|Country flag emoji|
-|`emoji_u`|Country flag unicode|
-|`created_at`||
-|`updated_at`||
-
-### Retrieving countries
-
-```php
-use Lunar\Models\Country;
-
-// Find a country by ISO code
-$country = Country::where('iso2', 'US')->first();
-
-// Get all countries
-$countries = Country::all();
-
-// Get a country with its states
-$country = Country::with('states')->where('iso2', 'GB')->first();
-```
-
-### Relationships
-
-|Relationship|Type|
-|:-|:-|
-|`states`|`HasMany`|
-
-## States
-
-States (also known as provinces or regions) belong to a country. They are useful for tax calculations and shipping zone configuration.
-
-```php
-Lunar\Models\State
-```
-
-|Field|Description|
-|:-|:-|
-|`id`||
-|`country_id`|The related country|
-|`name`|Full state name e.g. California|
-|`code`|State code e.g. CA|
-|`created_at`||
-|`updated_at`||
-
-### Retrieving states
-
-```php
-use Lunar\Models\State;
-
-// Get all states for a country
-$states = $country->states;
-
-// Find a state by code within a country
-$state = State::where('country_id', $country->id)
-    ->where('code', 'CA')
-    ->first();
-```
-
-### Relationships
-
-|Relationship|Type|
-|:-|:-|
-|`country`|`BelongsTo`|
-
-## Importing Address Data
-
-Country and state data is provided by the [countries-states-cities-database](https://github.com/dr5hn/countries-states-cities-database). Use the following Artisan command to import the data into your database.
-
-```sh
-php artisan lunar:import:address-data
-```
-
-<Info>
-This command should be run after installing Lunar and after any updates that may include new country or state data.
-</Info>
