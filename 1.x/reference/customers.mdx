@@ -11,19 +11,19 @@ Lunar uses a dedicated Customer model to store customer details, rather than the
 Lunar\Models\Customer
 ```
 
-|Field|Description|
-|:-|:-|
-|`id`||
-|`title`|Mr, Mrs, Miss, etc (nullable)|
-|`first_name`||
-|`last_name`||
-|`company_name`|nullable|
-|`tax_identifier`|nullable|
-|`account_ref`|nullable|
-|`attribute_data`|JSON, nullable|
-|`meta`|JSON, nullable|
-|`created_at`||
-|`updated_at`||
+|Field|Type|Description|
+|:-|:-|:-|
+|`id`||primary key|
+|`title`|`string` `nullable`|Salutation e.g. Mr, Mrs, Miss|
+|`first_name`|`string`||
+|`last_name`|`string`||
+|`company_name`|`string` `nullable`||
+|`tax_identifier`|`string` `nullable`||
+|`account_ref`|`string` `nullable`||
+|`attribute_data`|`json` `nullable`||
+|`meta`|`json` `nullable`||
+|`created_at`|`timestamp`||
+|`updated_at`|`timestamp`||
 
 ### Creating a customer
 
@@ -56,13 +56,14 @@ $customer->full_name; // "Mr. Tony Stark"
 
 ### Relationships
 
-|Relationship|Type|Pivot Table|
-|:-|:-|:-|
-|`customerGroups()`|BelongsToMany|`customer_customer_group`|
-|`users()`|BelongsToMany|`customer_user`|
-|`discounts()`|BelongsToMany|`customer_discount`|
-|`addresses()`|HasMany||
-|`orders()`|HasMany||
+|Relationship|Type|Related Model|Description|
+|:-|:-|:-|:-|
+|`customerGroups`|`BelongsToMany`|`Lunar\Models\CustomerGroup`|Pivot: `customer_customer_group`|
+|`users`|`BelongsToMany`|Configured via `auth.providers.users.model`|Pivot: `customer_user`|
+|`discounts`|`BelongsToMany`|`Lunar\Models\Discount`|Pivot: `customer_discount`|
+|`addresses`|`HasMany`|`Lunar\Models\Address`||
+|`orders`|`HasMany`|`Lunar\Models\Order`||
+|`mappedAttributes`|`MorphToMany`|`Lunar\Models\Attribute`||
 
 ## Users
 
