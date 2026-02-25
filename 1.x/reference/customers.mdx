@@ -94,11 +94,11 @@ Default `retail`
 
 Customer groups allow customers to be organized into logical segments, enabling different criteria to be defined on models based on which group a customer belongs to.
 
-These criteria include things like:
+These criteria include:
 
 ### Pricing
 
-Different pricing can be specified per customer group. For example, customers in the `trade` customer group may have different prices to those in `retail`.
+Different pricing can be specified per customer group. For example, customers in the `trade` customer group may have different prices than those in `retail`.
 
 ### Product Availability
 
@@ -158,7 +158,7 @@ $myModel->scheduleCustomerGroup(
     ends: now()->addDays(28),
 );
 
-// Schedule the model to be enabled straight away (starts_at defaults to null).
+// Schedule the model to be enabled immediately (starts_at defaults to null).
 $myModel->scheduleCustomerGroup($customerGroup);
 
 // The schedule method will accept an array or collection of customer groups.
@@ -194,7 +194,7 @@ By default the following values are used for `$pivotData`:
 - `starts_at` - When scheduling, set to the `$starts` value. When unscheduling, set to `null`.
 - `ends_at` - When scheduling, set to the `$ends` value. When unscheduling, set to `null`.
 
-Any of these values can be overridden as they are merged behind the scenes.
+Any of these values can be overridden, as they are merged internally.
 
 ### Querying by customer group
 
@@ -227,7 +227,7 @@ A model will only be returned if the `enabled` or `visible` column is `true` on 
 
 ### Limit by customer group
 
-Eloquent models which use the `HasCustomerGroups` trait have a useful scope available:
+Eloquent models that use the `HasCustomerGroups` trait have a useful scope available:
 
 ```php
 // Limit products available to a single customer group
@@ -236,9 +236,9 @@ Product::customerGroup($customerGroup)->get();
 // Limit products available to multiple customer groups
 Product::customerGroup([$groupA, $groupB])->get();
 
-// Limit to products which are available the next day
+// Limit to products that are available the next day
 Product::customerGroup($groupA, now()->addDay())->get();
 
-// Limit to products which are available within a date range.
+// Limit to products that are available within a date range.
 Product::customerGroup($groupA, now()->addDay(), now()->addDays(2))->get();
 ```
