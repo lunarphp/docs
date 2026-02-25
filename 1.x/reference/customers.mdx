@@ -3,7 +3,7 @@ title: "Customers"
 ---
 ## Overview
 
-We use Customers in Lunar to store the customer details, rather than Users. We do this for a few reasons. One, so that we leave your User models well alone and two, because it provides flexibility.
+Lunar uses a dedicated Customer model to store customer details, rather than the User model. This keeps the application's User models untouched and provides greater flexibility.
 
 ## Customers
 
@@ -14,14 +14,14 @@ Lunar\Models\Customer
 |Field|Description|
 |:-|:-|
 |`id`||
-|`title`|Mr, Mrs, Miss, etc|
+|`title`|Mr, Mrs, Miss, etc (nullable)|
 |`first_name`||
 |`last_name`||
 |`company_name`|nullable|
-|`vat_no`|nullable|
+|`tax_identifier`|nullable|
 |`account_ref`|nullable|
-|`attribute_data`|JSON|
-|`meta`|JSON|
+|`attribute_data`|JSON, nullable|
+|`meta`|JSON, nullable|
 |`created_at`||
 |`updated_at`||
 
@@ -33,21 +33,40 @@ Lunar\Models\Customer::create([
     'first_name' => 'Tony',
     'last_name' => 'Stark',
     'company_name' => 'Stark Enterprises',
-    'vat_no' => null,
+    'tax_identifier' => 'GB123456789',
     'meta' => [
         'account_no' => 'TNYSTRK1234'
     ],
-])
+]);
+```
+
+### Accessors
+
+The Customer model provides a `full_name` accessor that combines the `title`, `first_name`, and `last_name` fields.
+
+```php
+$customer = Lunar\Models\Customer::create([
+    'title' => 'Mr.',
+    'first_name' => 'Tony',
+    'last_name' => 'Stark',
+]);
+
+$customer->full_name; // "Mr. Tony Stark"
 ```
 
 ### Relationships
 
-- Customer Groups `customer_customer_group`
-- Users - `customer_user`
+|Relationship|Type|Pivot Table|
+|:-|:-|:-|
+|`customerGroups()`|BelongsToMany|`customer_customer_group`|
+|`users()`|BelongsToMany|`customer_user`|
+|`discounts()`|BelongsToMany|`customer_discount`|
+|`addresses()`|HasMany||
+|`orders()`|HasMany||
 
 ## Users
 
-Customers will typically be associated with a user, so they can place orders. But it is also possible to have multiple users associated with a customer. This can be useful on B2B e-commerce where a customer may have multiple buyers.
+Customers are typically associated with a user so that they can place orders. It is also possible to have multiple users associated with a single customer. This is useful in B2B e-commerce where a customer may have multiple buyers.
 
 ### Attaching users to a customer
 
@@ -56,7 +75,7 @@ $customer = \Lunar\Models\Customer::create([/* ... */]);
 
 $customer->users()->attach($user);
 
-$customer->users()->sync([1,2,3]);
+$customer->users()->sync([$userA->id, $userB->id, $userC->id]);
 ```
 
 ## Attaching a customer to a customer group
@@ -66,70 +85,27 @@ $customer = \Lunar\Models\Customer::create([/* ... */]);
 
 $customer->customerGroups()->attach($customerGroup);
 
-$customer->customerGroups()->sync([4,5,6]);
+$customer->customerGroups()->sync([$groupA->id, $groupB->id]);
 ```
-
-## Impersonating users
-
-When a customer needs help with their account, it's useful to be able to log in as that user so you can help diagnose the issue they're having. 
-Lunar allows you to specify your own method of how you want to impersonate users, usually this is in the form of a signed URL an admin can go to in order to log in as the user.
-
-### Creating the impersonate class
-
-```php
-<?php
-
-namespace App\Auth;
-
-use Lunar\Hub\Auth\Impersonate as LunarImpersonate;
-use Illuminate\Contracts\Auth\Authenticatable;
-use Illuminate\Support\Facades\URL;
-
-class Impersonate extends LunarImpersonate
-{
-    /**
-     * Return the URL for impersonation.
-     *
-     * @return string
-     */
-    public function getUrl(Authenticatable $authenticatable): string
-    {
-        return URL::temporarySignedRoute('impersonate.link', now()->addMinutes(5), [
-            'user' => $authenticatable->getAuthIdentifier(),
-        ]);
-    }
-}
-```
-
-Then you need to register this in `config/lunar-hub/customers.php`.
-
-```php
-return [
-    'impersonate' => App\Auth\Impersonate::class,
-    // ...
-];
-```
-
-Once added you will see an option to impersonate the user when viewing a customer. This will then go to the URL specified in your class where you will be able to handle the impersonation logic.
 
 ## Customer Groups
 
 Default `retail`
 
-Customer groups allow you to group your customers into logical segments which enables you to define different criteria on models based on what customer belongs to that group.
+Customer groups allow customers to be organised into logical segments, enabling different criteria to be defined on models based on which group a customer belongs to.
 
 These criteria include things like:
 
 ### Pricing
 
-Specify different pricing per customer group, for example you may have certain prices for customers that are in the `trade` customer group.
+Different pricing can be specified per customer group. For example, customers in the `trade` customer group may have different prices to those in `retail`.
 
 ### Product Availability
 
-You can turn product visibility off depending on the customer group, this would mean only certain products would show depending on the group they belong to. This will also include scheduling availability so you can release products earlier or later to different groups.
+Product visibility can be toggled depending on the customer group, meaning only certain products will show depending on the group a customer belongs to. Scheduling availability is also supported, allowing products to be released earlier or later to different groups.
 
 ---
-You must have at least one customer group in your store and when you install Lunar you will be given a default one to get you started named `retail`.
+At least one customer group must exist in the store. When Lunar is installed, a default group named `retail` is created.
 
 ## Creating a customer group
 
@@ -142,46 +118,47 @@ $customerGroup = Lunar\Models\CustomerGroup::create([
 ```
 
 <Tip>
-You can only have one default at a time, if you create a customer group and pass default to true, then the existing default will be set to `false`.
+Only one default customer group can exist at a time. If a new customer group is created with `default` set to `true`, the existing default will be set to `false`.
 </Tip>
 
 ## Scheduling availability
 
-If you would like to add customer group availability to your own models, you can use the `HasCustomerGroups` trait.
+To add customer group availability to custom models, the `HasCustomerGroups` trait can be used.
 
 ```php
-
 // ...
 use Lunar\Base\Traits\HasCustomerGroups;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class MyModel extends Model
 {
     use HasCustomerGroups;
+
+    public function customerGroups(): BelongsToMany
+    {
+        $prefix = config('lunar.database.table_prefix');
+
+        return $this->belongsToMany(
+            \Lunar\Models\CustomerGroup::class,
+            "{$prefix}customer_group_my_model"
+        )->withTimestamps()->withPivot(['enabled', 'visible', 'starts_at', 'ends_at']);
+    }
 }
 ```
 
-You will need to define the relationship for customer groups so that Lunar knows how to handle it.
-
-```php
-public function customerGroups()
-{
-    return $this->hasMany(\Lunar\Models\CustomerGroup::class)->withTimestamps()->withPivot([/* .. */]);
-}
-```
-You will then have access to the following methods:
+This provides access to the following methods:
 
 ### Scheduling customer groups
 
 ```php
-// Will schedule for this product to be enabled in 14 days for this customer group.
+// Schedule with a specific start and end date.
 $myModel->scheduleCustomerGroup(
     $customerGroup,
-    $startDate,
-    $endData,
-    $pivotData
+    starts: now()->addDays(14),
+    ends: now()->addDays(28),
 );
 
-// Schedule the product to be enabled straight away
+// Schedule the model to be enabled straight away (starts_at defaults to null).
 $myModel->scheduleCustomerGroup($customerGroup);
 
 // The schedule method will accept an array or collection of customer groups.
@@ -190,38 +167,43 @@ $myModel->scheduleCustomerGroup(CustomerGroup::get());
 
 ### Unscheduling customer groups
 
-If you do not want a model to be enabled for a customer group, you can unschedule it. This will keep any previous `start` and `end` dates but will toggle the `enabled` column.
+To disable a model for a customer group, it can be unscheduled. This sets `enabled` to `false` and clears the `starts_at` and `ends_at` dates.
 
 ```php
-$myModel->unscheduleCustomerGroup($customerGroup, $pivotData);
+$myModel->unscheduleCustomerGroup($customerGroup);
+
+// Additional pivot data can also be passed.
+$myModel->unscheduleCustomerGroup($customerGroup, pivotData: ['visible' => false]);
 ```
 
 ### Parameters
 
-|Field|Description|Type|Default|
-|:-|:-|:-|:-|
-|`customerGroup`|A collection of CustomerGroup models or id's.|mixed|
-|`startDate`|The date the customer group will be active from.|`DateTime`|
-|`endDate`|The date the customer group will be active until.|`DateTime`|
-|`pivotData`|Any additional pivot data you may have on your link table. (not including scheduling defaults)|`array`|
+|Field|Description|Type|
+|:-|:-|:-|
+|`$models`|A CustomerGroup model, array, or collection of CustomerGroup models.|mixed|
+|`$starts`|The date the customer group will be active from.|`DateTime\|null`|
+|`$ends`|The date the customer group will be active until.|`DateTime\|null`|
+|`$pivotData`|Any additional pivot data on the link table.|`array`|
 
 
 **Pivot Data**
 
-By default the following values are used for `$pivotData`
+By default the following values are used for `$pivotData`:
 
-- `enabled` - Whether the customer group is enabled, defaults to `true` when scheduling and `false` when unscheduling.
+- `enabled` - Whether the customer group is enabled. Defaults to `true` when scheduling and `false` when unscheduling.
+- `starts_at` - When scheduling, set to the `$starts` value. When unscheduling, set to `null`.
+- `ends_at` - When scheduling, set to the `$ends` value. When unscheduling, set to `null`.
 
-You can override any of these yourself as they are merged behind the scenes.
+Any of these values can be overridden as they are merged behind the scenes.
 
-### Retrieving the relationship
+### Querying by customer group
 
-The `HasCustomerGroup` trait adds a `customerGroup` scope to the model. This lets you query based on availability for a specific or multiple customer groups.
+The `HasCustomerGroups` trait adds a `customerGroup` scope to the model. This allows querying based on availability for one or more customer groups.
 
-The scope will accept either a single ID or instance of `CustomerGroup` and will accept an array.
+The scope accepts a `CustomerGroup` model instance, an array, or a collection.
 
 ```php
-$results = MyModel::customerGroup(1, $startDate, $endDate)->paginate();
+$results = MyModel::customerGroup($customerGroup)->paginate();
 
 $results = MyModel::customerGroup([
     $groupA,
@@ -229,28 +211,18 @@ $results = MyModel::customerGroup([
 ])->paginate(50);
 ```
 
-The start and end dates should be `DateTime` objects with will query for the existence of a customer group association with the start and end dates between those given. These are optional and the following happens in certain situations:
+The `$startsAt` and `$endsAt` parameters can optionally be passed to filter by scheduling window. Both should be `DateTime` instances.
 
-**Pass neither `startDate` or `endDate`**
+- If neither is provided, both default to `now()` (with `$endsAt` set one second ahead).
+- The scope returns models where `starts_at` is `null` or before the given start, `ends_at` is `null` or after the given end, and either `enabled` or `visible` is `true`.
 
-Will query for customer groups which are enabled and the `startDate` is after `now()`
-
-**Pass only `startDate`**
-
-Will query for customer groups which are enabled, the start date is after the given date and the end date is either null or before `now()`
-
-**Pass both `startDate` and `endDate`**
-
-Will query for customer groups which are enabled, the start date is after the given date and the end date is before the given date.
-
-**Pass `endDate` without `startDate`**
-
-Will query for customer groups which are enabled, the start date is after the `now()` and the end date is before the given date.
-
-If you omit the second parameter the scope will take the current date and time.
+```php
+// Filter by a specific date window.
+$results = MyModel::customerGroup($customerGroup, now()->addDay(), now()->addDays(7))->get();
+```
 
 <Tip>
-A model will only be returned if the `enabled` column is positive, regardless of whether the start and end dates match.
+A model will only be returned if the `enabled` or `visible` column is `true` on the pivot, regardless of whether the start and end dates match.
 </Tip>
 
 ### Limit by customer group
