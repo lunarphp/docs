@@ -17,26 +17,28 @@ Cart prices are dynamically calculated and are **not** stored in the database. O
 Lunar\Models\Cart
 ```
 
-| Field       | Description                                                                    |
-|:------------|:-------------------------------------------------------------------------------|
-| id          | Unique ID for the cart.                                                        |
-| user_id     | Can be `null` for guest users.                                                 |
-| customer_id | Can be `null`.                                                                 |
-| merged_id   | If this cart was merged with another, references the cart it was merged into.   |
-| currency_id | Carts can only be for a single currency.                                       |
-| channel_id  | The channel associated with the cart.                                          |
-| order_id    | References the order created from this cart. Can be `null`.                    |
-| coupon_code | Stores a promotional coupon code, e.g. `SALE20`. Can be `null`.               |
-| completed_at| Timestamp for when the cart was completed. Can be `null`.                      |
-| meta        | JSON data for saving any custom information.                                   |
-| created_at  |                                                                                |
-| updated_at  |                                                                                |
-| deleted_at  | Soft delete timestamp. Can be `null`.                                          |
+| Field        | Type         | Description                                          |
+|:-------------|:-------------|:-----------------------------------------------------|
+| id           | `bigIncrements` | Primary key                                       |
+| user_id      | `foreignId` `nullable`  | For guest carts                                      |
+| customer_id  | `foreignId` `nullable`  |                                                      |
+| merged_id    | `foreignId` `nullable`  | References the cart this was merged into              |
+| currency_id  | `foreignId`  |                                                      |
+| channel_id   | `foreignId`  |                                                      |
+| order_id     | `foreignId` `nullable`  | References the order created from this cart           |
+| coupon_code  | `string` `nullable`     | Promotional coupon code                               |
+| completed_at | `dateTime` `nullable`   |                                                      |
+| meta         | `json` `nullable`       |                                                      |
+| created_at   | `timestamp`  |                                                      |
+| updated_at   | `timestamp`  |                                                      |
+| deleted_at   | `timestamp` `nullable`  |                                                      |
 
 ### Creating a Cart
 
 ```php
-$cart = \Lunar\Models\Cart::create([
+use Lunar\Models\Cart;
+
+$cart = Cart::create([
     'currency_id' => 1,
     'channel_id' => 2,
 ]);
@@ -76,9 +78,11 @@ $cart->draftOrder($orderId)->first();
 | `active`   | Filters to carts that have no orders, or only have unplaced (draft) orders.         |
 
 ```php
-$unmergedCarts = \Lunar\Models\Cart::unmerged()->get();
+use Lunar\Models\Cart;
 
-$activeCarts = \Lunar\Models\Cart::active()->get();
+$unmergedCarts = Cart::unmerged()->get();
+
+$activeCarts = Cart::active()->get();
 ```
 
 ## Cart Lines
@@ -89,16 +93,16 @@ Each item in a cart is represented by a `CartLine`. Lines link to a purchasable 
 Lunar\Models\CartLine
 ```
 
-| Field            | Description                                  |
-|:-----------------|:---------------------------------------------|
-| id               |                                              |
-| cart_id          |                                              |
-| purchasable_type | e.g. `product_variant`                       |
-| purchasable_id   |                                              |
-| quantity         |                                              |
-| meta             | JSON data for saving any custom information. |
-| created_at       |                                              |
-| updated_at       |                                              |
+| Field            | Type                 | Description                              |
+|:-----------------|:---------------------|:-----------------------------------------|
+| id               | `bigIncrements`      | Primary key                              |
+| cart_id          | `foreignId`          |                                          |
+| purchasable_type | `string`             | Morph type for the purchasable item      |
+| purchasable_id   | `unsignedBigInteger` | Morph ID for the purchasable item        |
+| quantity         | `unsignedInteger`    |                                          |
+| meta             | `json` `nullable` |                                          |
+| created_at       | `timestamp`          |                                          |
+| updated_at       | `timestamp`          |                                          |
 
 ### Relationships
 
@@ -122,14 +126,16 @@ $cart->add($purchasable, quantity: 2, meta: [
 Multiple lines can be added at once using `addLines`:
 
 ```php
+use Lunar\Models\ProductVariant;
+
 $cart->addLines([
     [
-        'purchasable' => \Lunar\Models\ProductVariant::find(1),
+        'purchasable' => ProductVariant::find(1),
         'quantity' => 2,
         'meta' => ['foo' => 'bar'],
     ],
     [
-        'purchasable' => \Lunar\Models\ProductVariant::find(2),
+        'purchasable' => ProductVariant::find(2),
         'quantity' => 1,
     ],
 ]);
@@ -176,9 +182,11 @@ $cart->clear();
 When adding, updating, or removing items, a series of validation actions are run (defined in `config/lunar/cart.php`). These throw a `CartException` on failure.
 
 ```php
+use Lunar\Exceptions\Carts\CartException;
+
 try {
     $cart->add($purchasable, quantity: 500);
-} catch (\Lunar\Exceptions\Carts\CartException $e) {
+} catch (CartException $e) {
     $error = $e->getMessage();
 }
 ```
@@ -289,30 +297,30 @@ Each cart can have a shipping and billing address, represented by the `CartAddre
 Lunar\Models\CartAddress
 ```
 
-| Field                 | Description                                             |
-|:----------------------|:--------------------------------------------------------|
-| id                    |                                                         |
-| cart_id               | The cart this address belongs to.                       |
-| country_id            | References a country. Can be `null`.                    |
-| title                 | Address title or label. Can be `null`.                  |
-| first_name            | Can be `null`.                                          |
-| last_name             | Can be `null`.                                          |
-| company_name          | Can be `null`.                                          |
-| tax_identifier        | Tax ID or VAT number. Can be `null`.                    |
-| line_one              | Can be `null`.                                          |
-| line_two              | Can be `null`.                                          |
-| line_three            | Can be `null`.                                          |
-| city                  | Can be `null`.                                          |
-| state                 | Can be `null`.                                          |
-| postcode              | Can be `null`.                                          |
-| delivery_instructions | Special delivery notes. Can be `null`.                  |
-| contact_email         | Can be `null`.                                          |
-| contact_phone         | Can be `null`.                                          |
-| type                  | Either `shipping` or `billing`. Defaults to `shipping`. |
-| shipping_option       | The selected shipping option identifier. Can be `null`. |
-| meta                  | JSON data for saving any custom information.            |
-| created_at            |                                                         |
-| updated_at            |                                                         |
+| Field                 | Type        | Description                                             |
+|:----------------------|:------------|:--------------------------------------------------------|
+| id                    | `bigIncrements` | Primary key                                         |
+| cart_id               | `foreignId` |                                                         |
+| country_id            | `foreignId` `nullable` |                                                         |
+| title                 | `string` `nullable`    |                                                         |
+| first_name            | `string` `nullable`    |                                                         |
+| last_name             | `string` `nullable`    |                                                         |
+| company_name          | `string` `nullable`    |                                                         |
+| tax_identifier        | `string` `nullable`    | Tax ID or VAT number                                    |
+| line_one              | `string` `nullable`    |                                                         |
+| line_two              | `string` `nullable`    |                                                         |
+| line_three            | `string` `nullable`    |                                                         |
+| city                  | `string` `nullable`    |                                                         |
+| state                 | `string` `nullable`    |                                                         |
+| postcode              | `string` `nullable`    |                                                         |
+| delivery_instructions | `string` `nullable`    |                                                         |
+| contact_email         | `string` `nullable`    |                                                         |
+| contact_phone         | `string` `nullable`    |                                                         |
+| type                  | `string`    | Either `shipping` or `billing`. Defaults to `shipping`  |
+| shipping_option       | `string` `nullable`    | The selected shipping option identifier                 |
+| meta                  | `json` `nullable`      |                                                         |
+| created_at            | `timestamp` |                                                         |
+| updated_at            | `timestamp` |                                                         |
 
 ### Relationships
 
@@ -366,7 +374,9 @@ $cart->setBillingAddress([
 An `Address` model or a `CartAddress` model can also be passed:
 
 ```php
-$shippingAddress = \Lunar\Models\Address::first();
+use Lunar\Models\Address;
+
+$shippingAddress = Address::first();
 
 $cart->setShippingAddress($shippingAddress);
 
@@ -412,6 +422,8 @@ if ($cart->isShippable()) {
 It may be useful to show an estimated shipping cost before a full address is provided. The `getEstimatedShipping` method returns the cheapest available shipping option based on partial address data.
 
 ```php
+use Lunar\Models\Country;
+
 $shippingOption = $cart->getEstimatedShipping([
     'postcode' => '123456',
     'state' => 'Essex',
@@ -422,6 +434,8 @@ $shippingOption = $cart->getEstimatedShipping([
 By default, this estimate is **not** used in cart total calculations. To include it, pass `setOverride: true`:
 
 ```php
+use Lunar\Models\Country;
+
 $shippingOption = $cart->getEstimatedShipping([
     'postcode' => '123456',
     'state' => 'Essex',
@@ -436,7 +450,9 @@ When `setOverride` is enabled, the returned shipping option bypasses other shipp
 The override can also be set manually:
 
 ```php
-$cart->shippingOptionOverride = new \Lunar\DataTypes\ShippingOption(/* .. */);
+use Lunar\DataTypes\ShippingOption;
+
+$cart->shippingOptionOverride = new ShippingOption(/* .. */);
 ```
 
 ## Creating Orders
@@ -486,9 +502,11 @@ $draftOrder = $cart->currentDraftOrder();
 Stock levels can be validated before order creation. This checks each cart line against the available stock for its purchasable item.
 
 ```php
+use Illuminate\Validation\ValidationException;
+
 try {
     $cart->validateStock();
-} catch (\Illuminate\Validation\ValidationException $e) {
+} catch (ValidationException $e) {
     // One or more items are out of stock
 }
 ```
@@ -537,11 +555,15 @@ Additional session-specific config is in `config/lunar/cart_session.php`:
 Use the facade or inject the interface:
 
 ```php
-$cart = \Lunar\Facades\CartSession::current();
+use Lunar\Facades\CartSession;
+
+$cart = CartSession::current();
 
 // Or via dependency injection
+use Lunar\Base\CartSessionInterface;
+
 public function __construct(
-    protected \Lunar\Base\CartSessionInterface $cartSession
+    protected CartSessionInterface $cartSession
 ) {
     // ...
 }
@@ -552,13 +574,16 @@ When `current()` is called, the behavior depends on the `auto_create` config. Wi
 ### Managing Lines
 
 ```php
+use Lunar\Facades\CartSession;
+use Lunar\Models\ProductVariant;
+
 // Add a single line
 CartSession::add($purchasable, $quantity);
 
 // Add multiple lines (accepts a collection or array)
 CartSession::addLines([
     [
-        'purchasable' => \Lunar\Models\ProductVariant::find(123),
+        'purchasable' => ProductVariant::find(123),
         'quantity' => 25,
         'meta' => ['foo' => 'bar'],
     ],
@@ -588,13 +613,18 @@ CartSession::clear();
 ### Using a Specific Cart
 
 ```php
-$cart = \Lunar\Models\Cart::first();
+use Lunar\Facades\CartSession;
+use Lunar\Models\Cart;
+
+$cart = Cart::first();
 CartSession::use($cart);
 ```
 
 ### Associating a User
 
 ```php
+use Lunar\Facades\CartSession;
+
 // Associate a cart with a user and set it as the session cart
 // The third argument is the auth policy: 'merge' or 'override'
 CartSession::associate($cart, $user, 'merge');
@@ -613,12 +643,16 @@ $cart->setCustomer($customer);
 Forgetting a cart removes it from the session and soft-deletes it from the database:
 
 ```php
+use Lunar\Facades\CartSession;
+
 CartSession::forget();
 ```
 
 To remove it from the session without deleting:
 
 ```php
+use Lunar\Facades\CartSession;
+
 CartSession::forget(delete: false);
 ```
 
@@ -627,6 +661,9 @@ CartSession::forget(delete: false);
 When using the `CartSession` manager, shipping estimation parameters can be persisted so they do not need to be passed each time:
 
 ```php
+use Lunar\Facades\CartSession;
+use Lunar\Models\Country;
+
 CartSession::estimateShippingUsing([
     'postcode' => '123456',
     'state' => 'Essex',
@@ -651,11 +688,13 @@ When a user logs in, Lunar automatically listens to authentication events and ha
 Carts are dynamic: items, quantities, and prices can change at any moment. To detect whether a cart has been modified (e.g. on a different browser tab during checkout), use the fingerprint system:
 
 ```php
+use Lunar\Exceptions\FingerprintMismatchException;
+
 $fingerprint = $cart->fingerprint();
 
 try {
     $cart->checkFingerprint('previously_stored_fingerprint');
-} catch (\Lunar\Exceptions\FingerprintMismatchException $e) {
+} catch (FingerprintMismatchException $e) {
     // Cart has changed, refresh it
 }
 ```
