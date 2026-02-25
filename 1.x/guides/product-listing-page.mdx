@@ -190,21 +190,37 @@ $query = match ($sort) {
     'newest' => $query->reorder()->latest(),
     'price_asc' => $query->reorder()
         ->join(
-            'lunar_prices',
-            'lunar_prices.priceable_id',
+            'lunar_product_variants',
+            'lunar_product_variants.product_id',
             '=',
             'lunar_products.id'
         )
-        ->where('lunar_prices.priceable_type', (new \Lunar\Models\ProductVariant)->getMorphClass())
-        ->orderBy('lunar_prices.price', 'asc'),
-    'price_desc' => $query->reorder()
         ->join(
             'lunar_prices',
             'lunar_prices.priceable_id',
             '=',
-            'lunar_products.id'
+            'lunar_product_variants.id'
         )
         ->where('lunar_prices.priceable_type', (new \Lunar\Models\ProductVariant)->getMorphClass())
+        ->where('lunar_prices.min_quantity', 1)
+        ->whereNull('lunar_prices.customer_group_id')
+        ->orderBy('lunar_prices.price', 'asc'),
+    'price_desc' => $query->reorder()
+        ->join(
+            'lunar_product_variants',
+            'lunar_product_variants.product_id',
+            '=',
+            'lunar_products.id'
+        )
+        ->join(
+            'lunar_prices',
+            'lunar_prices.priceable_id',
+            '=',
+            'lunar_product_variants.id'
+        )
+        ->where('lunar_prices.priceable_type', (new \Lunar\Models\ProductVariant)->getMorphClass())
+        ->where('lunar_prices.min_quantity', 1)
+        ->whereNull('lunar_prices.customer_group_id')
         ->orderBy('lunar_prices.price', 'desc'),
     default => $query, // Uses the collection's configured position ordering
 };
@@ -284,7 +300,10 @@ if ($request->boolean('in_stock')) {
     @foreach($products as $product)
         @php
             $variant = $product->variants->first();
-            $pricing = \Lunar\Facades\Pricing::for($variant)->get();
+            $pricing = \Lunar\Facades\Pricing::for($variant)
+                ->currency(\Lunar\Facades\StorefrontSession::getCurrency())
+                ->customerGroups(\Lunar\Facades\StorefrontSession::getCustomerGroups())
+                ->get();
             $price = $pricing->matched;
         @endphp
 
