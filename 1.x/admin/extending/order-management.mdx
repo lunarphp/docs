@@ -1,21 +1,32 @@
 ---
 title: "Extending Order Management"
 sidebarTitle: "Order Management"
+description: "How to extend the order management view in the Lunar admin panel."
 ---
 
-Although orders have access to the same customisation as [Pages](/1.x/admin/extending/pages) there are some additional methods available and an additional class to allow order lines to be customised.
+The order management page supports the same customization as [Pages](/1.x/admin/extending/pages), along with additional methods specific to the order view screen.
 
-To register your extension:
+## Registration
+
+Register an order management extension in a service provider:
 
 ```php
+use Lunar\Admin\Support\Facades\LunarPanel;
+
 LunarPanel::extensions([
     \Lunar\Admin\Filament\Resources\OrderResource\Pages\ManageOrder::class => MyManageOrderExtension::class,
 ]);
 ```
 
-You then have access to these methods in your class to override area's of the order view screen.
+## Available Methods
+
+The following methods can be overridden in the extension class to customize sections of the order view.
+
+### Main Infolist
 
 - `extendInfolistSchema(): array`
+
+### Aside Panel
 
 - `extendInfolistAsideSchema(): array`
     - `extendCustomerEntry(): Infolists\Components\Component`
@@ -23,7 +34,9 @@ You then have access to these methods in your class to override area's of the or
     - `extendAdditionalInfoSection(): Infolists\Components\Component`
     - `extendShippingAddressInfolist(): Infolists\Components\Component`
     - `extendBillingAddressInfolist(): Infolists\Components\Component`
-    -  `extendAddressEditSchema(): array`
+    - `extendAddressEditSchema(): array`
+
+### Order Summary
 
 - `extendOrderSummaryInfolist(): Infolists\Components\Section`
 - `extendOrderSummarySchema(): array`
@@ -34,7 +47,13 @@ You then have access to these methods in your class to override area's of the or
     - `extendOrderSummaryChannelEntry(): Infolists\Components\Entry`
     - `extendOrderSummaryCreatedAtEntry(): Infolists\Components\Entry`
     - `extendOrderSummaryPlacedAtEntry(): Infolists\Components\Entry`
+
+### Timeline
+
 - `extendTimelineInfolist(): Infolists\Components\Component`
+
+### Order Totals
+
 - `extendOrderTotalsAsideSchema(): array`
     - `extendDeliveryInstructionsEntry(): Infolists\Components\TextEntry`
     - `extendOrderNotesEntry(): Infolists\Components\TextEntry`
@@ -48,18 +67,27 @@ You then have access to these methods in your class to override area's of the or
     - `extendPaidEntry(): Infolists\Components\TextEntry`
     - `extendRefundEntry(): Infolists\Components\TextEntry`
 
+### Shipping and Transactions
+
 - `extendShippingInfolist(): Infolists\Components\Section`
 - `extendTransactionsInfolist(): Infolists\Components\Component`
 - `extendTransactionsRepeatableEntry(): Infolists\Components\RepeatableEntry`
 
-## Extending `OrderItemsTable`
+## Extending the Order Items Table
+
+The order items table can be extended separately by registering an extension for the `OrderItemsTable` component:
 
 ```php
-\Lunar\Facades\LunarPanel::extensions([
-    \Lunar\Admin\Filament\Resources\OrderResource\Pages\Components\OrderItemsTable::class => OrderItemsTableExtension::class
+use Lunar\Admin\Support\Facades\LunarPanel;
+
+LunarPanel::extensions([
+    \Lunar\Admin\Filament\Resources\OrderResource\Pages\Components\OrderItemsTable::class => OrderItemsTableExtension::class,
 ]);
 ```
+
 ### Available Methods
 
-- `extendOrderLinesTableColumns(): array`
-- `extendTable(): Table`
+| Method | Description |
+|:-------|:------------|
+| `extendOrderLinesTableColumns(): array` | Customize the columns displayed for order line items. |
+| `extendTable(): Table` | Customize the full order items table configuration. |

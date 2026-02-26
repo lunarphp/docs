@@ -1,65 +1,80 @@
 ---
 title: "Extending Resources"
 sidebarTitle: "Resources"
+description: "How to extend Filament resources in the Lunar admin panel."
 ---
 
-## MyProductResourceExtension
+Resource extensions allow modifying the form, table, relations, pages, and sub-navigation of any Lunar admin resource. Create a class that extends `ResourceExtension` and register it with the `LunarPanel` facade.
 
-An example of extending the ProductResource
+## Example
+
+The following example extends the `ProductResource` to add a custom column to the form and table, a custom relation manager, and additional pages:
 
 ```php
-class MyProductResourceExtension extends \Lunar\Admin\Support\Extending\ResourceExtension
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Form;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Table;
+use Lunar\Admin\Support\Extending\ResourceExtension;
+
+class MyProductResourceExtension extends ResourceExtension
 {
-    public function extendForm(\Filament\Forms\Form $form): \Filament\Forms\Form
+    public function extendForm(Form $form): Form
     {
         return $form->schema([
             ...$form->getComponents(withHidden: true),
-            
-            \Filament\Forms\Components\TextInput::make('custom_column')
+            TextInput::make('custom_column'),
         ]);
     }
-    
-    public function extendTable(\Filament\Tables\Table $table): \Filament\Tables\Table
+
+    public function extendTable(Table $table): Table
     {
         return $table->columns([
             ...$table->getColumns(),
-            \Filament\Tables\Columns\TextColumn::make('product_code')
+            TextColumn::make('product_code'),
         ]);
     }
-    
-    public function getRelations(array $managers) : array
+
+    public function getRelations(array $managers): array
     {
         return [
             ...$managers,
-            // This is just a standard Filament relation manager.
-            // see https://filamentphp.com/docs/3.x/panels/resources/relation-managers#creating-a-relation-manager
             MyCustomProductRelationManager::class,
         ];
     }
-    
-    public function extendPages(array $pages) : array
+
+    public function extendPages(array $pages): array
     {
         return [
             ...$pages,
-            // This is just a standard Filament page
-            // see https://filamentphp.com/docs/3.x/panels/pages#creating-a-page
             'my-page-route-name' => MyPage::route('/{record}/my-page'),
         ];
     }
-    
-    public function extendSubNavigation(array $nav) : array
+
+    public function extendSubNavigation(array $nav): array
     {
         return [
             ...$nav,
-            // This is just a standard Filament page
-            // see https://filamentphp.com/docs/3.x/panels/pages#creating-a-page
             MyPage::class,
         ];
     }
 }
 
-// Typically placed in your AppServiceProvider file...
+// Typically placed in a service provider...
 LunarPanel::extensions([
     \Lunar\Admin\Filament\Resources\ProductResource::class => MyProductResourceExtension::class,
 ]);
 ```
+
+## Available Methods
+
+| Method | Description |
+|:-------|:------------|
+| `extendForm(Form $form)` | Modify the resource's form schema. |
+| `extendTable(Table $table)` | Modify the resource's table columns and configuration. |
+| `getRelations(array $managers)` | Add or modify relation managers for the resource. |
+| `extendPages(array $pages)` | Add custom pages to the resource. |
+| `extendSubNavigation(array $nav)` | Add items to the resource's sub-navigation. |
+| `headerActions(array $actions)` | Add or modify header actions. |
+
+See the [Filament documentation](https://filamentphp.com/docs) for more details on building resources, relation managers, and pages.

@@ -1,32 +1,30 @@
 ---
 title: "Extending the Panel"
 sidebarTitle: "Panel"
+description: "How to customize the Filament panel configuration for Lunar."
 ---
 
-You may customise the Filament panel when registering it in your app service provider.
+The Filament panel can be customized when registering it in a service provider. The `LunarPanel::panel()` method provides direct access to the panel instance for configuration.
 
-We provide a handy function which gives you direct access to the panel to change its properties.
-
-For example, the following would change the panel's URL to `/admin` rather than the default `/lunar`.
+For example, the following changes the panel's URL to `/admin` instead of the default `/lunar`:
 
 ```php
 use Lunar\Admin\Support\Facades\LunarPanel;
 
-LunarPanel::panel(fn($panel) => $panel->path('admin'))
+LunarPanel::panel(fn ($panel) => $panel->path('admin'))
     ->extensions([
         // ...
     ])
     ->register();
 ```
 
-## Adding to the panel
+## Adding to the Panel
 
-The [Filament](https://filamentphp.com/) panel allows you to add further screens in the form of Pages or Resources, and 
-indeed customise any available panel option.
-
-Below is an example of how you can use the panel object.
+The Filament panel supports adding new screens as Pages or Resources, as well as other customizations such as Livewire components, plugins, and navigation groups.
 
 ```php
+use Lunar\Admin\Support\Facades\LunarPanel;
+
 LunarPanel::panel(function ($panel) {
     return $panel
         ->pages([
@@ -57,4 +55,5 @@ LunarPanel::panel(function ($panel) {
         ]);
 })->register();
 ```
-For further information please consult the [Filament documentation](https://filamentphp.com/docs).
+
+For further information, consult the [Filament documentation](https://filamentphp.com/docs).
