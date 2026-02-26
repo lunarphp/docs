@@ -1,152 +1,208 @@
+---
+title: "Associations"
+description: "Relate products to each other as cross-sells, up-sells, alternates, or custom types."
+---
+
 ## Overview
 
-Associations allow you to relate products to each other. There are a few different ways you can associate two products and this type of relationship would define how they are presented on your storefront and also how Lunar sees them.
+Associations allow products to be related to each other. The type of association defines how the relationship should be presented on a storefront and how Lunar interprets it. Lunar ships with three built-in types (cross-sell, up-sell, and alternate), but custom types can also be created.
 
-## Loading associations
+## Model
+
+Associations are stored as `Lunar\Models\ProductAssociation` models.
+
+### Fields
+
+| Field | Type | Description |
+|:------|:-----|:------------|
+| `id` | `bigIncrements` | Primary key |
+| `product_parent_id` | `foreignId` | The owning product |
+| `product_target_id` | `foreignId` | The associated product |
+| `type` | `string` | The association type (e.g. `cross-sell`, `up-sell`, `alternate`) |
+| `created_at` | `timestamp` | |
+| `updated_at` | `timestamp` | |
+
+### Relationships
+
+| Relationship | Type | Related Model | Description |
+|:-------------|:-----|:--------------|:------------|
+| `parent` | BelongsTo | `Lunar\Models\Product` | The owning product |
+| `target` | BelongsTo | `Lunar\Models\Product` | The associated product |
+
+### Scopes
+
+| Scope | Description |
+|:------|:------------|
+| `crossSell()` | Filter to cross-sell associations |
+| `upSell()` | Filter to up-sell associations |
+| `alternate()` | Filter to alternate associations |
+| `type(string $type)` | Filter by a specific type |
+
+### Constants
+
+The `ProductAssociation` model defines constants for the built-in types:
 
 ```php
-$product->associations
+use Lunar\Models\ProductAssociation;
+
+ProductAssociation::CROSS_SELL; // 'cross-sell'
+ProductAssociation::UP_SELL;    // 'up-sell'
+ProductAssociation::ALTERNATE;  // 'alternate'
 ```
 
-This will return a Laravel collection of `Lunar\Models\ProductAssociation` models. On each model you will have access to the following:
+## Loading Associations
 
 ```php
-// Lunar\Models\ProductAssociation
-$association->parent; // The owning product who has the associations
-$association->target // The associated (cross-sell, up-sell, alternate) product.
-$association->type // Whether it's cross-sell, up-sell or alternate.
+$product->associations;
 ```
 
-## Types of association
+This returns a collection of `Lunar\Models\ProductAssociation` models:
 
-### Cross Sell
+```php
+use Lunar\Models\ProductAssociation;
 
-Cross selling is the process of encouraging customers to purchase products or services in addition to the original items they intended to purchase. Oftentimes the cross-sold items are complementary to one another so customers have more of a reason to purchase both of them.
+$association->parent; // The owning product
+$association->target; // The associated product
+$association->type;   // The association type string
+```
 
-For example, if you're selling a Phone on your store, you may want to present some headphones or a case that works with the phone which the customer may be interested in.
+### Inverse Associations
+
+To find products that associate _to_ a given product (i.e. where the product is the target), use the `inverseAssociations` relationship:
+
+```php
+$product->inverseAssociations;
+```
+
+## Types of Association
+
+### Cross-Sell
+
+Cross-selling encourages customers to purchase complementary products in addition to the item they intended to buy.
+
+For example, if a store sells a phone, cross-sell associations could include headphones or a case that works with that phone.
 
 **Adding a cross-sell association**
 
 ```php
-$product->associate(
-    \Lunar\Models\Product $crossSellProduct,
-    \Lunar\Models\ProductAssociation::CROSS_SELL
-);
+use Lunar\Models\ProductAssociation;
 
-$product->associate(
-    [$productA, $productB],
-    \Lunar\Models\ProductAssociation::CROSS_SELL
-);
+$product->associate($crossSellProduct, ProductAssociation::CROSS_SELL);
+
+// Or associate multiple products at once
+$product->associate([$productA, $productB], ProductAssociation::CROSS_SELL);
 ```
 
-**Fetching cross-sell products**
+**Fetching cross-sell associations**
 
 ```php
-// Via a relationship scope
+use Lunar\Models\ProductAssociation;
+
+// Using the convenience scope
 $product->associations()->crossSell()->get();
 
-// Via the type scope
-$product->associations()->type(ProductAssociation::CROSS_SELL);
+// Using the type scope
+$product->associations()->type(ProductAssociation::CROSS_SELL)->get();
 ```
 
-### Up Sell
+### Up-Sell
 
-Upselling is the process of encouraging customers to upgrade or include add-ons to the product or service they’re buying. The product or service being promoted is typically a more expensive product or add ons which can increase the overall order value.
+Up-selling encourages customers to upgrade or include add-ons to the product they are buying, typically to a higher-value option.
 
-Using the phone example from above, lets consider we have two phones.
+For example, given two phones:
 
-- Phone 16gb 5" Screen
-- Phone 32gb 6" Screen
+- Phone 16GB 5" Screen
+- Phone 32GB 6" Screen
 
-When editing the 16gb Phone we would add the 32gb version as an up-sell association and could present this when a user is viewing the 16gb version.
+The 32GB version could be added as an up-sell association on the 16GB product, allowing it to be presented as an upgrade when a customer views the 16GB version.
+
+**Adding an up-sell association**
 
 ```php
-$product->associate(
-    \Lunar\Models\Product $upSellProduct,
-    \Lunar\Models\ProductAssociation::UP_SELL
-);
+use Lunar\Models\ProductAssociation;
 
-$product->associate(
-    [$productA, $productB],
-    \Lunar\Models\ProductAssociation::UP_SELL
-);
+$product->associate($upSellProduct, ProductAssociation::UP_SELL);
+
+// Or associate multiple products at once
+$product->associate([$productA, $productB], ProductAssociation::UP_SELL);
 ```
 
-**Fetching up-sell products**
+**Fetching up-sell associations**
 
 ```php
-// Via a relationship scope
+use Lunar\Models\ProductAssociation;
+
+// Using the convenience scope
 $product->associations()->upSell()->get();
 
-// Via the type scope
-$product->associations()->type(ProductAssociation::UP_SELL);
+// Using the type scope
+$product->associations()->type(ProductAssociation::UP_SELL)->get();
 ```
 
 ### Alternate
 
-Alternate products are what you could present the user as an alternative to the current product. This is helpful in situations where the product might be out of stock or not quite fit for purpose and you could show these.
+Alternate products are alternatives to the current product. This is useful when a product is out of stock or not quite the right fit, allowing the storefront to suggest similar options.
+
+**Adding an alternate association**
 
 ```php
-$product->associate(
-    \Lunar\Models\Product $alternateProduct,
-    \Lunar\Models\ProductAssociation::ALTERNATE
-);
+use Lunar\Models\ProductAssociation;
 
-$product->associate(
-    [$productA, $productB],
-    \Lunar\Models\ProductAssociation::ALTERNATE
-);
+$product->associate($alternateProduct, ProductAssociation::ALTERNATE);
+
+// Or associate multiple products at once
+$product->associate([$productA, $productB], ProductAssociation::ALTERNATE);
 ```
 
-**Fetching alternate products**
+**Fetching alternate associations**
 
 ```php
-// Via a relationship scope
+use Lunar\Models\ProductAssociation;
+
+// Using the convenience scope
 $product->associations()->alternate()->get();
 
-// Via the type scope
-$product->associations()->type(ProductAssociation::ALTERNATE);
+// Using the type scope
+$product->associations()->type(ProductAssociation::ALTERNATE)->get();
 ```
 
-### Custom types
+### Custom Types
 
-Although Lunar comes preloaded with the associations above, you are free to add your own custom association types.
+In addition to the built-in types, custom association types can be defined by passing any string as the type. No registration or configuration is required since the `type` column is a plain string in the database.
 
 ```php
-$product->associate(
-    \Lunar\Models\Product $alternateProduct,
-    'my-custom-type'
-);
+$product->associate($relatedProduct, 'my-custom-type');
 ```
 
-You can then fetch all associated products like so:
+Custom types can be queried using the `type` scope:
 
 ```php
 $product->associations()->type('my-custom-type')->get();
 ```
 
-## Removing associations
+<Tip>
+If using the admin panel, custom types can be added to the association type dropdown by replacing the default enum. See [Admin Panel Configuration](/1.x/admin/extending/configuration#product-association-types) for details.
+</Tip>
 
-You can dissociate products with one simple method. If you only pass through the related models, or an array of models, all associations will be removed. If you wish to only remove associations for a certain type you can pass the type through as the second parameter.
+## Removing Associations
+
+The `dissociate` method removes associations between products. It accepts a single product, an array, or a collection. If no type is specified, all association types for the given product(s) are removed.
 
 ```php
-// Remove this associated product from however many different association types it might have.
+use Lunar\Models\ProductAssociation;
+
+// Remove all associations with a product, regardless of type
 $product->dissociate($associatedProduct);
 
-// Will also accept an array or collection of products.
-$product->dissociate([/* ... */])
+// Also accepts an array or collection of products
+$product->dissociate([$productA, $productB]);
 
-// Only remove this products association if it has been associated as a cross-sell.
-$product->dissociate($associatedProduct, Product::CROSS_SELL);
+// Remove only a specific association type
+$product->dissociate($associatedProduct, ProductAssociation::CROSS_SELL);
 ```
 
-## Database Schema
+## Queued Operations
 
-|Field|Description|
-|:-|:-|
-|`id`||
-|`product_id`||
-|`product_association_id`||
-|`type`|(cross-sell, up-sell, alternate)|
-|`created_at`||
-|`updated_at`||
+<Info>
+Both `associate()` and `dissociate()` dispatch queued jobs (`Lunar\Jobs\Products\Associations\Associate` and `Lunar\Jobs\Products\Associations\Dissociate`). This means the changes may not be reflected immediately if using an asynchronous queue driver.
+</Info>

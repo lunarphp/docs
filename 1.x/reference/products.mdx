@@ -1,19 +1,70 @@
+---
+title: "Products"
+description: "Define, categorize, and manage products with variants, pricing, options, and associations."
+---
+
 ## Overview
 
-Products are generally what you will be selling in your store. You define all your attributes against the product and
-products can also have variations. In Lunar a product will always have at least one variation. From a UX point of view,
-it will just look like you're editing a single product, but behind the scenes you'll be editing one variant.
+Products represent the items available for sale in a store. All custom attributes are defined against the product, and products can have multiple variations. In Lunar, a product always has at least one variant. When a product has only a single variant, the editing experience appears as though the product itself is being edited directly, but behind the scenes the data lives on the variant.
 
-Products also belong to a `ProductType` and aside from the attributes, which you are free to define yourself, will have
-a base SKU and a brand name.
-
-## Creating a product
+Every product belongs to a `ProductType`, which determines which attributes are available during editing. Products can also optionally belong to a `Brand`.
 
 ```php
-Lunar\Models\Product::create([
-    'product_type_id' => $productTypeId,
+Lunar\Models\Product
+```
+
+### Fields
+
+| Field | Type | Description |
+|:------|:-----|:------------|
+| `id` | `bigIncrements` | Primary key |
+| `product_type_id` | `foreignId` | The product type |
+| `status` | `string` | Product status (e.g. `published`, `draft`) |
+| `brand_id` | `foreignId` `nullable` | Optional brand association |
+| `attribute_data` | `json` | Custom attribute data |
+| `created_at` | `timestamp` | |
+| `updated_at` | `timestamp` | |
+| `deleted_at` | `timestamp` `nullable` | Soft deletes |
+
+### Relationships
+
+| Relationship | Type | Related Model | Description |
+|:-------------|:-----|:--------------|:------------|
+| `productType` | BelongsTo | `Lunar\Models\ProductType` | The product's type |
+| `brand` | BelongsTo | `Lunar\Models\Brand` | The product's brand |
+| `variants` | HasMany | `Lunar\Models\ProductVariant` | All variants of the product |
+| `variant` | HasOne | `Lunar\Models\ProductVariant` | Single variant convenience accessor |
+| `prices` | HasManyThrough | `Lunar\Models\Price` | All prices across variants |
+| `collections` | BelongsToMany | `Lunar\Models\Collection` | Pivot: `position` |
+| `associations` | HasMany | `Lunar\Models\ProductAssociation` | Outgoing product associations |
+| `inverseAssociations` | HasMany | `Lunar\Models\ProductAssociation` | Incoming product associations |
+| `customerGroups` | BelongsToMany | `Lunar\Models\CustomerGroup` | Pivot: `purchasable`, `visible`, `enabled`, `starts_at`, `ends_at` |
+| `channels` | MorphToMany | `Lunar\Models\Channel` | Pivot: `enabled`, `starts_at`, `ends_at` |
+| `productOptions` | BelongsToMany | `Lunar\Models\ProductOption` | Pivot: `position` |
+| `urls` | MorphMany | `Lunar\Models\Url` | SEO-friendly URLs |
+| `tags` | MorphToMany | `Lunar\Models\Tag` | |
+| `images` | MorphMany | Media | Product images |
+| `thumbnail` | MorphOne | Media | Primary thumbnail image |
+
+### Scopes
+
+| Scope | Description |
+|:------|:------------|
+| `status($status)` | Filter by product status |
+| `channel($channel, $startsAt, $endsAt)` | Filter by channel availability |
+| `customerGroup($group, $startsAt, $endsAt)` | Filter by customer group visibility |
+
+## Creating a Product
+
+```php
+use Lunar\Models\Product;
+use Lunar\FieldTypes\Text;
+use Lunar\FieldTypes\TranslatedText;
+
+Product::create([
+    'product_type_id' => $productType->id,
     'status' => 'published',
-    'brand_id' => $brandId,
+    'brand_id' => $brand->id,
     'attribute_data' => [
         'name' => new TranslatedText(collect([
             'en' => new Text('FooBar'),
@@ -24,38 +75,69 @@ Lunar\Models\Product::create([
 ```
 
 <Warning>
-Lunar internally expects and uses the ``name`` added to Product Attribute data. You must add it in attributes, and utilize it; Otherwise, Admin Panel may throw unexpected errors.
+Lunar internally expects and uses the `name` attribute in product attribute data. It must be included in the product type's attributes and populated; otherwise the admin panel may throw unexpected errors.
 </Warning>
+
+### Filtering by status
+
+```php
+use Lunar\Models\Product;
+
+Product::status('published')->get();
+```
+
+## Channels
+
+Products support multi-channel availability through the `HasChannels` trait. When a product is created, all channels are automatically synced. Each channel can be independently enabled or disabled, with optional start and end dates for scheduled availability.
+
+### Scheduling a channel
+
+```php
+// Enable for a channel immediately
+$product->scheduleChannel($channel);
+
+// Schedule availability to start in 14 days
+$product->scheduleChannel($channel, now()->addDays(14));
+
+// Accepts an array or collection of channels
+$product->scheduleChannel(Channel::get());
+```
+
+### Filtering by channel
+
+```php
+use Lunar\Models\Product;
+
+$products = Product::channel($channel)->get();
+```
 
 ## Customer Groups
 
-You can assign customer groups to a product, this allows you to either always have that product enabled for the customer
-group, or you can state which dates they should be active for (as long as the customer group is enabled).
+Products can be assigned to customer groups with optional scheduling. This controls whether the product is visible and purchasable for members of each group.
 
-### Attaching customer groups
+### Scheduling a customer group
 
 ```php
-
-// Will schedule for this product to be enabled in 14 days for this customer group.
-$product->scheduleCustomerGroup($customerGroup, now()->addDays(14));
-
-// Schedule the product to be enabled straight away
+// Enable for this customer group immediately
 $product->scheduleCustomerGroup($customerGroup);
 
-// The schedule method will accept an array or collection of customer groups.
+// Schedule the product to be enabled in 14 days for this customer group
+$product->scheduleCustomerGroup($customerGroup, now()->addDays(14));
+
+// Accepts an array or collection of customer groups
 $product->scheduleCustomerGroup(CustomerGroup::get());
 ```
 
-### Retrieving products for a customer group
+### Filtering by customer group
 
-If you want to get all products related to a customer group, you can use the `customerGroup` scope. This scope can
-either take a single customer group (or customer group id) or a collection/array of ids/customer group models.
+The `customerGroup` scope accepts a single customer group (or ID), or a collection/array of customer groups or IDs.
 
 ```php
-// Can be an array of ids
-$products = \Lunar\Models\Product::customerGroup(1)->paginate(50);
+use Lunar\Models\Product;
 
-$products = \Lunar\Models\Product::customerGroup([
+$products = Product::customerGroup(1)->paginate(50);
+
+$products = Product::customerGroup([
     $groupA,
     $groupB,
 ])->paginate(50);
@@ -63,40 +145,55 @@ $products = \Lunar\Models\Product::customerGroup([
 
 ## Product Types
 
-e.g. Television, T-Shirt, Book, Phone, etc.
+Product types categorize products and determine which attributes are available during editing (e.g. Television, T-Shirt, Book, Phone).
 
-Assigns the appropriate attributes for the product type.
+```php
+Lunar\Models\ProductType
+```
+
+### Fields
+
+| Field | Type | Description |
+|:------|:-----|:------------|
+| `id` | `bigIncrements` | Primary key |
+| `name` | `string` | The product type name |
+| `created_at` | `timestamp` | |
+| `updated_at` | `timestamp` | |
+
+### Relationships
+
+| Relationship | Type | Related Model | Description |
+|:-------------|:-----|:--------------|:------------|
+| `products` | HasMany | `Lunar\Models\Product` | All products of this type |
+| `mappedAttributes` | MorphToMany | `Lunar\Models\Attribute` | All attributes mapped to this type |
+| `productAttributes` | MorphToMany | `Lunar\Models\Attribute` | Attributes for products |
+| `variantAttributes` | MorphToMany | `Lunar\Models\Attribute` | Attributes for variants |
 
 ### Creating a product type
 
 ```php
-Lunar\Models\ProductType::create([
+use Lunar\Models\ProductType;
+
+$productType = ProductType::create([
     'name' => 'Boots',
 ]);
 ```
 
-Product Types also have [Attributes](/1.x/reference/attributes) associated to them. These associated attributes will
-determine what fields are available to products when editing. For example if you had an attribute of `Screen Type`
-associated to a `TVs` product type, any products with that product type would have access to that attribute when
-editing.
+Product types have [Attributes](/1.x/reference/attributes) associated to them. These associated attributes determine which fields are available to products when editing. For example, an attribute of `Screen Type` associated to a `TVs` product type would make that field available on any product with that type.
 
-You can associate attributes to a product type like so (it's just a straight
-forward [Polymorphic relationship](https://laravel.com/docs/8.x/eloquent-relationships#many-to-many-polymorphic-relations)).
+Attributes can be associated using a standard [polymorphic relationship](https://laravel.com/docs/eloquent-relationships#many-to-many-polymorphic-relations):
 
 ```php
-$productType->mappedAttributes()->attach([ /* attribute ids ... */ ]);
+$productType->mappedAttributes()->attach([/* attribute ids ... */]);
 ```
 
-You can associate both `Product` and `ProductVariant` attributes to a product type which will then display on either the
-product or product variant when editing.
+Both `Product` and `ProductVariant` attributes can be associated to a product type, and each will display on the corresponding model when editing.
 
 <Warning>
-If you decide to delete an attribute, this will cause the association to be dropped and you could lose data.
+Deleting an attribute will drop the association and could result in data loss.
 </Warning>
 
 ### Retrieving the product type relationship
-
-If you have a product, you can fetch its product type like so:
 
 ```php
 $product->productType;
@@ -104,91 +201,32 @@ $product->productType;
 $product->load(['productType']);
 ```
 
-## Product Identifiers
-
-You can choose to add product identifiers to each product variant. These are fields which, as the name suggests, allow
-you to identify a product and its variants for use in your internal systems. You can choose whether these are required
-and unique in the hub whilst editing.
-
-### Available fields
-
-**SKU**
-
-SKU stands for “stock keeping unit” and — as the name suggests — it is a number (usually eight alphanumeric digits) that
-you can assign to products to keep track of stock levels internally. If a product has different colors and sizes, each
-variation may use a unique SKU number.
-
-**GTIN**
-
-A Global Trade Item Number (GTIN) is a unique and internationally recognized identifier for a product. These usually
-accompany a barcode and are useful when using services such as Google to help them classify the product.
-
-**MPN**
-
-MPN (Manufacturer Part Number) is the product identifier used to differentiate a product among other (similar) products
-from the same brand/manufacturer, making it easier for customers to find and buy your products and protecting them from
-counterfeit.
-
-**EAN**
-
-European Article numbering code (EAN) is a series of letters and numbers in a unique order that helps identify specific
-products within your own inventory.
-
-### Validation
-
-Depending on your storefront needs, you might not need any of these fields to be required or unique. For this reason you
-can change this behaviour at a validation level.
-
-`config/lunar-hub/products.php`
-
-```php
-    'sku' => [
-        'required' => true,
-        'unique' => false,
-    ],
-    'gtin' => [
-        'required' => false,
-        'unique' => false,
-    ],
-    'mpn' => [
-        'required' => false,
-        'unique' => false,
-    ],
-    'ean' => [
-        'required' => false,
-        'unique' => false,
-    ],
-```
-
 ## Product Options
 
-These are what you use to define the different options a product has available to it. These are directly related to the
-different variants a product might have. Each `ProductOption` will have a set of `ProductOptionValue` models related to
-it. For example:
-
-You could have a `ProductOption` called "Colour" and then multiple `ProductionOptionValue` models for each colour you
-would like to offer.
+Product options define the different variations available for a product. Each `ProductOption` has a set of `ProductOptionValue` models. For example, a `ProductOption` called "Color" could have values like "Blue", "Red", and "Green".
 
 <Tip>
-Product options and Product option values are defined at a system level and are translatable.
+Product options and product option values are defined at a system level and are translatable.
 </Tip>
 
-### Creating a `ProductOption`
+### Creating a ProductOption
 
 ```php
-$option = Lunar\Models\ProductOption::create([
+use Lunar\Models\ProductOption;
+
+$option = ProductOption::create([
     'name' => [
-        'en' => 'Colour',
+        'en' => 'Color',
         'fr' => 'Couleur',
     ],
     'label' => [
-        'en' => 'Colour',
+        'en' => 'Color',
         'fr' => 'Couleur',
     ],
 ]);
 ```
 
-We can then create values for this option:
+Values can then be created for the option:
 
 ```php
 // Lunar\Models\ProductOptionValue
@@ -208,194 +246,101 @@ $option->values()->createMany([
 ]);
 ```
 
-This Product option and its values are now ready to be used to with Product Variants.
+This product option and its values are now ready to be used with product variants.
 
 ### Product Option Meta
 
-Both `ProductOption` and `ProductOptionValue` models include a meta field for you to include custom information.
-For example, you may wish to store color values, links to images, etc.
+Both `ProductOption` and `ProductOptionValue` models include a `meta` field for storing custom information such as color hex values, image links, or other display data.
 
-Lunar makes no assumptions here, you are free to store your values in the `meta` JSON field however you like.
+Lunar makes no assumptions about the structure of the `meta` JSON field. Any values can be stored in whatever format the application requires.
 
-# Product Associations
+## Product Associations
 
-Lunar allows you to associate products with other products. These will typically be for defining upsells, cross-sells
-and alternative products.
-
-You can customize the association types by creating your own ENUM definition in the `products.php` config file.
-
-```php
-    'association_types_enum' => \Lunar\Base\Enums\ProductAssociation::class,
-```
-
-# Product Shipping
-
-By default Lunar will mark all product variants as `shippable`. If you don't need to ship a certain variant then you can
-simply set this to false.
-
-```php
-$variant->update([
-    'shippable' => false,
-]);
-```
-
-## Product dimensions
-
-Product's can have different dimensions assigned to them, the values we have available are
-
-- Length
-- Width
-- Height
-- Weight
-- Volume
-
-For handling conversions, we use the [Cartalyst Converter](https://github.com/cartalyst/converter/tree/master) package.
-This supports a wide range of UOM and can convert those values to different measurements.
-
-Each UOM has a corresponding `_value` and `_unit` column in the database. For example:
-
-```php
-length_value
-length_unit
-width_value
-width_unit
-```
-
-### Configuring measurements
-
-You can configure the available UOM's in the `lunar/shipping.php` config file. Here is an example of what Lunar provides
-by default:
-
-**Length**
-
-- m
-- mm
-- cm
-- ft
-- in
-
-**Weight**
-
-- kg
-- g
-- lbs
-
-**Volume**
-
-- l
-- ml
-- gal
-- floz
-
-### Getting and converting measurement values
-
-You are free to access to the `*_value` and `*_unit` values for the variant and use them in their raw form, however we
-do offer an accessor for each unit that you can use:
-
-```php
-$variant->length->to('length.ft')->convert();
-```
-
-#### Volume calculation
-
-Volume is calculated different to the rest of the measurements. You can either have it automatically figure out the
-volume or manually set it yourself:
-
-```php
-$variant->update([
-    'length_value' => 50,
-    'length_unit' => 'mm',
-    'height_value' => 50,
-    'height_unit' => 'mm',
-    'width_value' => 50,
-    'width_unit' => 'mm',
-])
-
-// By default will return ml
-$variant->volume->getValue(); // 125
-
-// Use any UOM you want for volume
-$variant->volume->to('volume.l')->convert()->getValue(); // 12.5
-
-// Set the volume manually and it'll always use that.
-$variant->update([
-    'volume_unit' => 'floz',
-    'volume_value' => 100
-]);
-
-$variant->volume->getValue(); // 100
-
-$variant->volume->to('volume.l')->convert()->getValue(); // 2.95735...
-```
-
-**Get a formatted value**
-
-If you want to display a formatted value, you can!
-
-```php
-$variant->length->format(); // 50cm
-```
+Products can be associated with other products as cross-sells, up-sells, or alternates. See the [Associations](/1.x/reference/associations) reference for full details on creating and managing product associations.
 
 ## Variants
 
-Variants allow you to specify different variations of a product. Think things like Small Blue T-shirt, or Size 8 and
-Size 9 Leather Boots. Your product is the main parent and your variants are based off that product to create multiple
-permutations.
+Variants represent the different purchasable permutations of a product, such as "Small Blue T-shirt" or "Size 9 Leather Boots". The product acts as the parent, and variants hold the specific data including pricing, inventory, shipping information, and product identifiers.
 
-Variants are also responsible for storing data such as Pricing, Inventory/Stock information, Shipping information etc.
-For that reason a product will always have at least one variant.
-
-When you decide you want to offer more than one variant for a product, upon generation, Lunar will take the first
-variant and use that as a base for all other variants in terms of pricing, inventory etc. So you won't lose any data you
-may have already saved against the existing product.
-
-## Creating variants
-
-### New Product
-
-If you have a new product, you would create your variants in bulk based on an array of `ProductOptionValue` IDs.
-
-You will need to determine what variants you need to create and assign the correct option values to that variant.
-
-For example, lets say we have an option "Colour" and we want to create "Blue" and "Red" variants.
-
-<Tip>
-A product variant will require a product, currency and a tax class.
-If you do not have these entities created, you will need to do so before continuing.
-</Tip>
-
-If needed, Create the product and tax class.
+A product always has at least one variant. When additional variants are generated, Lunar uses the first variant as a baseline for pricing, inventory, and other data.
 
 ```php
-$product = Product::create([...]);
-$taxClass = TaxClass::create([...]);
-$currency = Currency::create([...]);
+Lunar\Models\ProductVariant
 ```
 
-Otherwise, fetch them.
+### Fields
+
+| Field | Type | Description |
+|:------|:-----|:------------|
+| `id` | `bigIncrements` | Primary key |
+| `product_id` | `foreignId` | The parent product |
+| `tax_class_id` | `foreignId` | Tax classification |
+| `tax_ref` | `string` `nullable` | Tax reference identifier |
+| `unit_quantity` | `integer` | Units per single purchase, default: `1` |
+| `min_quantity` | `integer` | Minimum purchasable quantity, default: `1` |
+| `quantity_increment` | `integer` | Purchase quantity step, default: `1` |
+| `sku` | `string` `nullable` | Stock keeping unit |
+| `gtin` | `string` `nullable` | Global Trade Item Number |
+| `mpn` | `string` `nullable` | Manufacturer Part Number |
+| `ean` | `string` `nullable` | European Article Number |
+| `length_value` | `float` `nullable` | Length dimension |
+| `length_unit` | `string` `nullable` | Length unit of measure |
+| `width_value` | `float` `nullable` | Width dimension |
+| `width_unit` | `string` `nullable` | Width unit of measure |
+| `height_value` | `float` `nullable` | Height dimension |
+| `height_unit` | `string` `nullable` | Height unit of measure |
+| `weight_value` | `float` `nullable` | Weight value |
+| `weight_unit` | `string` `nullable` | Weight unit of measure |
+| `volume_value` | `float` `nullable` | Volume value |
+| `volume_unit` | `string` `nullable` | Volume unit of measure |
+| `shippable` | `boolean` | Whether the variant requires shipping, default: `true` |
+| `stock` | `integer` | Current stock quantity, default: `0` |
+| `backorder` | `integer` | Backorder quantity, default: `0` |
+| `purchasable` | `string` | Purchasability mode: `always` or `in_stock`, default: `always` |
+| `attribute_data` | `json` | Custom attribute data |
+| `created_at` | `timestamp` | |
+| `updated_at` | `timestamp` | |
+| `deleted_at` | `timestamp` `nullable` | Soft deletes |
+
+### Product Identifiers
+
+Each variant can store product identifiers for use in internal systems or external services.
+
+**SKU** (Stock Keeping Unit) — A code (usually eight alphanumeric digits) used to track stock levels internally. Each variant of a product typically has a unique SKU.
+
+**GTIN** (Global Trade Item Number) — An internationally recognized product identifier, often accompanying a barcode. Useful with services like Google Shopping to help classify products.
+
+**MPN** (Manufacturer Part Number) — An identifier from the manufacturer that differentiates a product among similar items from the same brand.
+
+**EAN** (European Article Number) — A series of characters that identifies specific products within an inventory system.
+
+### Creating Variants
+
+A product variant requires a product, currency (for pricing), and a tax class.
 
 ```php
+use Lunar\Models\Product;
+use Lunar\Models\ProductVariant;
+use Lunar\Models\TaxClass;
+use Lunar\Models\Currency;
+
 $product = Product::where(...)->first();
 $taxClass = TaxClass::where(...)->first();
 $currency = Currency::where(...)->first();
 ```
 
-You can also specify a status to limit results to using the provided scope.
+Create the product option and its values:
 
 ```php
-Product::status('published')->get();
-```
+use Lunar\Models\ProductOption;
 
-Then we need to create our base option and it's values.
-
-```php
-$option = \Lunar\Models\ProductOption::create([
+$option = ProductOption::create([
     'name' => [
-        'en' => 'Colour',
-    ];
+        'en' => 'Color',
+    ],
     'label' => [
-        'en' => 'Colour',
-    ];
+        'en' => 'Color',
+    ],
 ]);
 
 $blueOption = $option->values()->create([
@@ -411,10 +356,12 @@ $redOption = $option->values()->create([
 ]);
 ```
 
-From here we create our variant, associate it with a product and a tax class, then attach the option id.
+Create the variants and attach their option values:
 
 ```php
 $blueVariant = ProductVariant::create([
+    'product_id' => $product->id,
+    'tax_class_id' => $taxClass->id,
     'sku' => 'blue-product',
 ]);
 
@@ -429,10 +376,15 @@ $redVariant = ProductVariant::create([
 $redVariant->values()->attach($redOption);
 ```
 
-Now, we need to create a price for our variant. This is where we use our *currency* created or fetched earlier.
+Then create pricing for each variant:
 
 ```php
-$variant->prices()->create([
+$blueVariant->prices()->create([
+    'price' => 199,
+    'currency_id' => $currency->id,
+]);
+
+$redVariant->prices()->create([
     'price' => 199,
     'currency_id' => $currency->id,
 ]);
@@ -440,33 +392,120 @@ $variant->prices()->create([
 
 ### Exceptions
 
-When creating variants there are some exceptions that will be thrown if certain conditions are met.
+| Exception | Conditions |
+|:----------|:-----------|
+| `Illuminate\Validation\ValidationException` | Thrown if validation fails on the value options array |
 
-| Exception                                        | Conditions                                                                             |
-|:-------------------------------------------------|:---------------------------------------------------------------------------------------|
-| `Illuminate\Validation\ValidationException`      | Thrown if validation fails on the value options array.                                 |
+## Shipping
+
+By default, all product variants are marked as shippable. To mark a variant as non-shippable:
+
+```php
+$variant->update([
+    'shippable' => false,
+]);
+```
+
+### Dimensions
+
+Products can store dimension data on each variant. The available dimensions are:
+
+- Length
+- Width
+- Height
+- Weight
+- Volume
+
+For handling unit conversions, Lunar uses the [Cartalyst Converter](https://github.com/cartalyst/converter) package, which supports a wide range of units of measure.
+
+Each dimension has a corresponding `_value` and `_unit` column in the database:
+
+```php
+$variant->length_value;
+$variant->length_unit;
+$variant->width_value;
+$variant->width_unit;
+// etc.
+```
+
+### Configuring measurements
+
+Available units of measure can be configured in the `lunar/shipping.php` config file. The defaults include:
+
+**Length:** m, mm, cm, ft, in
+
+**Weight:** kg, g, lbs
+
+**Volume:** l, ml, gal, floz
+
+### Getting and converting measurement values
+
+The raw `*_value` and `*_unit` values can be accessed directly, but Lunar also provides an accessor for each dimension that supports conversion:
+
+```php
+$variant->length->to('length.ft')->convert();
+```
+
+#### Volume calculation
+
+Volume can be calculated automatically from the length, width, and height dimensions, or set manually:
+
+```php
+$variant->update([
+    'length_value' => 50,
+    'length_unit' => 'mm',
+    'height_value' => 50,
+    'height_unit' => 'mm',
+    'width_value' => 50,
+    'width_unit' => 'mm',
+]);
+
+// Returns ml by default
+$variant->volume->getValue(); // 125
+
+// Convert to any supported volume unit
+$variant->volume->to('volume.l')->convert()->getValue(); // 12.5
+
+// Setting a manual volume overrides the automatic calculation
+$variant->update([
+    'volume_unit' => 'floz',
+    'volume_value' => 100,
+]);
+
+$variant->volume->getValue(); // 100
+
+$variant->volume->to('volume.l')->convert()->getValue(); // 2.95735...
+```
+
+**Formatted values**
+
+```php
+$variant->length->format(); // 50cm
+```
 
 ## Pricing
 
 ### Overview
 
-Prices are stored in the database as integers. When retrieving a `Price` model the `price` and `compare_price`
-attributes are cast to a `Price` datatype. This casting gives you some useful helpers when dealing with prices on your
-front end.
+Prices are stored in the database as integers. When retrieving a `Price` model, the `price` and `compare_price` attributes are cast to a `Price` datatype with useful helpers for display.
 
-| Field               | Description                                                                          | Default | Required |
-|:--------------------|:-------------------------------------------------------------------------------------|:--------|:---------|
-| `price`             | A integer value for the price                                                        | `null`  | yes      |
-| `compare_price`     | For display purposes, allows you to show a comparison price, e.g. RRP.               | `null`  | no       |
-| `currency_id`       | The ID of the related currency                                                       | `null`  | yes      |
-| `min_quantity`      | The minimum quantity required to get this price.                                     | `1`     | no       |
-| `customer_group_id` | The customer group this price relates to, leaving as `null` means any customer group | `null`  | no       |
-| `priceable_type`    | This is the class reference to the related model which owns the price                | `null`  | yes      |
-| `priceable_id`      | This is the id of the related model which owns the price                             | `null`  | yes      |
+| Field | Description | Default | Required |
+|:------|:------------|:--------|:---------|
+| `price` | An integer value for the price | `null` | yes |
+| `compare_price` | A comparison price for display purposes (e.g. RRP) | `null` | no |
+| `currency_id` | The ID of the related currency | `null` | yes |
+| `min_quantity` | The minimum quantity required to get this price | `1` | no |
+| `customer_group_id` | The customer group this price applies to; `null` means all groups | `null` | no |
+| `priceable_type` | The class reference to the related model that owns the price | `null` | yes |
+| `priceable_id` | The ID of the related model that owns the price | `null` | yes |
 
 ```php
-$priceable = \Lunar\Models\ProductVariant::create([/** ... */]);
-$price = \Lunar\Models\Price::create([
+use Lunar\Models\ProductVariant;
+use Lunar\Models\Price;
+
+$priceable = ProductVariant::create([/* ... */]);
+
+Price::create([
     'price' => 199,
     'compare_price' => 299,
     'currency_id' => 1,
@@ -477,23 +516,23 @@ $price = \Lunar\Models\Price::create([
 ]);
 ```
 
-## Price formatting
-
-For the full reference on how to format prices for your storefront see the [Pricing Reference](/1.x/reference/pricing)
+For full details on price formatting, see the [Pricing Reference](/1.x/reference/pricing).
 
 <Tip>
-The same methods apply to the compare_price attribute
+The same formatting methods apply to the `compare_price` attribute.
 </Tip>
 
 ### Base Pricing
 
-Pricing is defined on a variant level, meaning you will have a different price for each variant and also for each
-currency in the system. In order to add pricing to a variant, you can either create the model directly or use the
-relationship method.
+Pricing is defined at the variant level, meaning each variant has its own price for each currency. Prices can be created directly or through the relationship:
 
 ```php
-$priceable = \Lunar\Models\ProductVariant::create([/** ... */]);
-\Lunar\Models\Price::create([
+use Lunar\Models\ProductVariant;
+use Lunar\Models\Price;
+
+$priceable = ProductVariant::create([/* ... */]);
+
+Price::create([
     'price' => 199,
     'compare_price' => 299,
     'currency_id' => 1,
@@ -502,24 +541,22 @@ $priceable = \Lunar\Models\ProductVariant::create([/** ... */]);
     'priceable_type' => $priceable->getMorphClass(),
     'priceable_id' => $priceable->id,
 ]);
+
+// Or via the relationship
+$variant->prices()->create([/* ... */]);
 ```
 
-```php
-$variant->prices()->create([/* .. */]);
-```
+### Customer Group Pricing
 
-### Customer group pricing
+Setting the `customer_group_id` column controls which customer group a price applies to. When left as `null`, the price applies to all customer groups. This allows different pricing and quantity breaks per customer group.
 
-You can specify which customer group the price applies to by setting the `customer_group_id` column. If left as `null`
-the price will apply to all customer groups. This is useful if you want to have different pricing for certain customer
-groups and also different price quantity breaks per customer group.
+### Price Breaks
 
-### Price Break Pricing
-
-Price Break pricing is a concept in which when you buy in bulk, the cost per item will change (usually go down). With Pricing
-on Lunar, this is determined by the `min_quantity` column when creating prices. For example:
+Price breaks adjust the unit price based on purchase quantity. The `min_quantity` column determines when each price tier applies:
 
 ```php
+use Lunar\Models\Price;
+
 Price::create([
     // ...
     'price' => 199,
@@ -535,15 +572,11 @@ Price::create([
 ]);
 ```
 
-In the above example if you order between 1 and 9 items you will pay `1.99` per item. But if you order at least 10 you
-will pay `1.50` per item.
+In the above example, ordering 1–9 items costs 1.99 per item, while ordering 10 or more costs 1.50 per item.
 
-## Fetching the price
+### Fetching Prices
 
-Once you've got your pricing all set up, you're likely going to want to display it on your storefront. We've created
-a `PricingManager` which is available via a facade to make this process as painless as possible.
-
-To get the pricing for a product you can simply use the following helpers:
+The `PricingManager` facade provides a fluent API for retrieving the correct price based on various criteria.
 
 #### Minimum example
 
@@ -553,16 +586,15 @@ A quantity of 1 is implied when not passed.
 $pricing = \Lunar\Facades\Pricing::for($variant)->get();
 ```
 
-#### With Quantities
+#### With quantities
 
 ```php
 $pricing = \Lunar\Facades\Pricing::qty(5)->for($variant)->get();
 ```
 
-#### With Customer Groups
+#### With customer groups
 
-If you don't pass in a customer group, Lunar will use the default, including any pricing that isn't specific to a
-customer group.
+If no customer group is passed, Lunar uses the default group and includes pricing that is not specific to any group.
 
 ```php
 $pricing = \Lunar\Facades\Pricing::customerGroups($groups)->for($variant)->get();
@@ -571,110 +603,87 @@ $pricing = \Lunar\Facades\Pricing::customerGroups($groups)->for($variant)->get()
 $pricing = \Lunar\Facades\Pricing::customerGroup($group)->for($variant)->get();
 ```
 
-#### Specific to a user
+#### For a specific user
 
-The PricingManager assumes you want the price for the current authenticated user.
-
-If you want to always return the guest price, you may use...
+The `PricingManager` assumes the current authenticated user by default.
 
 ```php
+// Always return the guest price
 $pricing = \Lunar\Facades\Pricing::guest()->for($variant)->get();
-```
 
-Or to specify a different user...
-
-```php
+// Specify a different user
 $pricing = \Lunar\Facades\Pricing::user($user)->for($variant)->get();
 ```
 
 #### With a specific currency
 
-If you don't pass in a currency, the default is implied.
+If no currency is passed, the default currency is used.
 
 ```php
 $pricing = \Lunar\Facades\Pricing::currency($currency)->for($variant)->get();
 ```
 
-#### For a model
+#### From a model
 
-Assuming you have a model that implements the `hasPrices` trait, such as a `ProductVariant`, you can use the following
-to retrieve pricing.
+Any model using the `HasPrices` trait (such as `ProductVariant`) exposes a `pricing()` method:
 
 ```php
 $pricing = $variant->pricing()->qty(5)->get();
 ```
 
 <Warning>
-If you try and fetch a price for a currency that doesn't exist, a ` Lunar\Exceptions\MissingCurrencyPriceException`
-exception will be thrown.
+Fetching a price for a currency that has no pricing defined will throw a `Lunar\Exceptions\MissingCurrencyPriceException`.
 </Warning>
 
 ---
 
-This will return a `PricingResponse` object which you can interact with to display the correct prices. Unless it's a
-collection, each property will return a `Lunar\Models\Price` object.
+The `get()` method returns a `PricingResponse` object. Unless noted as a collection, each property returns a `Lunar\Models\Price` object.
 
 ```php
-/**
- * The price that was matched given the criteria.
- */
+// The price that matched the given criteria
 $pricing->matched;
 
-/**
- * The base price associated to the variant.
- */
+// The base price associated with the variant
 $pricing->base;
 
-/**
- * A collection of all the price quantity breaks available for the given criteria.
- */
+// A collection of all price quantity breaks for the given criteria
 $pricing->priceBreaks;
 
-/**
- * All customer group pricing available for the given criteria.
- */
+// All customer group pricing for the given criteria
 $pricing->customerGroupPrices;
 ```
 
-Sometimes you might want to simply get all prices a product has from the variants, instead of loading up all a products
-variants fetching the prices that way, you can use the `prices` relationship on the product.
+To retrieve all prices across a product's variants without loading the variants individually, use the `prices` relationship on the product:
 
 ```php
-$product->prices
+$product->prices;
 ```
-
-This will return a collection of `Price` models.
 
 ### Storing Prices Inclusive of Tax
 
-Lunar allows you to store pricing inclusive of tax if you need to. This is helpful if you need to show charm pricing, at
-$9.99 for example, which may not be possible if pricing is stored exclusive of tax due to rounding.
+Lunar supports storing pricing inclusive of tax, which is useful for charm pricing (e.g. $9.99) that may not be achievable when storing prices exclusive of tax due to rounding.
 
-To start you will need to set the `stored_inclusive_of_tax` config value in `lunar/pricing` to `true`. Then you will
-need to ensure your default Tax Zone is set up correctly with the correct tax rates.
+To enable this, set the `stored_inclusive_of_tax` config value in `lunar/pricing` to `true` and ensure the default tax zone is configured with the correct tax rates. The cart will then automatically calculate tax correctly.
 
-Once set, the cart will automatically calculate the tax for you.
-
-If you need to show both ex. and inc. tax pricing on your product pages, you can use the following methods which are
-available on the `Lunar\Models\Price` model.
+To display both tax-inclusive and tax-exclusive prices on product pages:
 
 ```php
 $price->priceIncTax();
 $price->priceExTax();
-$price->comparePriceIncTax(); // to retrieve the tax inclusive compare price
+$price->comparePriceIncTax();
 ```
 
-### Customising Prices with Pipelines
+### Customizing Prices with Pipelines
 
-All pipelines are defined in `config/lunar/pricing.php`
+Pricing pipelines are defined in `config/lunar/pricing.php`:
 
 ```php
 'pipelines' => [
-    //,
+    //
 ],
 ```
 
-You can add your own pipelines to the configuration, they might look something like:
+Custom pipelines can modify pricing during resolution:
 
 ```php
 <?php
@@ -707,67 +716,73 @@ class CustomPricingPipeline
 ```
 
 <Tip>
-Pipelines will run from top to bottom
+Pipelines run from top to bottom.
 </Tip>
 
 ## Full Example
 
-For this example, we're going to be creating some Dr. Martens boots. Below is a screenshot of what we're aiming for:
+This example walks through creating a pair of Dr. Martens boots with multiple size and color variants.
 
 ![](/1.x/images/products/dr-martens.png)
 
-Here are the steps we're going to take:
+The steps involved are:
 
-- Create our product type
+- Create the product type
 - Create the initial product
-- Create the product options and their values
-- Generate the variants based on those values
+- Create product options and their values
+- Create the variants
 
-### Set up the product type.
+### Set up the product type
 
 ```php
-$productType = Lunar\Models\ProductType::create([
+use Lunar\Models\ProductType;
+
+$productType = ProductType::create([
     'name' => 'Boots',
 ]);
 ```
 
 <Note>
-This example assumes we already have Attributes set up for name and description and that they're assigned to the product
-type.
+This example assumes attributes for name and description already exist and are assigned to the product type.
 </Note>
 
 ### Create the initial product
 
 ```php
-Lunar\Models\Product::create([
+use Lunar\Models\Product;
+use Lunar\FieldTypes\Text;
+use Lunar\FieldTypes\TranslatedText;
+
+$product = Product::create([
     'product_type_id' => $productType->id,
     'status' => 'published',
     'brand_id' => $brandId,
-    'sku' => 'DRBOOT',
     'attribute_data' => [
         'name' => new TranslatedText(collect([
             'en' => new Text('1460 PATENT LEATHER BOOTS'),
         ])),
-        'description' => new Text('Even more shades from our archive...'),
+        'description' => new Text('Even more shades from the archive...'),
     ],
 ]);
 ```
 
-### Product Options
+### Create product options
 
-Based on the example above we're going to need 2 options, Size and Colour.
+Based on the example above, two options are needed: Size and Color.
 
 ```php
-$colour = Lunar\Models\ProductOption::create([
+use Lunar\Models\ProductOption;
+
+$color = ProductOption::create([
     'name' => [
-        'en' => 'Colour',
+        'en' => 'Color',
     ],
     'label' => [
-        'en' => 'Colour',
+        'en' => 'Color',
     ],
 ]);
 
-$size = Lunar\Models\ProductOption::create([
+$size = ProductOption::create([
     'name' => [
         'en' => 'Size',
     ],
@@ -777,12 +792,10 @@ $size = Lunar\Models\ProductOption::create([
 ]);
 ```
 
-### Product Option Values
-
-From here we now need to create our option values like so:
+### Create product option values
 
 ```php
-$colour->values()->createMany([
+$color->values()->createMany([
     [
         'name' => [
             'en' => 'Black',
@@ -805,7 +818,6 @@ $colour->values()->createMany([
     ],
 ]);
 
-// We won't do all the sizes here, just enough to get the idea...
 $size->values()->createMany([
     [
         'name' => [
@@ -820,33 +832,50 @@ $size->values()->createMany([
 ]);
 ```
 
-### Generate the variants
+### Create the variants
 
-First we just need to grab the values we want to use to generate the variants. Since we're generating them for
-everything, we just grab all of them.
+With the options and values defined, variants can be created for each combination. Each variant needs a product, tax class, SKU, and at least one price.
 
 ```php
-$optionValueIds = $size->values->merge($colour->values)->pluck('id');
+use Lunar\Models\ProductVariant;
+use Lunar\Models\TaxClass;
+use Lunar\Models\Currency;
 
-\Lunar\Hub\Jobs\Products\GenerateVariants::dispatch($product, $optionValueIds);
+$taxClass = TaxClass::first();
+$currency = Currency::first();
+$count = 0;
+
+foreach ($color->values as $colorValue) {
+    foreach ($size->values as $sizeValue) {
+        $count++;
+
+        $variant = ProductVariant::create([
+            'product_id' => $product->id,
+            'tax_class_id' => $taxClass->id,
+            'sku' => "DRBOOT-{$count}",
+        ]);
+
+        $variant->values()->attach([$colorValue->id, $sizeValue->id]);
+
+        $variant->prices()->create([
+            'price' => 16900,
+            'currency_id' => $currency->id,
+        ]);
+    }
+}
 ```
 
-<Tip>
-When generating variants, the sku will be derived from the Product's base SKU, in this case `DRBOOT` and will be
-suffixed with `-{count}`.
-</Tip>
+The resulting variants:
 
-The resulting generation is as follows:
-
-| SKU      | Colour    | Size |
+| SKU | Color | Size |
 |:---------|:----------|:-----|
-| DRBOOT-1 | Black     | 3    |
-| DRBOOT-2 | Black     | 6    |
-| DRBOOT-3 | White     | 3    |
-| DRBOOT-4 | White     | 6    |
-| DRBOOT-5 | Pale Pink | 3    |
-| DRBOOT-6 | Pale Pink | 6    |
-| DRBOOT-7 | Mid Blue  | 3    |
-| DRBOOT-8 | Mid Blue  | 6    |
+| DRBOOT-1 | Black | 3 |
+| DRBOOT-2 | Black | 6 |
+| DRBOOT-3 | White | 3 |
+| DRBOOT-4 | White | 6 |
+| DRBOOT-5 | Pale Pink | 3 |
+| DRBOOT-6 | Pale Pink | 6 |
+| DRBOOT-7 | Mid Blue | 3 |
+| DRBOOT-8 | Mid Blue | 6 |
 
-You are then free to change the SKU's as you see fit, update the pricing for each variant etc before publishing.
+SKUs, pricing, and other variant details can be adjusted as needed before publishing.
