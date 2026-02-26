@@ -3,6 +3,8 @@ title: "Extending Payments"
 sidebarTitle: "Payments"
 ---
 
+Custom payment drivers can be added to support any payment provider.
+
 ## Overview
 
 Lunar provides an easy way for you to add your own payment drivers, by default, there is a basic `OfflinePayment` driver
@@ -18,7 +20,7 @@ Below is a list of available payment drivers.
 
 ### Community
 
-> Made your own driver you want listing here? Get in touch on our discord channel and we'll get it added.
+> Made a custom driver that should be listed here? Get in touch on the Lunar discord channel to get it added.
 
 ## Building your own
 
@@ -39,18 +41,19 @@ Payments::extend('custom', function ($app) {
 
 ### The payment driver class
 
-First, we'll show you the complete class and then break it down to see what's going on.
+The following is the complete class, which is then broken down below.
 
 ```php
 <?php
 
 namespace App\PaymentTypes;
 
+use Lunar\Base\DataTransferObjects\PaymentAuthorize;
 use Lunar\Base\DataTransferObjects\PaymentCapture;
 use Lunar\Base\DataTransferObjects\PaymentRefund;
-use Lunar\Base\DataTransferObjects\PaymentAuthorize;
 use Lunar\Events\PaymentAttemptEvent;
 use Lunar\Models\Transaction;
+use Lunar\PaymentTypes\AbstractPayment;
 
 class CustomPayment extends AbstractPayment
 {
@@ -99,8 +102,8 @@ class CustomPayment extends AbstractPayment
 }
 ```
 
-This is the most basic implementation of a driver, you can see we are extending an `AbstractPayment`. This is a class
-which is provided by Lunar and contains some useful helpers you can utilise in your own driver.
+This is the most basic implementation of a driver, extending the `AbstractPayment` class provided by Lunar. This class
+contains useful helpers that can be used in custom drivers.
 
 [See available methods](#abstract-class-methods)
 
@@ -113,8 +116,8 @@ public function authorize();
 This is where you'd check the payment details which have been passed in, create any transactions for the order and
 return the response.
 
-If you're not taking payment straight away, you should set any transactions to the type of `intent`. When you then later
-capture the payment, we would recommend creating another transaction that is related to that via
+If payment is not being taken straight away, any transactions should be set to the type of `intent`. When the payment is
+later captured, it is recommended to create another transaction that is related to the intent via
 the `parent_transaction_id`.
 
 #### Capturing payments
@@ -160,8 +163,8 @@ You should only refund transactions with the type `capture`.
 public function cart(Cart $cart): self
 ```
 
-Sets the `$cart` property on the payment driver. When using the `release` method we recommend expecting a `$cart`
-instance and checking for the existence of an order.
+Sets the `$cart` property on the payment driver. When using the `authorize` method, it is recommended to expect a `$cart`
+instance and check for the existence of an order.
 
 #### `order`
 
@@ -251,7 +254,7 @@ Transaction::create([
 #### Capturing
 
 <Tip>
-If you're already charging the card, you can skip this as you already have payment. 🥳
+If the card is already being charged, this step can be skipped as payment has already been received.
 </Tip>
 
 When capturing a transaction, you should create an additional transaction with the amount that's been captured. Even if

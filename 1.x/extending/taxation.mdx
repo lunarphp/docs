@@ -3,11 +3,13 @@ title: "Extending Taxation"
 sidebarTitle: "Taxation"
 ---
 
+Taxation is driver-based, allowing custom tax calculation logic to replace or extend the default system.
+
 ## Overview
 
-Taxation is a tricky business and sometimes what Lunar offers simply won't be enough, and we completely understand. This why Taxation is driver based, so you can add your own logic if you need to.
+Taxation is complex and sometimes what Lunar offers out of the box is not sufficient. This is why taxation is driver-based, allowing custom logic to be added as needed.
 
-By default we have a `SystemTaxManager` which will use Lunar's internal models and database as outlined above. If you need to write our own implementation, or if you're creating an add on for Tax, you can change the driver in the `config/taxes.php` config file.
+By default, a `SystemTaxDriver` is used, which relies on Lunar's internal models and database as outlined in the [Taxation](/1.x/reference/taxation) reference. To use a custom implementation, the driver can be changed in the `config/lunar/taxes.php` config file.
 
 ```php
 <?php
@@ -17,39 +19,28 @@ return [
 ];
 ```
 
-## Writing Your Own Driver
+## Writing a Custom Driver
 
-To write your own driver you need to add a class which implements the `Lunar\Base\TaxManager` interface and has the following methods:
+A custom driver must implement the `Lunar\Base\TaxDriver` interface:
 
 ```php
 <?php
 
 namespace App\Drivers;
 
+use Lunar\Base\Addressable;
+use Lunar\Base\Purchasable;
 use Lunar\Base\TaxDriver;
-use Illuminate\Support\Collection;
+use Lunar\Base\ValueObjects\Cart\TaxBreakdown;
+use Lunar\Models\Contracts\CartLine;
+use Lunar\Models\Contracts\Currency;
 
 class TaxJar implements TaxDriver
 {
     /**
      * Set the shipping address.
-     *
-     * @param  \Lunar\DataTypes\Address|null  $address
-     * @return self
      */
-    public function setShippingAddress(Address $address = null)
-    {
-        // ...
-        return $this;
-    }
-
-    /**
-     * Set the currency.
-     *
-     * @param  \Lunar\Models\Currency  $currency
-     * @return self
-     */
-    public function setCurrency(Currency $currency)
+    public function setShippingAddress(?Addressable $address = null): self
     {
         // ...
         return $this;
@@ -57,11 +48,17 @@ class TaxJar implements TaxDriver
 
     /**
      * Set the billing address.
-     *
-     * @param  \Lunar\DataTypes\Address|null  $address
-     * @return self
      */
-    public function setBillingAddress(Address $address = null)
+    public function setBillingAddress(?Addressable $address = null): self
+    {
+        // ...
+        return $this;
+    }
+
+    /**
+     * Set the currency.
+     */
+    public function setCurrency(Currency $currency): self
     {
         // ...
         return $this;
@@ -69,11 +66,17 @@ class TaxJar implements TaxDriver
 
     /**
      * Set the purchasable item.
-     *
-     * @param  \Lunar\Base\Purchasable|null  $address
-     * @return self
      */
-    public function setPurchasable(Purchasable $purchasable)
+    public function setPurchasable(Purchasable $purchasable): self
+    {
+        // ...
+        return $this;
+    }
+
+    /**
+     * Set the cart line.
+     */
+    public function setCartLine(CartLine $cartLine): self
     {
         // ...
         return $this;
@@ -84,23 +87,30 @@ class TaxJar implements TaxDriver
      *
      * @param  int  $subTotal
      */
-    public function getBreakdown($subTotal): Collection
+    public function getBreakdown($subTotal): TaxBreakdown
     {
-        return collect([ /* ... */ ]);
+        // Build and return a TaxBreakdown instance...
     }
 }
 ```
 
-Once you have that, just extend the tax manager in your service provider.
+Once the driver is created, register it by extending the tax manager in a service provider:
 
 ```php
-
 public function boot()
 {
     \Lunar\Facades\Taxes::extend('taxjar', function ($app) {
         return $app->make(TaxJar::class);
-    })
+    });
 }
 ```
 
-You can then set this as the driver in the taxes config.
+Then set the driver in the `config/lunar/taxes.php` config:
+
+```php
+<?php
+
+return [
+    'driver' => 'taxjar',
+];
+```

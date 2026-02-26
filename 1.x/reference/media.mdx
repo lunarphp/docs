@@ -3,6 +3,8 @@ title: "Media"
 description: "Managing images and files on Lunar models using Spatie's Media Library."
 ---
 
+Lunar uses Spatie's Media Library package to manage images and files across models.
+
 ## Overview
 
 Lunar uses the [Laravel-medialibrary](https://spatie.be/docs/laravel-medialibrary) package by Spatie to handle media across all models. Rather than reinvent the wheel, Lunar leverages this battle-tested package and adds its own conventions on top, including configurable media definitions, automatic image conversions, and primary image management.
@@ -57,7 +59,7 @@ return [
 | `fallback.url` | A fallback URL returned when a model has no media. |
 | `fallback.path` | A fallback file path returned when a model has no media. |
 
-The `definitions` keys use snake_case aliases derived from the model class name (e.g., `Product` becomes `product`, `ProductOptionValue` becomes `product-option-value`). You can also use the fully qualified class name as the key.
+The `definitions` keys use kebab-case aliases derived from the model class name (e.g., `Product` becomes `product`, `ProductOptionValue` becomes `product-option-value`). You can also use the fully qualified class name as the key.
 
 ## Adding Media
 
@@ -150,7 +152,7 @@ The pivot table includes:
 
 ## Fallback Images
 
-If a model has no media, calling `getFirstMediaUrl` or `getFirstMediaPath` returns `null` by default. Fallback images can be configured in `config/lunar/media.php` or via environment variables:
+If a model has no media, calling `getFirstMediaUrl` or `getFirstMediaPath` returns an empty string by default. Fallback images can be configured in `config/lunar/media.php` or via environment variables:
 
 ```php
 'fallback' => [

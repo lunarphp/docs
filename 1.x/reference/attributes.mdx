@@ -3,6 +3,8 @@ title: "Attributes"
 description: "Store custom, translatable data on Eloquent models using configurable field types."
 ---
 
+Attributes store custom, translatable data against Eloquent models using configurable field types.
+
 ## Overview
 
 Attributes allow custom data to be stored against Eloquent models. They are most commonly used with products, where different information needs to be stored and presented to visitors.
@@ -185,7 +187,7 @@ $product->translateAttribute('name');
 // Returns the French translation
 $product->translateAttribute('name', 'fr');
 
-// Falls back to the current locale or the first available value
+// Falls back to the first available value
 $product->translateAttribute('name', 'FOO');
 ```
 
@@ -214,10 +216,12 @@ To make a custom model support attributes:
 ```php
 use Lunar\Base\Casts\AsAttributeData;
 use Lunar\Base\Traits\HasAttributes;
+use Lunar\Base\Traits\HasTranslations;
 
 class MyModel extends Model
 {
     use HasAttributes;
+    use HasTranslations;
 
     protected $casts = [
         'attribute_data' => AsAttributeData::class,

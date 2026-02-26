@@ -3,6 +3,8 @@ title: "Products"
 description: "Define, categorize, and manage products with variants, pricing, options, and associations."
 ---
 
+Products are the core catalog model in Lunar, representing items available for sale with variants, pricing, and options.
+
 ## Overview
 
 Products represent the items available for sale in a store. All custom attributes are defined against the product, and products can have multiple variations. In Lunar, a product always has at least one variant. When a product has only a single variant, the editing experience appears as though the product itself is being edited directly, but behind the scenes the data lives on the variant.
@@ -18,10 +20,10 @@ Lunar\Models\Product
 | Field | Type | Description |
 |:------|:-----|:------------|
 | `id` | `bigIncrements` | Primary key |
+| `brand_id` | `foreignId` `nullable` | Optional brand association |
 | `product_type_id` | `foreignId` | The product type |
 | `status` | `string` | Product status (e.g. `published`, `draft`) |
-| `brand_id` | `foreignId` `nullable` | Optional brand association |
-| `attribute_data` | `json` | Custom attribute data |
+| `attribute_data` | `json` `nullable` | Custom attribute data |
 | `created_at` | `timestamp` | |
 | `updated_at` | `timestamp` | |
 | `deleted_at` | `timestamp` `nullable` | Soft deletes |
@@ -99,7 +101,7 @@ $product->scheduleChannel($channel);
 // Schedule availability to start in 14 days
 $product->scheduleChannel($channel, now()->addDays(14));
 
-// Accepts an array or collection of channels
+// Accepts a collection of channels
 $product->scheduleChannel(Channel::get());
 ```
 
@@ -135,7 +137,7 @@ The `customerGroup` scope accepts a single customer group (or ID), or a collecti
 ```php
 use Lunar\Models\Product;
 
-$products = Product::customerGroup(1)->paginate(50);
+$products = Product::customerGroup(CustomerGroup::find(1))->paginate(50);
 
 $products = Product::customerGroup([
     $groupA,
@@ -283,21 +285,21 @@ Lunar\Models\ProductVariant
 | `gtin` | `string` `nullable` | Global Trade Item Number |
 | `mpn` | `string` `nullable` | Manufacturer Part Number |
 | `ean` | `string` `nullable` | European Article Number |
-| `length_value` | `float` `nullable` | Length dimension |
+| `length_value` | `decimal(10,4)` `nullable` | Length dimension |
 | `length_unit` | `string` `nullable` | Length unit of measure |
-| `width_value` | `float` `nullable` | Width dimension |
+| `width_value` | `decimal(10,4)` `nullable` | Width dimension |
 | `width_unit` | `string` `nullable` | Width unit of measure |
-| `height_value` | `float` `nullable` | Height dimension |
+| `height_value` | `decimal(10,4)` `nullable` | Height dimension |
 | `height_unit` | `string` `nullable` | Height unit of measure |
-| `weight_value` | `float` `nullable` | Weight value |
+| `weight_value` | `decimal(10,4)` `nullable` | Weight value |
 | `weight_unit` | `string` `nullable` | Weight unit of measure |
-| `volume_value` | `float` `nullable` | Volume value |
+| `volume_value` | `decimal(10,4)` `nullable` | Volume value |
 | `volume_unit` | `string` `nullable` | Volume unit of measure |
 | `shippable` | `boolean` | Whether the variant requires shipping, default: `true` |
 | `stock` | `integer` | Current stock quantity, default: `0` |
 | `backorder` | `integer` | Backorder quantity, default: `0` |
 | `purchasable` | `string` | Purchasability mode: `always` or `in_stock`, default: `always` |
-| `attribute_data` | `json` | Custom attribute data |
+| `attribute_data` | `json` `nullable` | Custom attribute data |
 | `created_at` | `timestamp` | |
 | `updated_at` | `timestamp` | |
 | `deleted_at` | `timestamp` `nullable` | Soft deletes |
@@ -461,10 +463,10 @@ $variant->update([
 ]);
 
 // Returns ml by default
-$variant->volume->getValue(); // 125
+$variant->volume->getValue(); // 125.0
 
 // Convert to any supported volume unit
-$variant->volume->to('volume.l')->convert()->getValue(); // 12.5
+$variant->volume->to('volume.l')->convert()->getValue(); // 0.125
 
 // Setting a manual volume overrides the automatic calculation
 $variant->update([
@@ -480,7 +482,7 @@ $variant->volume->to('volume.l')->convert()->getValue(); // 2.95735...
 **Formatted values**
 
 ```php
-$variant->length->format(); // 50cm
+$variant->length->to('length.cm')->convert()->format(); // 50cm
 ```
 
 ## Pricing

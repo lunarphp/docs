@@ -3,6 +3,8 @@ title: "Carts"
 description: "Manage shopping carts, calculate totals, and handle cart sessions in Lunar."
 ---
 
+Carts manage the collection of items a customer intends to purchase, with dynamic price calculation.
+
 ## Overview
 
 Carts hold a collection of purchasable items (typically product variants) that a customer intends to order. They belong to users (which relate to customers) and support a single currency each.
@@ -365,15 +367,15 @@ The cart also provides detailed breakdowns for tax, discounts, and shipping:
 
 ```php
 // Tax breakdown
-foreach ($cart->taxBreakdown as $taxRate) {
-    $taxRate->name;
-    $taxRate->total->value;
+foreach ($cart->taxBreakdown->amounts as $taxRate) {
+    $taxRate->description;
+    $taxRate->price->value;
 }
 
 // Discount breakdown
 foreach ($cart->discountBreakdown as $discountBreakdown) {
-    $discountBreakdown->discount_id;
-    $discountBreakdown->total->value;
+    $discountBreakdown->discount->id;
+    $discountBreakdown->price->value;
 
     foreach ($discountBreakdown->lines as $discountLine) {
         $discountLine->quantity;
@@ -606,11 +608,11 @@ $draftOrder = $cart->currentDraftOrder();
 Stock levels can be validated before order creation. This checks each cart line against the available stock for its purchasable item.
 
 ```php
-use Illuminate\Validation\ValidationException;
+use Lunar\Exceptions\Carts\CartException;
 
 try {
     $cart->validateStock();
-} catch (ValidationException $e) {
+} catch (CartException $e) {
     // One or more items are out of stock
 }
 ```
@@ -842,6 +844,7 @@ return [
         'pipelines' => [
             Lunar\Pipelines\CartPrune\PruneAfter::class,
             Lunar\Pipelines\CartPrune\WithoutOrders::class,
+            Lunar\Pipelines\CartPrune\WhereNotMerged::class,
         ],
 
         'prune_interval' => 90, // days

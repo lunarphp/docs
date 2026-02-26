@@ -71,6 +71,8 @@ Ensure the language can be understood by a global audience, avoid using British 
 
 Use em dashes sparingly. Prefer commas, colons, or parentheses where appropriate instead.
 
+After the main page heading, always include a sentence summarising the topic.
+
 ## Eloquent model fields
 
 Show them as a table with the columns: Field, Type, Description.

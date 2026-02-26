@@ -1,48 +1,77 @@
 ---
 title: "Currencies"
 ---
+
+Currencies define the monetary units available for pricing, with exchange rates for conversion.
+
 ## Overview
 
-Currencies allow you to charge different amounts relative to the currency you're targeting.
+Currencies allow pricing to be managed in different monetary units. Each currency has an exchange rate relative to the default currency, enabling price conversion.
+
+```php
+Lunar\Models\Currency
+```
+
+### Fields
+
+| Field | Type | Description |
+|:-|:-|:-|
+| `id` | `id` | Primary key |
+| `code` | `string` | The [ISO 4217](https://en.wikipedia.org/wiki/ISO_4217) currency code |
+| `name` | `string` | A descriptive name for the currency |
+| `exchange_rate` | `decimal(10,4)` | The exchange rate relative to the default currency |
+| `decimal_places` | `integer` | The number of decimal places, e.g. `2` |
+| `enabled` | `boolean` | Whether the currency is enabled |
+| `default` | `boolean` | Whether the currency is the default |
+| `sync_prices` | `boolean` | Whether to synchronize prices for this currency |
+| `created_at` | `timestamp` | |
+| `updated_at` | `timestamp` | |
+
+### Relationships
+
+| Relationship | Type | Related Model | Description |
+|:-|:-|:-|:-|
+| `prices` | `HasMany` | `Lunar\Models\Price` | Prices in this currency |
+
+### Scopes
+
+| Scope | Description |
+|:-|:-|
+| `enabled($enabled = true)` | Filter to enabled/disabled currencies |
+| `default($default = true)` | Filter to the default currency |
 
 ## Creating a currency
 
 ```php
-\Lunar\Models\Currency::create([
+use Lunar\Models\Currency;
+
+Currency::create([
     'code' => 'GBP',
     'name' => 'British Pound',
     'exchange_rate' => 1.0000,
     'decimal_places' => 2,
-    'enabled' => 1,
-    'default' => 1,
+    'enabled' => true,
+    'default' => true,
 ]);
 ```
-
-|Field|Description|
-|:-|:-|
-|`code`|This should be the `ISO 4217` currency code. |
-|`name`|A given name for the currency.|
-|`exchange_rate`|This should be the exchange rate relative to the default currency (see below)|
-|`decimal_places`|Specify the decimal places, e.g. 2|
-|`enabled`|Whether the currency is enabled|
-|`default`|Whether the currency is the default|
 
 ## Exchange rates
-These are relative to the default currency. For example assuming we have the following:
+
+Exchange rates are relative to the default currency. For example, given the following default currency:
 
 ```php
-\Lunar\Models\Currency::create([
+use Lunar\Models\Currency;
+
+Currency::create([
     'code' => 'GBP',
     'name' => 'British Pound',
     'exchange_rate' => 1.0000,
     'decimal_places' => 2,
-    'enabled' => 1,
-    'default' => 1,
+    'enabled' => true,
+    'default' => true,
 ]);
 ```
 
-We set the model to be the default and we set the exchange rate to be `1` as we're defining this as our base (default) currency.
+The default currency's exchange rate is set to `1` as the base. To add EUR (Euros) when the exchange rate from GBP to EUR is `1.17`, the value should be relative to the default: 1 / 1.17 = 0.8547.
 
-Now, say we wanted to add EUR (Euros). Currently the exchange rate from GBP to EUR is `1.17`. But we want this to be relative to our default record. So 1 / 1.17 = 0.8547.
-
-It's entirely up to you what you want to set the exchange rates as, it is also worth mentioning that this is independent of product pricing in the sense that you can specify the price per currency. The exchange rate serves as a helper when working with prices so you have something to go by.
+The exchange rate is independent of product pricing, as prices can be specified per currency directly. The exchange rate serves as a helper when working with prices.

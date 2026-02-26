@@ -3,6 +3,8 @@ title: "Collections"
 description: "Group products into flexible, hierarchical collections with scheduling, channel availability, and sorting."
 ---
 
+Collections group products together for storefront categories, promotions, and other purposes.
+
 ## Overview
 
 Collections provide a flexible way to group products together for any purpose: storefront categories, hero sliders, landing page features, seasonal promotions, or any other grouping a store requires. Products can be added to a collection explicitly or filtered by criteria, and collections can be nested to form a hierarchy.
@@ -23,7 +25,7 @@ Lunar\Models\CollectionGroup
 |:------|:-----|:------------|
 | `id` | `bigIncrements` | Primary key |
 | `name` | `string` | The group name |
-| `handle` | `string` | Unique slug identifier, auto-generated from `name` if omitted |
+| `handle` | `string` | Unique slug identifier |
 | `created_at` | `timestamp` | |
 | `updated_at` | `timestamp` | |
 
@@ -40,7 +42,7 @@ use Lunar\Models\CollectionGroup;
 
 $group = CollectionGroup::create([
     'name' => 'Main Catalogue',
-    'handle' => 'main-catalogue', // Auto-generated if omitted
+    'handle' => 'main-catalogue',
 ]);
 ```
 
@@ -56,9 +58,9 @@ Lunar\Models\Collection
 |:------|:-----|:------------|
 | `id` | `bigIncrements` | Primary key |
 | `collection_group_id` | `foreignId` | The parent collection group |
-| `_lft` | `int` | Read-only nested set left pointer |
-| `_rgt` | `int` | Read-only nested set right pointer |
-| `parent_id` | `unsignedBigInteger` `nullable` | Parent collection for tree hierarchy |
+| `_lft` | `unsignedInteger` | Read-only nested set left pointer |
+| `_rgt` | `unsignedInteger` | Read-only nested set right pointer |
+| `parent_id` | `unsignedInteger` `nullable` | Parent collection for tree hierarchy |
 | `type` | `string` | Default: `static` |
 | `attribute_data` | `json` | Translatable attributes (e.g. name, description) |
 | `sort` | `string` | Product sort method, default: `custom` |
@@ -78,8 +80,8 @@ Lunar\Models\Collection
 | `brands` | BelongsToMany | `Lunar\Models\Brand` | |
 | `urls` | MorphMany | `Lunar\Models\Url` | |
 | `children` | HasMany | `Lunar\Models\Collection` | Direct child collections (from NodeTrait) |
-| `ancestors` | HasMany | `Lunar\Models\Collection` | All parent collections up the tree (from NodeTrait) |
-| `descendants` | HasMany | `Lunar\Models\Collection` | All children recursively (from NodeTrait) |
+| `ancestors` | AncestorsRelation | `Lunar\Models\Collection` | All parent collections up the tree (from NodeTrait) |
+| `descendants` | DescendantsRelation | `Lunar\Models\Collection` | All children recursively (from NodeTrait) |
 
 ### Scopes
 
@@ -170,8 +172,8 @@ $collection->ancestors;
 // Get siblings
 $collection->getSiblings();
 
-// Get depth in tree
-$collection->depth;
+// Get depth in tree (requires withDepth() scope)
+Collection::withDepth()->find($collection->id)->depth;
 ```
 
 Refer to the [kalnoy/nestedset documentation](https://github.com/lazychaser/laravel-nestedset) for the full API.
