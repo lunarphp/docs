@@ -1,73 +1,102 @@
 ---
 title: "Contributing"
+description: "How to contribute code, report bugs, and improve the documentation."
 ---
-## Overview
 
-Lunar is an open source project, and so by its very nature, welcomes contributions.
-
-You can contribute to the project in many different ways. Reporting bugs, fixing bugs, helping with the documentation, making suggestions and submitting improvements to the software.
+Lunar is an open source project and welcomes contributions of all kinds, from bug reports and documentation improvements to new features and code fixes.
 
 ## Monorepo
 
-Lunar uses a monorepo [lunarphp/lunar](https://github.com/lunarphp/lunar) approach to maintaining its codebase. [Monorepos](https://en.wikipedia.org/wiki/Monorepo) are quite common, but may not be familiar to some. The monorepo helps us to organise the code for ease of development.
+Lunar uses a monorepo at [lunarphp/lunar](https://github.com/lunarphp/lunar) to manage its codebase. All packages, tests, and admin panel code live in a single repository. [Monorepos](https://en.wikipedia.org/wiki/Monorepo) are common in large projects and allow changes that span multiple packages to be developed and reviewed together.
 
 ## Contributing Code
 
-The basic process for contributing to Lunar is as follows...
+The basic process for contributing code to Lunar is:
 
-1. Fork the monorepo
-2. Clone your fork locally
-3. Make your changes
-4. Ensure the tests run and complete successfully
-5. Submit a pull request
-
-However, if you're not used to working with monorepo's and setting them up inside a test Laravel application, no problem!
+1. Fork the [lunarphp/lunar](https://github.com/lunarphp/lunar) monorepo
+2. Clone the fork locally
+3. Create a new branch for the change
+4. Make changes and write tests
+5. Ensure the full test suite passes
+6. Submit a pull request
 
 <Tip>
-Here's a guide on how to set-up your development environment ready for contributing to Lunar.
-[Setting Up Lunar For Local Development](/1.x/getting-started/overview/local-development)
+For a step-by-step walkthrough of setting up the monorepo inside a Laravel application, see the [Local Development](/1.x/getting-started/overview/local-development) guide.
 </Tip>
 
-## Found a Bug?
+### Coding Standards
 
-If you find a bug in the software please raise a GitHub Issue on the [lunarphp/lunar](https://github.com/lunarphp/lunar/issues) repository. Please ensure that your issue includes the following:
+Lunar follows the [Laravel coding style](https://laravel.com/docs/contributions#coding-style) and uses [Laravel Pint](https://laravel.com/docs/pint) to enforce it. Before submitting a pull request, run Pint from the repository root:
 
-**Minimum**
+```bash
+vendor/bin/pint
+```
 
-- Clear title and description of the issue
-- Steps on how to reproduce the issue
+### Running Tests
 
-**Ideal**
+Lunar uses [Pest](https://pestphp.com/) for its test suite. Tests can be run from the repository root:
 
-- An accompanying Pull Request with a test to demonstrate the issue.
+```bash
+vendor/bin/pest
+```
 
-Lunar is an open source project and as such we want contribution to be as accessible as possible and to enable contributors to actively collaborate on features and issues. By making sure you provide as much information as possible you are giving your issue the best chance to get the attention it needs.
+All existing tests must continue to pass, and new features or bug fixes should include corresponding test coverage.
 
-Be aware that creating an issue does not mean it will get activity straight away, please be patient and understand we will do our best to look into it as soon as possible.
+## Reporting a Bug
 
-Open source code belongs to all of us, and it's all of our responsibility to push it forward.
+If a bug is discovered, please open a GitHub issue on the [lunarphp/lunar](https://github.com/lunarphp/lunar/issues) repository. The issue should include:
+
+**At minimum:**
+
+- A clear title and description of the issue
+- Steps to reproduce the behavior
+
+**Ideally:**
+
+- The version of Lunar, PHP, and Laravel in use
+- An accompanying pull request with a failing test that demonstrates the issue
+
+Providing as much detail as possible gives the issue the best chance of being resolved quickly. Creating an issue does not guarantee immediate activity; maintainers review issues as time allows.
+
+<Warning>
+Security vulnerabilities should not be reported as public issues. See the [Security](/1.x/getting-started/overview/security) page for responsible disclosure instructions.
+</Warning>
 
 ## Proposing a Feature
 
-Before you start coding away on the next awesome feature, we highly recommend starting a [discussion](https://github.com/lunarphp/lunar/discussions) to check that your contribution will be welcomed. We would hate for you to spend valuable time on something that won't be merged into Lunar.
+Before investing time on a new feature, it is strongly recommended to start a [discussion](https://github.com/lunarphp/lunar/discussions) first. This allows the community and maintainers to provide feedback on whether the feature aligns with Lunar's direction before any code is written.
 
-However, you're more than welcome to code away on your idea if you think it will help the discussion.
+Prototyping the feature alongside the discussion is welcome if it helps illustrate the proposal.
 
 ## Making a Pull Request
 
-When making a [pull request](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request), there should be a suitable template for you to follow to ensure the bug or feature can be reviewed in a timely manner.
-If the pull request is missing information or unclear as to what it offers or solves, it could any delay movement or be closed.
+When submitting a [pull request](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request), the repository provides a template to guide the submission. A well-structured pull request should include:
 
-A PR should be able to include the following:
-
-- The title should be relevant and quickly explain what to expect inside
-- A clear description of the feature or fix
-- References to any issues the PR resolves
-- Label as either a `bug`, `enhancement`, or `feature`
+- A title that clearly summarizes the change
+- A description explaining what the change does and why it is valuable
+- References to any related issues (e.g., `Fixes #123`)
+- A label of `bug`, `enhancement`, or `feature`
+- Automated tests with adequate coverage
 - Any relevant documentation updates
-- Automated tests with adequate code coverage
 
+Pull requests that are missing key information or are unclear in their purpose may be delayed or closed.
 
 ## Documentation
 
-Lunar's documentation is written in Markdown and is stored in the [lunarphp/docs](https://github.com/lunarphp/docs) repository.
+Lunar's documentation is maintained in the [lunarphp/docs](https://github.com/lunarphp/docs) repository. It is built with [Mintlify](https://mintlify.com/) and all content is written in MDX.
+
+To contribute documentation changes:
+
+1. Fork the [lunarphp/docs](https://github.com/lunarphp/docs) repository
+2. Install the Mintlify CLI and run the dev server locally
+3. Make changes and verify they render correctly
+4. Submit a pull request
+
+```bash
+npm i -g mint
+mint dev
+```
+
+<Info>
+Any new page must also be added to the `docs.json` navigation configuration, or it will not appear in the sidebar.
+</Info>
