@@ -3,22 +3,45 @@ title: "Extending Models"
 sidebarTitle: "Models"
 ---
 
+Lunar's Eloquent models can be extended with custom relationships and, when needed, replaced entirely with custom implementations.
+
 ## Overview
 
-Lunar provides a number of Eloquent Models and quite often in custom applications you will want to add your own relationships and functionality to these models.
+Lunar provides a number of Eloquent models and quite often in custom applications additional relationships and functionality are needed.
 
 <Warning>
-We highly suggest using your own Eloquent Models to add additional data, rather than trying to change fields on the core Lunar models.
+Rather than modifying fields on Lunar's core models, it is recommended to create your own Eloquent models and relate them to Lunar's models. This keeps custom data separate and avoids conflicts during upgrades.
+
+Add-on packages must never replace core models, as this would conflict with other packages and the end user's application. Add-ons should use dynamic relationships and their own models exclusively.
 </Warning>
 
-## Replaceable Models
-All Lunar models are replaceable, this means you can instruct Lunar to use your own custom model, throughout the ecosystem, using dependency injection.
+## Dynamic Eloquent Relationships
 
+The recommended way to extend Lunar's models is by using Laravel's dynamic relationships. This allows custom relationships to be added to any Lunar model without needing to replace it.
+
+```php
+use Lunar\Models\Order;
+use App\Models\Ticket;
+
+Order::resolveRelationUsing('ticket', function ($orderModel) {
+    return $orderModel->belongsTo(Ticket::class, 'ticket_id');
+});
+```
+
+This should be registered in the `boot` method of a service provider. See the [Laravel documentation on dynamic relationships](https://laravel.com/docs/eloquent-relationships#dynamic-relationships) for more information.
+
+## Replaceable Models
+
+For cases where dynamic relationships are not sufficient, all Lunar models are replaceable. This means Lunar can be instructed to use a custom model throughout the ecosystem using dependency injection.
+
+<Info>
+Most use cases are better served by dynamic relationships above. Model replacement should only be used when deeper customization is required, such as overriding methods or adding scopes.
+</Info>
 
 ### Registration
-We recommend registering your own models for your application within the boot method of your Service Provider.
+Custom models should be registered within the `boot` method of a service provider.
 
-When registering your models, you will need to set the Lunar model's contract as the first argument then your own model implementation for the second.
+When registering models, the Lunar model's contract should be set as the first argument and the custom model implementation as the second.
 
 
 ```php
@@ -38,8 +61,8 @@ public function boot()
 
 #### Registering multiple Lunar models.
 
-If you have multiple models you want to replace, instead of manually replacing them one by one, you can specify a directory for Lunar to look in for Lunar models to use.
-This assumes that each model extends its counterpart model i.e. `App\Models\Product` extends `Lunar\Models\Product`.
+If multiple models need to be replaced, instead of replacing them one by one, a directory can be specified for Lunar to scan for models.
+This assumes that each model extends its counterpart model, e.g. `App\Models\Product` extends `Lunar\Models\Product`.
 
 ```php
 /**
@@ -57,7 +80,7 @@ public function boot()
 
 ### Route binding
 
-Route binding is supported for your own routes and simply requires the relevant contract class to be injected.
+Route binding is supported and simply requires the relevant contract class to be injected.
 
 ```php
 Route::get('products/{id}', function (\Lunar\Models\Contracts\Product $product) {
@@ -67,10 +90,10 @@ Route::get('products/{id}', function (\Lunar\Models\Contracts\Product $product) 
 
 ### Relationship support
 
-If you replace a model which is used in a relationship, you can easily get your own model back via relationship methods. Assuming we want to use our own instance of `App\Models\ProductVariant`.
+If a model used in a relationship is replaced, the custom model will be returned via relationship methods. For example, assuming a custom `App\Models\ProductVariant` has been registered:
 
 ```php
-// In our service provider.
+// In a service provider.
 public function boot()
 {
     \Lunar\Facades\ModelManifest::replace(
@@ -87,9 +110,9 @@ $product->variants->first(); // App\Models\ProductVariant
 
 ### Static call forwarding
 
-If you have custom methods in your own model, you can call those functions directly from the Lunar model instance.
+If a custom model has additional methods, those functions can be called directly from the Lunar model instance.
 
-Assuming we want to provide a new function to a product variant model.
+For example, to provide a new function on a product variant model:
 
 ```php
 <?php
@@ -106,7 +129,7 @@ class ProductVariant extends \Lunar\Models\ProductVariant
 ```
 
 ```php
-// In your service provider.
+// In a service provider.
 public function boot()
 {
     \Lunar\Facades\ModelManifest::replace(
@@ -116,7 +139,7 @@ public function boot()
 }
 ```
 
-Somewhere else in your app...
+Somewhere else in the app:
 
 ```php
 \Lunar\Models\ProductVariant::someCustomMethod(); // Hello!
@@ -125,26 +148,8 @@ Somewhere else in your app...
 
 ### Observers
 
-If you have observers in your app which call `observe` on the Lunar model, these will still work as intended when you replace any of the models, this means if you 
-want to add your own custom observers, you can just reference the Lunar model and everything will be forwarded to the appropriate class.
+Observers that call `observe` on a Lunar model will still work as intended when the model is replaced. Custom observers can reference the Lunar model and everything will be forwarded to the appropriate class.
 
 ```php
 \Lunar\Models\Product::observe(/** .. */);
 ```
-
-## Dynamic Eloquent Relationships
-
-If you don't need to completely override or extend the Lunar models using the techniques above, you are still free to resolve relationships dynamically as Laravel provides out the box.
-
-e.g. 
-
-```php
-use Lunar\Models\Order;
-use App\Models\Ticket;
- 
-Order::resolveRelationUsing('ticket', function ($orderModel) {
-    return $orderModel->belongsTo(Ticket::class, 'ticket_id');
-});
-```
-
-See [https://laravel.com/docs/eloquent-relationships#dynamic-relationships](https://laravel.com/docs/eloquent-relationships#dynamic-relationships) for more information.

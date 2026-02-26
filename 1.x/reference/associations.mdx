@@ -3,6 +3,8 @@ title: "Associations"
 description: "Relate products to each other as cross-sells, up-sells, alternates, or custom types."
 ---
 
+Associations define relationships between products, such as cross-sells, up-sells, and alternates.
+
 ## Overview
 
 Associations allow products to be related to each other. The type of association defines how the relationship should be presented on a storefront and how Lunar interprets it. Lunar ships with three built-in types (cross-sell, up-sell, and alternate), but custom types can also be created.
@@ -36,19 +38,23 @@ Associations are stored as `Lunar\Models\ProductAssociation` models.
 | `crossSell()` | Filter to cross-sell associations |
 | `upSell()` | Filter to up-sell associations |
 | `alternate()` | Filter to alternate associations |
-| `type(string $type)` | Filter by a specific type |
+| `type(ProvidesProductAssociationType\|string $type)` | Filter by a specific type |
 
-### Constants
+### Association Types Enum
 
-The `ProductAssociation` model defines constants for the built-in types:
+The built-in association types are defined using the `Lunar\Base\Enums\ProductAssociation` enum:
 
 ```php
-use Lunar\Models\ProductAssociation;
+use Lunar\Base\Enums\ProductAssociation;
 
 ProductAssociation::CROSS_SELL; // 'cross-sell'
 ProductAssociation::UP_SELL;    // 'up-sell'
 ProductAssociation::ALTERNATE;  // 'alternate'
 ```
+
+<Warning>
+The `Lunar\Models\ProductAssociation` model also defines `CROSS_SELL`, `UP_SELL`, and `ALTERNATE` as class constants, but these are deprecated since v1.2.0. Use the `Lunar\Base\Enums\ProductAssociation` enum instead.
+</Warning>
 
 ## Loading Associations
 
@@ -85,7 +91,7 @@ For example, if a store sells a phone, cross-sell associations could include hea
 **Adding a cross-sell association**
 
 ```php
-use Lunar\Models\ProductAssociation;
+use Lunar\Base\Enums\ProductAssociation;
 
 $product->associate($crossSellProduct, ProductAssociation::CROSS_SELL);
 
@@ -96,7 +102,7 @@ $product->associate([$productA, $productB], ProductAssociation::CROSS_SELL);
 **Fetching cross-sell associations**
 
 ```php
-use Lunar\Models\ProductAssociation;
+use Lunar\Base\Enums\ProductAssociation;
 
 // Using the convenience scope
 $product->associations()->crossSell()->get();
@@ -119,7 +125,7 @@ The 32GB version could be added as an up-sell association on the 16GB product, a
 **Adding an up-sell association**
 
 ```php
-use Lunar\Models\ProductAssociation;
+use Lunar\Base\Enums\ProductAssociation;
 
 $product->associate($upSellProduct, ProductAssociation::UP_SELL);
 
@@ -130,7 +136,7 @@ $product->associate([$productA, $productB], ProductAssociation::UP_SELL);
 **Fetching up-sell associations**
 
 ```php
-use Lunar\Models\ProductAssociation;
+use Lunar\Base\Enums\ProductAssociation;
 
 // Using the convenience scope
 $product->associations()->upSell()->get();
@@ -146,7 +152,7 @@ Alternate products are alternatives to the current product. This is useful when 
 **Adding an alternate association**
 
 ```php
-use Lunar\Models\ProductAssociation;
+use Lunar\Base\Enums\ProductAssociation;
 
 $product->associate($alternateProduct, ProductAssociation::ALTERNATE);
 
@@ -157,7 +163,7 @@ $product->associate([$productA, $productB], ProductAssociation::ALTERNATE);
 **Fetching alternate associations**
 
 ```php
-use Lunar\Models\ProductAssociation;
+use Lunar\Base\Enums\ProductAssociation;
 
 // Using the convenience scope
 $product->associations()->alternate()->get();
@@ -189,7 +195,7 @@ If using the admin panel, custom types can be added to the association type drop
 The `dissociate` method removes associations between products. It accepts a single product, an array, or a collection. If no type is specified, all association types for the given product(s) are removed.
 
 ```php
-use Lunar\Models\ProductAssociation;
+use Lunar\Base\Enums\ProductAssociation;
 
 // Remove all associations with a product, regardless of type
 $product->dissociate($associatedProduct);

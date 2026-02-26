@@ -1,6 +1,9 @@
 ---
 title: "Orders"
 ---
+
+Orders represent completed or in-progress purchases, created when a cart is converted at checkout.
+
 ## Overview
 
 Orders represent completed or in-progress purchases in a store. Orders are linked to carts, and although there is generally only one order per cart, the system supports multiple orders per cart if needed.
@@ -109,7 +112,7 @@ final class CreateOrder extends AbstractAction
     public function execute(
         Cart $cart,
         bool $allowMultipleOrders = false,
-        int $orderIdToUpdate = null
+        ?int $orderIdToUpdate = null
     ): self {
         // ...
         return $this;
@@ -133,7 +136,9 @@ A custom validation class can be specified in `config/lunar/cart.php`:
 return [
     // ...
     'validators' => [
-        'order_create' => MyCustomValidator::class,
+        'order_create' => [
+            MyCustomValidator::class,
+        ],
     ]
 ];
 ```
@@ -150,7 +155,7 @@ class MyCustomValidator extends BaseValidator
         $cart = $this->parameters['cart'];
 
         if ($somethingWentWrong) {
-            return $this->fail('There was an issue');
+            return $this->fail('cart', 'There was an issue');
         }
 
         return $this->pass();
@@ -186,7 +191,7 @@ A custom generator must implement `Lunar\Base\OrderReferenceGeneratorInterface`:
 namespace App\Generators;
 
 use Lunar\Base\OrderReferenceGeneratorInterface;
-use Lunar\Models\Order;
+use Lunar\Models\Contracts\Order;
 
 class MyCustomGenerator implements OrderReferenceGeneratorInterface
 {
@@ -232,7 +237,7 @@ Lunar\Models\OrderLine
 | option | `string` `nullable` | Option information if the item is a variant |
 | identifier | `string` | An identifier for the purchasable item, typically a SKU |
 | unit_price | `unsignedBigInteger` | The unit price of the line |
-| unit_quantity | `unsignedInteger` | The unit quantity, typically `1` |
+| unit_quantity | `unsignedSmallInteger` | The unit quantity, typically `1` |
 | quantity | `unsignedInteger` | The quantity purchased |
 | sub_total | `unsignedBigInteger` | The subtotal minus any discounts, excluding tax |
 | discount_total | `unsignedBigInteger` | The discount amount, excluding tax |
@@ -402,9 +407,9 @@ Lunar\Models\Transaction
 | card_type | `string` | The card type, e.g. `visa` |
 | last_four | `string` `nullable` | The last four digits of the card |
 | meta | `json` `nullable` | Custom metadata |
+| captured_at | `dateTime` `nullable` | When the transaction was captured |
 | created_at | `timestamp` | |
 | updated_at | `timestamp` | |
-| deleted_at | `timestamp` `nullable` | |
 
 ### Relationships
 

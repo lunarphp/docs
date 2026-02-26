@@ -3,6 +3,8 @@ title: "Pricing"
 description: "Format and display prices with currency-aware formatting, decimal conversion, and unit pricing support."
 ---
 
+Lunar provides currency-aware price formatting and display for storefront use.
+
 ## Overview
 
 When displaying prices on a storefront, it is important to show the correct format relative to the currency the customer is purchasing in.
@@ -21,7 +23,7 @@ Lunar\Models\Price
 | `customer_group_id` | `foreignId` `nullable` | Associated customer group for tiered pricing |
 | `currency_id` | `foreignId` | Associated currency |
 | `priceable_type` | `string` | Morph type for the parent model |
-| `priceable_id` | `bigInteger` | Morph ID for the parent model |
+| `priceable_id` | `unsignedBigInteger` | Morph ID for the parent model |
 | `price` | `unsignedBigInteger` | Price value stored in the smallest currency unit (e.g. cents) |
 | `compare_price` | `unsignedBigInteger` `nullable` | Comparison/original price for displaying discounts |
 | `min_quantity` | `integer` | Minimum quantity required for this price tier (default: 1) |
@@ -139,6 +141,7 @@ By setting `unit_quantity` to 10, Lunar is told that 10 individual units make up
 ```php
 $priceModel = $productVariant->prices()->create([
     'price' => 10, // 0.10 EUR
+    'currency_id' => $currency->id,
 ]);
 
 // Lunar\DataTypes\Price

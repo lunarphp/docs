@@ -3,6 +3,8 @@ title: "Extending Discounts"
 sidebarTitle: "Discounts"
 ---
 
+Custom discount types can be registered to add additional discount logic beyond the built-in types.
+
 ## Overview
 
 If you want to add additional functionality to Discounts, you can register your own custom discount types.
@@ -21,15 +23,13 @@ Discounts::addType(MyCustomDiscountType::class);
 
 namespace App\DiscountTypes;
 
-use Lunar\Models\Cart;
 use Lunar\DiscountTypes\AbstractDiscountType;
+use Lunar\Models\Contracts\Cart;
 
 class MyCustomDiscountType extends AbstractDiscountType
 {
     /**
      * Return the name of the discount.
-     *
-     * @return string
      */
     public function getName(): string
     {
@@ -37,9 +37,7 @@ class MyCustomDiscountType extends AbstractDiscountType
     }
 
     /**
-     * Called just before cart totals are calculated.
-     *
-     * @return Cart
+     * Execute and apply the discount if conditions are met.
      */
     public function apply(Cart $cart): Cart
     {

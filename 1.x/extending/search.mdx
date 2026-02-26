@@ -3,10 +3,11 @@ title: "Extending Search"
 sidebarTitle: "Search"
 ---
 
+Search indexing can be extended to customize searchable, sortable, and filterable fields.
+
 ## Overview
 
-Good search is the backbone of any storefront so Lunar aims to make this as extensible as possible so you can index what
-you need for your front-end, without compromising on what we require our side in the hub.
+Good search is the backbone of any storefront, so Lunar aims to make this as extensible as possible. Custom fields can be indexed for the storefront without compromising what Lunar requires for the admin panel.
 
 There are three things to consider when you want to extend the search:
 
@@ -16,8 +17,8 @@ There are three things to consider when you want to extend the search:
 
 ## Default index values
 
-Eloquent models which use the `Lunar\Base\Traits\Searchable` trait will use an indexer class to tell Scout how each it
-should be indexed, if an indexer isn't mapped in the config the default `EloquentIndexer` (provided by Lunar) will be
+Eloquent models which use the `Lunar\Base\Traits\Searchable` trait will use an indexer class to tell Scout how each model
+should be indexed. If an indexer isn't mapped in the config, the default `ScoutIndexer` (provided by Lunar) will be
 used.
 
 This class will map a basic set of fields to the search index:
@@ -42,8 +43,8 @@ Fields which are indexed:
 
 ## Mapping custom indexers
 
-All indexers are mapped in `config/search.php` under `indexers`, if a model isn't mapped here then it will
-simply use the default `ELoquentIndexer`. To change how each model is indexed, simply map it like so:
+All indexers are mapped in `config/lunar/search.php` under `indexers`. If a model isn't mapped here, the default
+`ScoutIndexer` is used. To change how each model is indexed, map it like so:
 
 ```php
 return [
@@ -63,6 +64,8 @@ To create your own indexer, simply create a custom class like so:
 
 namespace App\Search;
 
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Lunar\Search\ScoutIndexer;
 
 class CustomProductIndexer extends ScoutIndexer
@@ -119,18 +122,18 @@ class CustomProductIndexer extends ScoutIndexer
         ];
     }
     
-    // Return an array representing what should be sent to the search service i.e. Algolia
-    public function toSearchableArray(Model $model, string $engine): array
+    // Return an array representing what should be sent to the search service e.g. Algolia
+    public function toSearchableArray(Model $model): array
     {
         return array_merge([], $this->mapSearchableAttributes($model));
     }
 }
 ```
 
-The `EloquentIndexer` class implements the `Lunar\Search\Interfaces\ModelIndexerInterface` so if your class doesn't
-extend the Eloquent one, you must implement this interface.
+The `ScoutIndexer` class implements the `Lunar\Search\Interfaces\ScoutIndexerInterface` interface. If a custom indexer
+does not extend `ScoutIndexer`, it must implement this interface directly.
 
-There are some methods which are available just on the `EloquentIndexer` but not defined on the interface are:
+There are some methods which are available on `ScoutIndexer` but not defined on the interface:
 
 #### mapSearchableAttributes
 

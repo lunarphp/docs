@@ -3,6 +3,8 @@ title: "Discounts"
 description: "Flexible discount system supporting coupons, percentage/fixed reductions, and buy-x-get-y promotions."
 ---
 
+Lunar provides a flexible discount system supporting coupons, percentage and fixed reductions, and buy-x-get-y promotions.
+
 ## Overview
 
 Lunar provides a discount system that supports multiple discount types out of the box, including amount-off (percentage or fixed) and buy-x-get-y promotions. Discounts can be scoped to specific channels, customer groups, collections, brands, and individual products or variants.
@@ -55,6 +57,7 @@ Lunar\Models\Discount
 | `products($productIds, $types)` | Filters by associated product IDs and discountable types |
 | `productVariants($variantIds, $types)` | Filters by associated variant IDs and discountable types |
 | `collections($collectionIds, $types)` | Filters by associated collection IDs and discountable types |
+| `brands($brandIds, $types)` | Filters by associated brand IDs and discountable types |
 | `channel($channel)` | Filters by channel |
 | `customerGroup($customerGroup)` | Filters by customer group |
 
@@ -256,7 +259,7 @@ Custom discount types can be created by extending `Lunar\DiscountTypes\AbstractD
 
 namespace App\DiscountTypes;
 
-use Lunar\Models\Cart;
+use Lunar\Models\Contracts\Cart;
 use Lunar\DiscountTypes\AbstractDiscountType;
 
 class CustomDiscountType extends AbstractDiscountType
