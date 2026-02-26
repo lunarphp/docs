@@ -1,13 +1,14 @@
 ---
 title: "Extending Attributes"
 sidebarTitle: "Attributes"
+description: "How to add custom attribute field types to the Lunar admin panel."
 ---
 
-You can add your own attribute field types to Lunar and control how they are rendered in the panel.
+Custom attribute field types can be added to Lunar to control how they are rendered in the panel.
 
-In order to render the form component from the attribute, it needs to be converted into a Filament form component and a suitable Livewire Synthesizer associated so it can be hydrated/dehydrated properly.
+To render a form component from an attribute, it must be converted into a Filament form component with a suitable Livewire Synthesizer so it can be hydrated and dehydrated properly.
 
-## Create the field
+## Create the Field
 
 ```php
 use Lunar\FieldTypes\Text;
@@ -18,7 +19,7 @@ class CustomField extends Text
 }
 ```
 
-## Create the field type
+## Create the Field Type
 
 ```php
 use Lunar\Admin\Support\FieldTypes\BaseFieldType;
@@ -34,10 +35,9 @@ class CustomFieldType extends BaseFieldType
 }
 ```
 
-## Adding settings
+## Adding Settings
 
-There may be additional settings you want your field to have, for example the Number field has `min` and `max` settings.
-To add these fields, you will need to tell Filament how to render the inputs.
+Additional settings can be added to a field type. For example, the Number field has `min` and `max` settings. To define these settings, tell Filament how to render the configuration inputs.
 
 ```php
 class CustomFieldType extends BaseFieldType
@@ -56,8 +56,7 @@ class CustomFieldType extends BaseFieldType
 }
 ```
 
-These will when be stored in the `configuration` JSON column for the attribute. Which you can then access when you
-render the field in the panel.
+These settings are stored in the `configuration` JSON column for the attribute and can be accessed when rendering the field in the panel.
 
 ```php
 use Lunar\Admin\Support\FieldTypes\BaseFieldType;
@@ -78,13 +77,9 @@ class CustomFieldType extends BaseFieldType
 
 ## Create the Livewire Synthesizer
 
-So Livewire knows how to hydrate/dehydrate the values provided to the field type when editing, we need to add a
-Synthesizer. You can read more about Livewire Synthesizers and what they do
-here: [https://livewire.laravel.com/docs/synthesizers](https://livewire.laravel.com/docs/synthesizers)
+A Livewire Synthesizer tells Livewire how to hydrate and dehydrate the values provided to the field type during editing. See the [Livewire Synthesizers documentation](https://livewire.laravel.com/docs/synthesizers) for more details.
 
 ```php
-<?php
-
 use Lunar\Admin\Support\Synthesizers\AbstractFieldSynth;
 use Lunar\FieldTypes\Text;
 
@@ -96,10 +91,9 @@ class CustomFieldSynth extends AbstractFieldSynth
 }
 ```
 
-## Register the field
+## Register the Field
 
-The last step is the register the converter with the `AttributeData` facade. Usually this would be in your service
-provider.
+The last step is to register the field type with the `AttributeData` facade, typically in a service provider.
 
 ```php
 use Lunar\Admin\Support\Facades\AttributeData;

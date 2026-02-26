@@ -1,82 +1,82 @@
 ---
 title: "Extending the Admin Panel"
+description: "An overview of how to extend Lunar's admin panel pages and resources."
 ---
-The Lunar Panel is highly customizable, you can add and change the behaviour of existing Filament resources. This might be useful if you wish to add a button for
-additional custom functionality. 
 
-##  Extending Pages
+The Lunar admin panel is highly customizable. Extensions allow adding and changing the behavior of existing Filament resources. This is useful for adding buttons, custom functionality, or modifying how data is displayed.
 
-To extend a page you need to create and register an extension.
+## Extending Pages
 
-### Extending edit resource
+To extend a page, create an extension class and register it with the `LunarPanel` facade.
 
-For example, the code below will register a custom extension called `MyEditExtension` for the `EditProduct` Filament page.
+### Extending an edit page
+
+The following example registers a custom extension for the `EditProduct` page:
 
 ```php
 use Lunar\Admin\Support\Facades\LunarPanel;
-use Lunar\Panel\Filament\Resources\ProductResource\Pages\EditProduct;
-use App\Admin\Filament\Resources\Pages\MyEditExtension;
+use Lunar\Admin\Filament\Resources\ProductResource\Pages\EditProduct;
+use App\Admin\Extensions\MyEditExtension;
 
 LunarPanel::extensions([
     EditProduct::class => MyEditExtension::class,
 ]);
 ```
 
-### Extending list resource
+### Extending a list page
 
-For example, the code below will register a custom extension called `MyListExtension` for the `ListProduct` Filament page.
+The following example registers a custom extension for the `ListProducts` page:
 
 ```php
 use Lunar\Admin\Support\Facades\LunarPanel;
-use Lunar\Panel\Filament\Resources\ProductResource\Pages\ListProduct;
-use App\Admin\Filament\Resources\Pages\MyEditExtension;
+use Lunar\Admin\Filament\Resources\ProductResource\Pages\ListProducts;
+use App\Admin\Extensions\MyListExtension;
 
 LunarPanel::extensions([
-    ListProduct::class => MyListExtension::class,
+    ListProducts::class => MyListExtension::class,
 ]);
-
 ```
 
-##  Extending Resources
-Much like extending pages, to extend a resource you need to create and register an extension.
+## Extending Resources
 
-For example, the code below will register a custom extension called `MyProductResourceExtension` for the `ProductResource` Filament resource.
+Much like extending pages, resource extensions are created and registered with the `LunarPanel` facade.
+
+The following example registers a custom extension for the `ProductResource`:
 
 ```php
 use Lunar\Admin\Support\Facades\LunarPanel;
-use Lunar\Panel\Filament\Resources\ProductResource;
-use App\Admin\Filament\Resources\MyProductResourceExtension;
+use Lunar\Admin\Filament\Resources\ProductResource;
+use App\Admin\Extensions\MyProductResourceExtension;
 
 LunarPanel::extensions([
     ProductResource::class => MyProductResourceExtension::class,
 ]);
-
 ```
 
-## Extendable resources
+## Extendable Resources
 
-All Lunar panel resources are extendable. This means you can now add your own functionality or change out existing behaviour.
+All Lunar panel resources are extendable, allowing custom functionality to be added or existing behavior to be changed.
 
 ```php
-use Lunar\Panel\Filament\Resources\ActivityResource;
-use Lunar\Panel\Filament\Resources\AttributeGroupResource;
-use Lunar\Panel\Filament\Resources\BrandResource;
-use Lunar\Panel\Filament\Resources\ChannelResource;
-use Lunar\Panel\Filament\Resources\CollectionGroupResource;
-use Lunar\Panel\Filament\Resources\CollectionResource;
-use Lunar\Panel\Filament\Resources\CurrencyResource;
-use Lunar\Panel\Filament\Resources\CustomerGroupResource;
-use Lunar\Panel\Filament\Resources\CustomerResource;
-use Lunar\Panel\Filament\Resources\DiscountResource;
-use Lunar\Panel\Filament\Resources\LanguageReousrce;
-use Lunar\Panel\Filament\Resources\OrderResource;
-use Lunar\Panel\Filament\Resources\ProductOptionResource;
-use Lunar\Panel\Filament\Resources\ProductResource;
-use Lunar\Panel\Filament\Resources\ProductResource;
-use Lunar\Panel\Filament\Resources\ProductTypeResource;
-use Lunar\Panel\Filament\Resources\ProductVariantResource;
-use Lunar\Panel\Filament\Resources\StaffResource;
-use Lunar\Panel\Filament\Resources\TagResource;
-use Lunar\Panel\Filament\Resources\TaxClassResource;
-use Lunar\Panel\Filament\Resources\TaxZoneResource;
+use Lunar\Admin\Filament\Resources\ActivityResource;
+use Lunar\Admin\Filament\Resources\AttributeGroupResource;
+use Lunar\Admin\Filament\Resources\BrandResource;
+use Lunar\Admin\Filament\Resources\ChannelResource;
+use Lunar\Admin\Filament\Resources\CollectionGroupResource;
+use Lunar\Admin\Filament\Resources\CollectionResource;
+use Lunar\Admin\Filament\Resources\CurrencyResource;
+use Lunar\Admin\Filament\Resources\CustomerGroupResource;
+use Lunar\Admin\Filament\Resources\CustomerResource;
+use Lunar\Admin\Filament\Resources\DiscountResource;
+use Lunar\Admin\Filament\Resources\LanguageResource;
+use Lunar\Admin\Filament\Resources\OrderResource;
+use Lunar\Admin\Filament\Resources\ProductOptionResource;
+use Lunar\Admin\Filament\Resources\ProductResource;
+use Lunar\Admin\Filament\Resources\ProductTypeResource;
+use Lunar\Admin\Filament\Resources\ProductVariantResource;
+use Lunar\Admin\Filament\Resources\StaffResource;
+use Lunar\Admin\Filament\Resources\TagResource;
+use Lunar\Admin\Filament\Resources\TaxClassResource;
+use Lunar\Admin\Filament\Resources\TaxRateResource;
+use Lunar\Admin\Filament\Resources\TaxZoneResource;
 ```
