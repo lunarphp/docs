@@ -1,27 +1,28 @@
 ---
 title: "Installation"
+description: "Add Lunar to a Laravel application with Composer."
 ---
+
+Lunar integrates into an existing Laravel application as a Composer package. This guide walks through the full setup process.
+
 ## Requirements
 
 - PHP >= 8.2
 - Laravel 11, 12
 - MySQL 8.0+ / PostgreSQL 9.4+
-- exif PHP extension (on most systems it will be installed by default)
-- intl PHP extension (on most systems it will be installed by default)
-- bcmath PHP extension (on most systems it will be installed by default)
-- GD PHP extension (used for image manipulation)
+- `bcmath` PHP extension
+- `exif` PHP extension
+- `intl` PHP extension
 
-## Install Lunar
-
-### Composer Require Package
+## 1. Install the package
 
 ```sh
 composer require lunarphp/lunar:"^1.0" -W
 ```
 
-### Add the LunarUser Trait
+## 2. Add the LunarUser trait
 
-Some parts of the core rely on the User model having certain relationships set up. We have bundled these into a trait and an interface, which you must add to any models that represent users in your database.
+Parts of the Lunar core rely on the `User` model having certain e-commerce relationships (carts, orders, customers). Add the bundled trait and interface to any model that represents users in the application.
 
 ```php
 use Lunar\Base\Traits\LunarUser;
@@ -35,16 +36,9 @@ class User extends Authenticatable implements LunarUserInterface
 }
 ```
 
-### Publish Configuration
-Before you run the Lunar installer command, you may wish to customise some of the set-up.
+## 3. Register the admin panel
 
-```sh
-php artisan vendor:publish --tag=lunar
-```
-
-## Register the admin panel
-
-The admin panel needs registering in your app service provider before you can use it.
+Register the Lunar admin panel in the application's `AppServiceProvider`:
 
 ```php
 use Lunar\Admin\Support\Facades\LunarPanel;
@@ -55,45 +49,104 @@ class AppServiceProvider extends ServiceProvider
     {
         LunarPanel::register();
     }
+}
 ```
 
-## Run the Artisan Installer
+## 4. Run the installer
 
 ```sh
 php artisan lunar:install
 ```
 
-This will take you through a set of questions to configure your Lunar install. The process includes...
+The installer will guide through a series of prompts and perform the following:
 
-- Creating a default admin user (if required)
-- Seeding initial data
-- Inviting you to star our repo on GitHub ⭐
+- Publish configuration files
+- Run database migrations
+- Create a default admin user
+- Seed initial data: a default channel, language, currency (USD), customer group, collection group, tax class, tax zone, and product/collection attributes
+- Publish Filament assets
 
-You should now be able to access the panel at `https://<yoursite>/lunar`.
+## 5. Access the admin panel
 
-## Telemetry insights
+Once the installer completes, the admin panel is available at `https://<yoursite>/lunar`.
 
-Lunar will phone home to send anonymous usage insights, the data we capture does not identify your store in any way, it exists to
-help us gain an understanding of how Lunar is used. You can easily opt out of this by adding the following to your service provider's boot method:
+## Telemetry
+
+Lunar sends anonymous usage data once per day to help the maintainers understand how Lunar is used. The data does not identify a store in any way.
+
+To opt out, add the following to a service provider's `boot` method:
 
 ```php
 \Lunar\Facades\Telemetry::optOut();
 ```
 
-## Advanced Installation Options
+## Advanced installation options
 
-### Table Prefix
+### Publish configuration before installing
 
-Lunar uses table prefixes to avoid conflicts with your app's tables. You can change this in the configuration.
+The installer publishes configuration files automatically, but to customize settings before running `php artisan lunar:install`, publish them manually first:
 
-### User ID Field Type
+```sh
+php artisan vendor:publish --tag=lunar
+```
 
-Lunar assumes your User ID field is a "BIGINT". If you are using an "INT" or "UUID", you will want to update the configuration in `config/lunar/database.php` to set the correct field type before running the migrations.
+The installer will detect the existing configuration and skip overwriting it.
 
-### Publish Migrations
+### Table prefix
 
-You can optionally publish Lunar's migrations so they're added to your Laravel app.
+Lunar prefixes all of its database tables to avoid conflicts. The default prefix is `lunar_` and can be changed in `config/lunar/database.php`:
+
+```php
+'table_prefix' => 'lunar_',
+```
+
+### User ID field type
+
+Lunar assumes the `User` model primary key is a `BIGINT`. If the application uses `INT` or `UUID` primary keys, update `config/lunar/database.php` before running migrations:
+
+```php
+// Supported values: 'bigint', 'int', 'uuid'
+'users_id_type' => 'bigint',
+```
+
+### Disable bundled migrations
+
+To take full control of Lunar's database migrations, disable the bundled migrations and publish them into the application:
+
+```php
+// config/lunar/database.php
+'disable_migrations' => true,
+```
 
 ```sh
 php artisan vendor:publish --tag=lunar.migrations
 ```
+
+## What's next?
+
+<Card
+  title="Starter Kits"
+  icon="rocket"
+  href="/1.x/getting-started/starter-kits/livewire"
+  horizontal
+>
+  Get a head start with a pre-built Livewire or Inertia storefront.
+</Card>
+
+<Card
+  title="Storefront Guides"
+  icon="store"
+  href="/1.x/guides/catalog-menu"
+  horizontal
+>
+  Learn how to build a storefront from scratch with step-by-step guides.
+</Card>
+
+<Card
+  title="System Settings"
+  icon="gear"
+  href="/1.x/getting-started/setup/system-settings"
+  horizontal
+>
+  Configure channels, languages, currencies, and more.
+</Card>

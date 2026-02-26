@@ -1,9 +1,14 @@
 ---
 title: "Livewire Starter Kit"
 ---
-Lunar provides a starter kit as a reference to help you build your own custom e-commerce app. The starter kit is built using Laravel Livewire (as is our admin hub). You can quickly see how to load products, collections, use the cart and checkout.
 
-If you prefer to install Lunar into your own Laravel application, please follow the [installation instructions](/1.x/getting-started/setup/installation).
+The Livewire Starter Kit is a basic reference implementation for building a storefront with Lunar using [Laravel Livewire](https://livewire.laravel.com). It demonstrates how to load products and collections, manage a cart, and process a checkout.
+
+<Warning>
+This starter kit is intended as a reference implementation only and is not production-ready. An [Inertia + Vue Starter Kit](/1.x/getting-started/starter-kits/inertia-vue) is currently in development and will serve as a production-ready foundation for new storefront projects.
+</Warning>
+
+To install Lunar into an existing Laravel application instead, follow the [installation guide](/1.x/getting-started/setup/installation).
 
 ## Requirements
 
@@ -17,10 +22,10 @@ If you prefer to install Lunar into your own Laravel application, please follow 
 ## Installation
 
 <Tip>
-We assume you have a suitable local development environment in which to run Lunar. We would highly suggest [Laravel Herd](https://herd.laravel.com) for this purpose.
+A suitable local development environment is needed to run Lunar. [Laravel Herd](https://herd.laravel.com) is recommended for this purpose.
 </Tip>
 
-### Create a New Project
+### Create a new project
 
 ```bash
 composer create-project --stability dev lunarphp/livewire-starter-kit my-store
@@ -28,7 +33,7 @@ composer create-project --stability dev lunarphp/livewire-starter-kit my-store
 cd my-store
 ```
 
-or using the latest Laravel Installer you can do...
+Or using the Laravel Installer:
 
 ```bash
 laravel new my-store --using=lunarphp/livewire-starter-kit
@@ -36,42 +41,43 @@ laravel new my-store --using=lunarphp/livewire-starter-kit
 cd my-store
 ```
 
-
 ### Configure the Laravel app
 
-Copy the `.env.example` file to `.env` and make sure the details match to your install.
+Copy the `.env.example` file to `.env` and update the values to match the local environment.
 
 ```bash
 cp .env.example .env
 ```
 
-All the relevant configuration files should be present in the repo.
+All relevant configuration files are included in the repository.
 
-### Migrate and Seed
+### Migrate and seed
 
-Install Lunar
+Install Lunar:
 
 ```bash
 php artisan lunar:install
 ```
 
-Seed the demo data.
+Seed the demo data:
 
 ```bash
 php artisan db:seed
 ```
 
-Link the storage directory
+Link the storage directory:
 
 ```bash
 php artisan storage:link
 ```
 
-## Finished 🚀
+## Access the storefront
 
-You are now installed!
+Once installation is complete:
 
-- You can access the storefront at `http://<yoursite>`
-- You can access the admin hub at `http://<yoursite>/lunar`
+- Storefront: `http://<yoursite>`
+- Admin panel: `http://<yoursite>/lunar`
 
-You can review the source code at the GitHub Repository: [https://github.com/lunarphp/livewire-starter-kit](https://github.com/lunarphp/livewire-starter-kit).
+## Source code
+
+The full source is available on GitHub: [lunarphp/livewire-starter-kit](https://github.com/lunarphp/livewire-starter-kit).
