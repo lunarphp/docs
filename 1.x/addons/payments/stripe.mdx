@@ -1,11 +1,13 @@
 ---
 title: "Stripe"
+description: "Accept payments using Stripe with Lunar."
 ---
-This addon enables Stripe payments on your Lunar storefront.
+
+Lunar's Stripe addon integrates with Stripe's Payment Intents API to handle card payments, including support for automatic and manual capture policies, webhooks, and address synchronization.
 
 ## Installation
 
-### Require the composer package
+### Require the Composer package
 
 ```sh
 composer require lunarphp/stripe
@@ -21,7 +23,7 @@ php artisan vendor:publish --tag=lunar.stripe.config
 
 ### Publish the views (optional)
 
-Lunar Stripe comes with some helper components for you to use on your checkout, if you intend to edit the views they provide, you can publish them.
+The Stripe addon includes helper Blade and Livewire components for use during checkout. To customize these views, publish them.
 
 ```sh
 php artisan vendor:publish --tag=lunar.stripe.components
@@ -29,7 +31,7 @@ php artisan vendor:publish --tag=lunar.stripe.components
 
 ### Enable the driver
 
-Set the driver in `config/lunar/payments.php`
+Set the driver in `config/lunar/payments.php`.
 
 ```php
 <?php
@@ -45,9 +47,9 @@ return [
 ];
 ```
 
-### Add your Stripe credentials
+### Add Stripe credentials
 
-Make sure you have the Stripe credentials set in `config/services.php`
+Add the Stripe credentials to `config/services.php`.
 
 ```php
 'stripe' => [
@@ -59,31 +61,52 @@ Make sure you have the Stripe credentials set in `config/services.php`
 ],
 ```
 
-> Keys can be found in your Stripe account https://dashboard.stripe.com/apikeys
+<Tip>
+Keys can be found in the [Stripe Dashboard](https://dashboard.stripe.com/apikeys).
+</Tip>
 
 ## Configuration
 
-Below is a list of the available configuration options this package uses in `config/lunar/stripe.php`
+The following options are available in `config/lunar/stripe.php`.
 
-| Key              | Default      | Description                                                                                                                                                                   |
-|------------------|--------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `policy`         | `automatic`  | Determines the policy for taking payments and whether you wish to capture the payment manually later or take payment straight away. Available options `manual` or `automatic` |
-| `sync_addresses` | `true`       | When enabled, the Stripe addon will attempt to sync the billing and shipping addresses which have been stored against the payment intent on Stripe.                           |
----
+| Key | Default | Description |
+| --- | ------- | ----------- |
+| `webhook_path` | `stripe/webhook` | The URI path for the Stripe webhook endpoint |
+| `policy` | `automatic` | Determines the capture policy. `automatic` captures payment immediately; `manual` authorizes first and captures later |
+| `sync_addresses` | `true` | When enabled, billing and shipping addresses stored on the Stripe PaymentIntent are synced to the order |
+| `status_mapping` | See below | Maps Stripe PaymentIntent statuses to Lunar order statuses |
+| `actions.store_charges` | `StoreCharges::class` | The action class responsible for storing charge data as transactions |
+
+### Status mapping
+
+The default status mapping translates Stripe PaymentIntent statuses to Lunar order statuses.
+
+```php
+'status_mapping' => [
+    'requires_capture' => 'requires-capture',
+    'canceled' => 'cancelled',
+    'processing' => 'processing',
+    'requires_action' => 'awaiting-payment',
+    'requires_confirmation' => 'auth-pending',
+    'requires_payment_method' => 'failed',
+    'succeeded' => 'payment-received',
+],
+```
 
 ## Backend Usage
 
 ### Create a PaymentIntent
 
 ```php
-use \Lunar\Stripe\Facades\Stripe;
+use Lunar\Stripe\Facades\Stripe;
+use Lunar\Models\Cart;
 
-Stripe::createIntent(\Lunar\Models\Cart $cart, $options = []);
+Stripe::createIntent(Cart $cart, $options = []);
 ```
 
-This method will create a Stripe PaymentIntent from a Cart and add the resulting ID to the meta for retrieval later. If a PaymentIntent already exists for a cart this will fetch it from Stripe and return that instead to avoid duplicate PaymentIntents being created.
+This method creates a Stripe PaymentIntent from a cart and stores the resulting ID in the cart's meta data. If a PaymentIntent already exists for the cart, the existing one is returned instead.
 
-You can pass any additional parameters you need, by default the following are sent:
+The following parameters are sent by default:
 
 ```php
 [
@@ -91,93 +114,115 @@ You can pass any additional parameters you need, by default the following are se
     'currency' => 'GBP',
     'automatic_payment_methods' => ['enabled' => true],
     'capture_method' => config('lunar.stripe.policy', 'automatic'),
-    // If a shipping address exists on a cart
-    // $shipping = $cart->shippingAddress
-    'shipping' => [
-        'name' => "{$shipping->first_name} {$shipping->last_name}",
-        'phone' => $shipping->contact_phone,
-        'address' => [
-            'city' => $shipping->city,
-            'country' => $shipping->country->iso2,
-            'line1' => $shipping->line_one,
-            'line2' => $shipping->line_two,
-            'postal_code' => $shipping->postcode,
-            'state' => $shipping->state,
-        ],
-    ]
 ]
 ```
 
+If the cart has a shipping address, the addon also calls `updateShippingAddress()` to sync the address to the PaymentIntent.
+
+Any additional parameters passed in the `$options` array are merged with the defaults.
+
+### Fetch or create a PaymentIntent
+
 ```php
-$paymentIntentId = $cart->meta['payment_intent']; // The resulting ID from the method above.
+use Lunar\Stripe\Facades\Stripe;
+
+Stripe::fetchOrCreateIntent($cart, $createOptions = []);
 ```
+
+This is a convenience method that fetches the existing PaymentIntent for a cart if one exists, or creates a new one.
+
+### Retrieve the PaymentIntent ID from a cart
+
 ```php
+use Lunar\Stripe\Facades\Stripe;
+
+$intentId = Stripe::getCartIntentId($cart);
+```
+
+Alternatively, the PaymentIntent ID can be accessed directly from the cart's meta data.
+
+```php
+$cart->meta['payment_intent'];
+// or
 $cart->meta->payment_intent;
 ```
 
 ### Fetch an existing PaymentIntent
 
 ```php
-use \Lunar\Stripe\Facades\Stripe;
+use Lunar\Stripe\Facades\Stripe;
 
 Stripe::fetchIntent($paymentIntentId);
 ```
 
-### Syncing an existing intent
+### Sync an existing PaymentIntent
 
-If a payment intent has been created and there are changes to the cart, you will want to update the intent so it has the correct totals.
+If a PaymentIntent has been created and the cart contents change, call `syncIntent` to update the intent with the correct totals.
 
 ```php
-use \Lunar\Stripe\Facades\Stripe;
+use Lunar\Stripe\Facades\Stripe;
 
-Stripe::syncIntent(\Lunar\Models\Cart $cart);
+Stripe::syncIntent($cart);
 ```
 
+### Update an existing PaymentIntent
 
-### Update an existing intent
-
-For when you want to update certain properties on the PaymentIntent, without needing to recalculate the cart.
-
-See https://docs.stripe.com/api/payment_intents/update
+To update specific properties on the PaymentIntent without recalculating the cart, use `updateIntent`.
 
 ```php
-use \Lunar\Stripe\Facades\Stripe;
+use Lunar\Stripe\Facades\Stripe;
 
-Stripe::updateIntent(\Lunar\Models\Cart $cart, [
-    'shipping' => [/*..*/]
+Stripe::updateIntent($cart, [
+    'shipping' => [/* ... */],
 ]);
 ```
 
-### Cancel an existing intent
-
-If you need to cancel a PaymentIntent, you can do so. You will need to provide a valid reason, those of which can be found in the Stripe docs: https://docs.stripe.com/api/payment_intents/cancel.
-
-Lunar Stripe includes a PHP Enum to make this easier for you:
+A PaymentIntent can also be updated directly by ID.
 
 ```php
-use Lunar\Stripe\Enums\CancellationReason;
+use Lunar\Stripe\Facades\Stripe;
 
-CancellationReason::ABANDONED;
-CancellationReason::DUPLICATE;
-CancellationReason::REQUESTED_BY_CUSTOMER;
-CancellationReason::FRAUDULENT;
+Stripe::updateIntentById($intentId, [
+    'description' => 'Updated description',
+]);
 ```
+
+### Cancel a PaymentIntent
+
+To cancel a PaymentIntent, provide a valid cancellation reason. The addon includes a PHP enum for the available reasons.
 
 ```php
 use Lunar\Stripe\Facades\Stripe;
 use Lunar\Stripe\Enums\CancellationReason;
 
-Stripe::cancelIntent(\Lunar\Models\Cart $cart, CancellationReason $reason);
+Stripe::cancelIntent($cart, CancellationReason::ABANDONED);
 ```
 
-### Update the address on Stripe
+Available cancellation reasons:
 
-So you don't have to manually specify all the shipping address fields you can use the helper function to do it for you.
+| Enum Case | Value |
+| --------- | ----- |
+| `CancellationReason::ABANDONED` | `abandoned` |
+| `CancellationReason::DUPLICATE` | `duplicate` |
+| `CancellationReason::REQUESTED_BY_CUSTOMER` | `requested_by_customer` |
+| `CancellationReason::FRAUDULENT` | `fraudulent` |
+
+### Update the shipping address
+
+To sync the cart's shipping address to the PaymentIntent without manually specifying all fields, use the helper method.
 
 ```php
-use \Lunar\Stripe\Facades\Stripe;
+use Lunar\Stripe\Facades\Stripe;
 
-Stripe::updateShippingAddress(\Lunar\Models\Cart $cart);
+Stripe::updateShippingAddress($cart);
+```
+
+### Retrieve a payment method
+
+```php
+use Lunar\Stripe\Facades\Stripe;
+
+Stripe::getPaymentMethod($paymentMethodId);
 ```
 
 ## Charges
@@ -185,160 +230,206 @@ Stripe::updateShippingAddress(\Lunar\Models\Cart $cart);
 ### Retrieve a specific charge
 
 ```php
-use \Lunar\Stripe\Facades\Stripe;
+use Lunar\Stripe\Facades\Stripe;
 
-Stripe::getCharge(string $chargeId);
+Stripe::getCharge($chargeId);
 ```
 
-### Get all charges for a payment intent
+### Get all charges for a PaymentIntent
 
 ```php
-use \Lunar\Stripe\Facades\Stripe;
+use Lunar\Stripe\Facades\Stripe;
 
-Stripe::getCharges(string $paymentIntentId);
+Stripe::getCharges($paymentIntentId);
+```
+
+## Capture and Refund
+
+When using the `manual` capture policy, payments are authorized but not captured immediately. The Lunar payments system can then be used to capture or refund transactions.
+
+### Capturing a payment
+
+```php
+use Lunar\Facades\Payments;
+
+Payments::driver('stripe')->capture($transaction, $amount);
+```
+
+### Refunding a payment
+
+```php
+use Lunar\Facades\Payments;
+
+Payments::driver('stripe')->refund($transaction, $amount, $notes);
 ```
 
 ## Webhooks
 
-The add-on provides an optional webhook you may add to Stripe. You can read the guide on how to do this on the Stripe website [https://stripe.com/docs/webhooks/quickstart](https://stripe.com/docs/webhooks/quickstart).
+The addon provides a webhook endpoint that can be registered in the Stripe Dashboard. Follow the [Stripe webhook guide](https://stripe.com/docs/webhooks/quickstart) to set this up.
 
-The events you should listen to are `payment_intent.payment_failed`, `payment_intent.succeeded`.
+The webhook endpoint is available at:
 
-The path to the webhook will be `http:://yoursite.com/stripe/webhook`.
+```
+https://yoursite.com/stripe/webhook
+```
 
-You can customise the path for the webhook in `config/lunar/stripe.php`.
+The path is configurable via the `webhook_path` option in `config/lunar/stripe.php`.
 
-You will also need to add the webhook signing secret to the `services.php` config file:
+### Supported events
+
+The webhook listens for the following Stripe events:
+
+- `payment_intent.succeeded`
+- `payment_intent.payment_failed`
+
+### Webhook signing secret
+
+Add the webhook signing secret to `config/services.php`.
 
 ```php
 <?php
 
 return [
-// ...
+    // ...
     'stripe' => [
         // ...
         'webhooks' => [
-            'lunar' => '...'
+            'lunar' => env('LUNAR_STRIPE_WEBHOOK_SECRET'),
         ],
     ],
 ];
 ```
 
-If you do not wish to use the webhook, or would like to manually process an order as well, you are able to do so.
+### Manual order processing
+
+If the webhook is not used, or if an order needs to be processed manually, the payment can be authorized directly.
 
 ```php
+use Lunar\Facades\CartSession;
+use Lunar\Facades\Payments;
+
 $cart = CartSession::current();
 
-// With a draft order...
+// With a draft order
 $draftOrder = $cart->createOrder();
 Payments::driver('stripe')->order($draftOrder)->withData([
     'payment_intent' => $draftOrder->meta['payment_intent'],
 ])->authorize();
 
-// Using just the cart...
+// Using just the cart
 Payments::driver('stripe')->cart($cart)->withData([
     'payment_intent' => $cart->meta['payment_intent'],
 ])->authorize();
 ```
 
+## Livewire Component
+
+The addon includes a Livewire payment form component that handles PaymentIntent creation and Stripe Elements rendering.
+
+```blade
+<livewire:stripe.payment
+    :cart="$cart"
+    :returnUrl="route('checkout.complete')"
+/>
+```
+
+To include the Stripe.js script, use the Blade directive in the page layout.
+
+```blade
+@stripeScripts
+```
 
 ## Storefront Examples
 
-First we need to set up the backend API call to fetch or create the intent, this isn't Vue specific but will likely be different if you're using Livewire.
+### API route for PaymentIntents
+
+Set up a backend API route to fetch or create the PaymentIntent.
 
 ```php
-use \Lunar\Stripe\Facades\Stripe;
+use Lunar\Facades\CartSession;
+use Lunar\Stripe\Facades\Stripe;
 
 Route::post('api/payment-intent', function () {
-$cart = CartSession::current();
+    $cart = CartSession::current();
 
-$cartData = CartData::from($cart);
+    $intent = Stripe::fetchOrCreateIntent($cart);
 
-if ($paymentIntent = $cartData->meta['payment_intent'] ?? false) {
-    $intent = StripeFacade::fetchIntent($paymentIntent);
-} else {
-    $intent = StripeFacade::createIntent($cart);
-}
+    if ($intent->amount != $cart->total->value) {
+        Stripe::syncIntent($cart);
+    }
 
-if ($intent->amount != $cart->total->value) {
-    StripeFacade::syncIntent($cart);
-}
-
-return $intent;
+    return $intent;
 })->middleware('web');
 ```
 
-### Vuejs
+### Vue.js
 
-This is just using Stripe's payment elements, for more information [check out the Stripe guides](https://stripe.com/docs/payments/elements)
+This example uses Stripe's Payment Elements. For more information, see the [Stripe Elements guide](https://stripe.com/docs/payments/elements).
 
-### Payment component
+#### Payment component
 
 ```js
 <script setup>
-    const { VITE_STRIPE_PK } = import.meta.env
+const { VITE_STRIPE_PK } = import.meta.env
 
-    const stripe = Stripe(VITE_STRIPE_PK)
-    const stripeElements = ref({})
+const stripe = Stripe(VITE_STRIPE_PK)
+const stripeElements = ref({})
 
-    const buildForm = async () => {
-        const { data } = await axios.post("api/payment-intent")
+const buildForm = async () => {
+    const { data } = await axios.post("api/payment-intent")
 
-        stripeElements.value = stripe.elements({
-            clientSecret: data.client_secret,
-        })
-
-        const paymentElement = stripeElements.value.create("payment", {
-            layout: "tabs",
-            defaultValues: {
-                billingDetails: {
-                    name: `{$billingAddress.value.first_name} {$billingAddress.value?.last_name}`,
-                    phone: billingAddress.value?.contact_phone,
-                },
-            },
-            fields: {
-                billingDetails: "never",
-            },
-        })
-
-        paymentElement.mount("#payment-element")
-    }
-
-    onMounted(async () => {
-        await buildForm()
+    stripeElements.value = stripe.elements({
+        clientSecret: data.client_secret,
     })
 
-    // The address object can be either passed through as props or via a second API call, but it should likely come from the cart.
+    const paymentElement = stripeElements.value.create("payment", {
+        layout: "tabs",
+        defaultValues: {
+            billingDetails: {
+                name: `${billingAddress.value.first_name} ${billingAddress.value?.last_name}`,
+                phone: billingAddress.value?.contact_phone,
+            },
+        },
+        fields: {
+            billingDetails: "never",
+        },
+    })
 
-    const submit = async () => {
-        try {
-            const address = {...}
+    paymentElement.mount("#payment-element")
+}
 
-            const { error } = await stripe.confirmPayment({
-                //`Elements` instance that was used to create the Payment Element
-                elements: stripeElements.value,
-                confirmParams: {
-                    return_url: 'http://yoursite.com/checkout/complete',
-                    payment_method_data: {
-                        billing_details: {
-                            name: `{$address.first_name} {$address.last_name}`,
-                            email: address.contact_email,
-                            phone: address.contact_phone,
-                            address: {
-                                city: address.city,
-                                country: address.country.iso2,
-                                line1: address.line_one,
-                                line2: address.line_two,
-                                postal_code: address.postcode,
-                                state: address.state,
-                            },
+onMounted(async () => {
+    await buildForm()
+})
+
+const submit = async () => {
+    try {
+        const address = { /* ... */ }
+
+        const { error } = await stripe.confirmPayment({
+            elements: stripeElements.value,
+            confirmParams: {
+                return_url: "https://yoursite.com/checkout/complete",
+                payment_method_data: {
+                    billing_details: {
+                        name: `${address.first_name} ${address.last_name}`,
+                        email: address.contact_email,
+                        phone: address.contact_phone,
+                        address: {
+                            city: address.city,
+                            country: address.country.iso2,
+                            line1: address.line_one,
+                            line2: address.line_two,
+                            postal_code: address.postcode,
+                            state: address.state,
                         },
                     },
                 },
-            })
-        } catch (e) {
-
-        }
+            },
+        })
+    } catch (e) {
+        // Handle error
+    }
 }
 </script>
 ```
@@ -346,51 +437,60 @@ This is just using Stripe's payment elements, for more information [check out th
 ```html
 <template>
     <form @submit.prevent="submit">
-    <div id="payment-element">
-        <!--Stripe.js injects the Payment Element-->
-    </div>
-</form>
+        <div id="payment-element">
+            <!--Stripe.js injects the Payment Element-->
+        </div>
+    </form>
 </template>
 ```
----
 
 ## Extending
 
-### Webhook event params
+### Webhook event parameters
 
-In order to process the payment intent and link it to an order, we need the PaymentIntent ID and an optional Order ID.
+To process a PaymentIntent and link it to an order, the addon needs the PaymentIntent ID and an optional order ID. By default, the PaymentIntent ID is extracted from the Stripe event and the order ID is looked up from the PaymentIntent metadata.
 
-By default Lunar Stripe will look for the PaymentIntent ID via the Stripe Event and try and determine whether an existing order ID has been defined on the PaymentIntent meta.
-
-You can customise this behaviour by overriding the `ProcessesEventParameters` instance.
+This behavior can be customized by overriding the `ProcessesEventParameters` implementation.
 
 ```php
-// AppServiceProvider
 use Lunar\Stripe\Concerns\ProcessesEventParameters;
 use Lunar\Stripe\DataTransferObjects\EventParameters;
 
-public function boot()
+// In a service provider's boot method
+$this->app->instance(ProcessesEventParameters::class, new class implements ProcessesEventParameters
 {
-    $this->app->instance(ProcessesEventParameters::class, new class implements ProcessesEventParameters
+    public function handle(\Stripe\Event $event): EventParameters
     {
-        public function handle(\Stripe\Event $event): EventParameters
-        {
-            $paymentIntentId = $event->data->object->id;
-            // Setting $orderId to null will mean a new order is created.
-            $orderId = null;
+        $paymentIntentId = $event->data->object->id;
+        $orderId = null; // Setting to null creates a new order
 
-            return new EventParameters($paymentIntentId, $orderId);
-        }
-    });
-````
+        return new EventParameters($paymentIntentId, $orderId);
+    }
+});
+```
+
+## Database
+
+The addon creates a `stripe_payment_intents` table to track PaymentIntents and their relationship to carts and orders.
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `id` | `id` | Primary key |
+| `cart_id` | `foreignId` | Associated cart |
+| `order_id` | `foreignId` `nullable` | Associated order |
+| `intent_id` | `string` | Stripe PaymentIntent ID |
+| `status` | `string` `nullable` | Current PaymentIntent status |
+| `event_id` | `string` `nullable` | Stripe event ID |
+| `processing_at` | `timestamp` `nullable` | |
+| `processed_at` | `timestamp` `nullable` | |
+| `created_at` | `timestamp` | |
+| `updated_at` | `timestamp` | |
 
 ## Events
 
-Below are the events which are dispatched under specific situations within the addon.
-
 ### CartMissingForIntent
 
-Dispatched when attempting to process a payment intent, but no matching Order or Cart model can be found.
+Dispatched when a webhook is received for a PaymentIntent, but no matching cart or order can be found.
 
 ```php
 use Lunar\Stripe\Events\Webhook\CartMissingForIntent;
@@ -399,4 +499,14 @@ public function handle(CartMissingForIntent $event)
 {
     echo $event->paymentIntentId;
 }
+```
+
+## Testing
+
+The addon includes a mock client for testing without making real Stripe API calls.
+
+```php
+use Lunar\Stripe\Facades\Stripe;
+
+Stripe::fake();
 ```

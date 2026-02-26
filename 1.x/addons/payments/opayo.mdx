@@ -1,15 +1,17 @@
 ---
 title: "Opayo"
+description: "Accept payments using Opayo with Lunar."
 ---
-This addon enables Opayo payments on your Lunar storefront.
+
+Lunar's Opayo addon integrates with Opayo's (formerly SagePay) payment API to handle card payments, including 3D Secure authentication and saved card tokens.
 
 <Warning>
-    This addon is currently in Alpha, whilst every step is taken to ensure this is working as intended, it will not be considered out of Alpha until more tests have been added and proved.
+This addon is currently in alpha. While every step is taken to ensure it works as intended, it will not be considered out of alpha until additional tests have been added.
 </Warning>
 
 ## Installation
 
-### Require the composer package
+### Require the Composer package
 
 ```sh
 composer require lunarphp/opayo
@@ -17,23 +19,36 @@ composer require lunarphp/opayo
 
 ### Configure the service
 
-Add the opayo config to the `config/services.php` file.
+Add the Opayo credentials to `config/services.php`.
 
 ```php
-    // ...
-    'opayo' => [
-        'vendor' => env('OPAYO_VENDOR'),
-        'env' => env('OPAYO_ENV', 'test'),
-        'key' => env('OPAYO_KEY'),
-        'password' => env('OPAYO_PASSWORD'),
-        'host' => env('OPAYO_HOST'),
-    ],
+'opayo' => [
+    'vendor' => env('OPAYO_VENDOR'),
+    'env' => env('OPAYO_ENV', 'test'),
+    'key' => env('OPAYO_KEY'),
+    'password' => env('OPAYO_PASSWORD'),
+],
 ```
 
+### Publish the configuration
+
+This will publish the configuration under `config/lunar/opayo.php`.
+
+```sh
+php artisan vendor:publish --tag=lunar.opayo.config
+```
+
+### Publish the views (optional)
+
+The Opayo addon includes Blade and Livewire components for checkout. To customize these views, publish them.
+
+```sh
+php artisan vendor:publish --tag=lunar.opayo.components
+```
 
 ### Enable the driver
 
-Set the driver in `config/lunar/payments.php`
+Set the driver in `config/lunar/payments.php`.
 
 ```php
 <?php
@@ -49,31 +64,41 @@ return [
 ];
 ```
 
-
-
 ## Configuration
 
-Below is a list of the available configuration options this package uses in `config/lunar/opayo.php`
+The following options are available in `config/lunar/opayo.php`.
 
 | Key | Default | Description |
-| --- | --- | --- |
-| `policy` | `automatic` | Determines the policy for taking payments and whether you wish to capture the payment manually later or take payment straight away. Available options `deferred` or `automatic` |
+| --- | ------- | ----------- |
+| `policy` | `automatic` | Determines the capture policy. `automatic` captures payment immediately; `deferred` authorizes first and captures later |
 
----
+The Opayo API endpoint is determined by the `services.opayo.env` value.
+
+| Environment | API Base URL |
+| ----------- | ----------- |
+| `test` | `https://sandbox.opayo.eu.elavon.com/api/v1/` |
+| `live` | `https://live.opayo.eu.elavon.com/api/v1/` |
 
 ## Backend Usage
 
-### Get a merchant key
+### Get a merchant session key
+
+A merchant session key is required before tokenizing card details on the client side.
 
 ```php
-Lunar\Opayo\Facades\Opayo::getMerchantKey();
+use Lunar\Opayo\Facades\Opayo;
+
+$merchantKey = Opayo::getMerchantKey();
 ```
 
-### Authorize a charge
+### Authorize a payment
 
 ```php
-$response = \Lunar\Facades\Payments::driver('opayo')->cart(
-    $cart = CartSession::current()->calculate()
+use Lunar\Facades\Payments;
+use Lunar\Facades\CartSession;
+
+$response = Payments::driver('opayo')->cart(
+    CartSession::current()->calculate()
 )->withData([
     'merchant_key' => $request->get('merchantSessionKey'),
     'card_identifier' => $request->get('cardToken'),
@@ -91,10 +116,48 @@ $response = \Lunar\Facades\Payments::driver('opayo')->cart(
 ])->authorize();
 ```
 
-When authorizing a charge, you may be required to submit extra authentication in the form of 3DSV2, you can handle this in your payment endpoint.
+### Capture a deferred payment
+
+When using the `deferred` policy, payments must be captured separately after authorization.
 
 ```php
-if (is_a($response, \Lunar\Opayo\Responses\ThreeDSecureResponse::class)) {
+use Lunar\Facades\Payments;
+
+Payments::driver('opayo')->capture($transaction, $amount);
+```
+
+### Refund a payment
+
+```php
+use Lunar\Facades\Payments;
+
+Payments::driver('opayo')->refund($transaction, $amount, $notes);
+```
+
+### Retrieve a transaction
+
+Fetch transaction details from the Opayo API. This method includes retry logic with up to 4 attempts.
+
+```php
+use Lunar\Opayo\Facades\Opayo;
+
+$transaction = Opayo::getTransaction($transactionId);
+```
+
+## 3D Secure Authentication
+
+When authorizing a payment, Opayo may require 3D Secure (3DS) authentication. The authorization response indicates whether a challenge is needed.
+
+### Handling the 3DS response
+
+```php
+use Lunar\Opayo\Responses\ThreeDSecureResponse;
+
+$response = Payments::driver('opayo')->cart($cart)->withData([
+    // ...
+])->authorize();
+
+if ($response instanceof ThreeDSecureResponse) {
     return response()->json([
         'requires_auth' => true,
         'data' => $response,
@@ -102,58 +165,160 @@ if (is_a($response, \Lunar\Opayo\Responses\ThreeDSecureResponse::class)) {
 }
 ```
 
-`$response` will contain all the 3DSV2 information from Opayo.
+The `ThreeDSecureResponse` contains the following properties:
 
-You can find more information about this using the following links:
+| Property | Type | Description |
+| -------- | ---- | ----------- |
+| `success` | `bool` | Whether the initial authorization was successful |
+| `status` | `string` `nullable` | The 3DS status |
+| `acsUrl` | `string` `nullable` | The Access Control Server URL for the challenge |
+| `acsTransId` | `string` `nullable` | The ACS transaction ID |
+| `dsTransId` | `string` `nullable` | The Directory Server transaction ID |
+| `cReq` | `string` `nullable` | The challenge request (3DS 2.x) |
+| `paReq` | `string` `nullable` | The payer authentication request (3DS 1.x) |
+| `transactionId` | `string` `nullable` | The Opayo transaction ID |
+| `message` | `string` `nullable` | An optional message with additional details |
 
-- [3-D Secure explained](https://www.elavon.co.uk/resource-center/help-with-your-solutions/opayo/fraud-prevention/3D-Secure.html)
-- [3D Secure Transactions](https://developer.elavon.com/products/opayo-direct/v1/3d-secure-transactions)
-- Stack overflow [SagePay 3D Secure V2 Flow](https://stackoverflow.com/questions/65329436/sagepay-3d-secure-v2-flow)
+### Completing the 3DS challenge
 
-Once you have handled the 3DSV2 response on your storefront, you can then authorize again.
+After the customer completes the 3DS challenge on the storefront, authorize the payment again with the challenge response data.
+
+For 3DS 2.x:
 
 ```php
-$response = Payments::driver('opayo')->cart(
-    $cart = CartSession::current()->calculate()
-)->withData([
+use Lunar\Facades\Payments;
+
+$response = Payments::driver('opayo')->cart($cart)->withData([
     'cres' => $request->get('cres'),
-    'pares' => $request->get('pares'),
     'transaction_id' => $request->get('transaction_id'),
 ])->threedsecure();
 
 if (! $response->success) {
-    abort(401);
+    // Handle authentication failure
 }
-
 ```
 
-### Opayo card tokens
-
-When authenticated users make an order on your store, it can be good to offer the ability to save their card information for future use. Whilst we don't store the actual card details, we can use card tokens which represent the card the user has used before.
-
-> You must have saved payments enabled on your Opayo account because you can use these.
-
-To save a card, pass in the `saveCard` data key when authorizing a payment.
+For 3DS 1.x:
 
 ```php
-$response = \Lunar\Facades\Payments::driver('opayo')->cart(
-    $cart = CartSession::current()->calculate()
-)->withData([
+$response = Payments::driver('opayo')->cart($cart)->withData([
+    'pares' => $request->get('pares'),
+    'transaction_id' => $request->get('transaction_id'),
+])->threedsecure();
+```
+
+For more information on 3D Secure with Opayo, see:
+
+- [3-D Secure explained](https://www.elavon.co.uk/resource-center/help-with-your-solutions/opayo/fraud-prevention/3D-Secure.html)
+- [3D Secure Transactions](https://developer.elavon.com/products/opayo-direct/v1/3d-secure-transactions)
+
+## Saved Cards
+
+Authenticated users can save their card details for future purchases. The addon stores card tokens (not actual card details) in the `opayo_tokens` table.
+
+<Info>
+Saved payments must be enabled on the Opayo account before this feature can be used.
+</Info>
+
+### Saving a card
+
+Pass the `saveCard` data key when authorizing a payment.
+
+```php
+use Lunar\Facades\Payments;
+
+$response = Payments::driver('opayo')->cart($cart)->withData([
     // ...
-    'saveCard' => true
+    'saveCard' => true,
 ])->authorize();
 ```
 
-Assuming everything went well, there will be a new entry in the `opayo_tokens` table, associated to the authenticated user. You can then display these card representations at checkout for the user to select. The `token` is what replaces the `card_identifier` data key.
+After a successful authorization, a new entry is created in the `opayo_tokens` table associated with the authenticated user. If a token already exists with the same last four digits for that user, it is replaced.
+
+### Using a saved card
+
+To pay with a previously saved card, pass the token as the `card_identifier` and set `reusable` to `true`.
 
 ```php
-$response = \Lunar\Facades\Payments::driver('opayo')->cart(
-    $cart = CartSession::current()->calculate()
-)->withData([
+use Lunar\Facades\Payments;
+
+$response = Payments::driver('opayo')->cart($cart)->withData([
     // ...
-    'card_identifier' => $request->get('cardToken'),
-    'reusable' => true
+    'card_identifier' => $savedToken->token,
+    'reusable' => true,
 ])->authorize();
 ```
 
-Responses are then handled the same as any other transaction.
+Responses are then handled the same as any other transaction, including 3D Secure challenges if required.
+
+### HasOpayoTokens trait
+
+Add the `HasOpayoTokens` trait to the User model to access saved card tokens.
+
+```php
+use Lunar\Opayo\Concerns\HasOpayoTokens;
+
+class User extends Authenticatable
+{
+    use HasOpayoTokens;
+}
+```
+
+This provides an `opayoTokens` relationship.
+
+```php
+$tokens = $user->opayoTokens;
+```
+
+### Token fields
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `id` | `id` | Primary key |
+| `user_id` | `foreignId` | The associated user |
+| `card_type` | `string` | The card type (e.g., visa, mastercard) |
+| `last_four` | `string` | The last four digits of the card number |
+| `token` | `string` | The Opayo card identifier token |
+| `auth_code` | `string` `nullable` | The authentication code for recurring transactions |
+| `expires_at` | `timestamp` | The card expiration date |
+| `created_at` | `timestamp` | |
+| `updated_at` | `timestamp` | |
+
+## Livewire Component
+
+The addon includes a Livewire payment form component that handles merchant key retrieval, card tokenization, and 3D Secure challenges.
+
+```blade
+<livewire:opayo.payment :cart="$cart" />
+```
+
+The component emits the following events:
+
+| Event | Description |
+| ----- | ----------- |
+| `opayoAuthorizationSuccessful` | Emitted when a payment is successfully authorized |
+| `opayoAuthorizationFailed` | Emitted when authorization fails |
+
+### Including the scripts
+
+Use the Blade directive to include both the compiled Opayo JavaScript and the Sagepay vendor script in the page layout.
+
+```blade
+@opayoScripts
+```
+
+To include only the Sagepay vendor script (if the compiled JavaScript is already loaded separately):
+
+```blade
+@opayoScripts(false)
+```
+
+## AVS/CVC Checks
+
+The addon captures Address Verification System (AVS) and Card Verification Code (CVC) check results from Opayo. These are stored in the transaction metadata and can be accessed through the payment checks method.
+
+```php
+use Lunar\Facades\Payments;
+
+$checks = Payments::driver('opayo')->getPaymentChecks($transaction);
+```
