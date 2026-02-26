@@ -1,365 +1,113 @@
 ---
 title: "Table Rate Shipping"
-description: "Zone-based shipping rates with multiple driver types for Lunar storefronts."
 ---
-
-## Overview
-
-The Table Rate Shipping add-on provides a flexible, zone-based shipping system for Lunar. It integrates with the core shipping modifier pipeline, allowing storefronts to offer multiple shipping methods with pricing that varies by zone, cart total, weight, or other criteria.
-
-Key concepts:
-
-- **Shipping Zones** define geographic regions (unrestricted, by country, state, or postcode).
-- **Shipping Methods** represent the types of delivery available (e.g., standard, express, collection).
-- **Shipping Rates** link a method to a zone with tiered pricing.
-- **Shipping Exclusion Lists** prevent specific products from being shipped to certain zones.
 
 ## Installation
 
-Install via Composer:
+Install via Composer
 
-```bash
+```
 composer require lunarphp/table-rate-shipping
 ```
 
-Then register the admin panel plugin in a service provider:
+Then register the plugin in your service provider
 
 ```php
-use Filament\Panel;
 use Lunar\Admin\Support\Facades\LunarPanel;
 use Lunar\Shipping\ShippingPlugin;
+// ...
 
 public function register(): void
 {
     LunarPanel::panel(function (Panel $panel) {
         return $panel->plugin(new ShippingPlugin());
     })->register();
+    
+    // ...
 }
 ```
+## Getting Started
+This addon provides an easy way for you to add different shipping to your storefront and allow your customers to choose from the different shipping rates you have set up, based on various factors such as zones, minimum spend etc
 
-## Configuration
+### Shipping Methods
 
-The configuration file is published at `config/lunar/shipping-tables.php`.
+Shipping Methods are the different ways in which your storefront can send orders to customers, you could also allow customers to collect their order from your store which this addon supports.
 
-```php
-return [
-    'enabled' => env('LUNAR_SHIPPING_TABLES_ENABLED', true),
+### Shipping Zones
 
-    // 'default' uses the system-wide default tax class.
-    // 'highest' selects the highest tax rate from items in the cart.
-    'shipping_rate_tax_calculation' => 'default',
-];
-```
+Shipping Zones allow you to section of area's of the countries you ship to, providing you with an easy way to offer distinct shipping methods and pricing to each zone, each zone can be restricted by the following:
 
-| Option | Default | Description |
-|:-------|:--------|:------------|
-| `enabled` | `true` | Enable or disable the shipping tables add-on. |
-| `shipping_rate_tax_calculation` | `'default'` | Tax class strategy for shipping rates. Use `'default'` for the system default tax class, or `'highest'` to use the highest tax rate found among cart items. |
+- Postal codes
+- Country
+- State/Province (based on country)
 
-## Models
+### Shipping Rates
 
-### ShippingZone
+Shipping Rates are the prices you offer for each of your shipping zones, they are linked to a shipping method. So for example you might have a Courier Area Shipping Zone and an Everywhere Else Shipping Zone, you can offer different pricing restrictions using the same shipping methods.
 
-```php
-Lunar\Shipping\Models\ShippingZone
-```
+### Shipping Exclusion Lists
 
-A shipping zone represents a geographic area that shipping rates apply to. Zones can be unrestricted (apply everywhere) or limited to specific countries, states, or postcodes.
+Sometimes, you might not want to ship certain items to particular Shipping Zone, this is where exclusion lists come in. You can associate purchasables to a list which you can then associate to a shipping zone, if a cart contains any of them then they won't be able to select a shipping rate.
 
-| Field | Type | Description |
-|:------|:-----|:------------|
-| id | `bigIncrements` | Primary key |
-| name | `string` | |
-| type | `string` | `unrestricted`, `countries`, `states`, or `postcodes` |
-| created_at | `timestamp` | |
-| updated_at | `timestamp` | |
+## Storefront usage
 
-#### Relationships
-
-| Relationship | Type | Related Model | Description |
-|:-------------|:-----|:--------------|:------------|
-| rates | HasMany | `ShippingRate` | Shipping rates for this zone |
-| shippingMethods | HasMany | `ShippingMethod` | Shipping methods available in this zone |
-| countries | BelongsToMany | `Lunar\Models\Country` | Countries included in this zone |
-| states | BelongsToMany | `Lunar\Models\State` | States included in this zone |
-| postcodes | HasMany | `ShippingZonePostcode` | Postcodes included in this zone |
-| orders | BelongsToMany | `Lunar\Models\Order` | Orders assigned to this zone |
-| shippingExclusions | BelongsToMany | `ShippingExclusionList` | Product exclusion lists associated with this zone |
-
----
-
-### ShippingMethod
+This addon uses the shipping modifiers provided by the Lunar core, so you shouldn't need to change your existing implementation.
 
 ```php
-Lunar\Shipping\Models\ShippingMethod
-```
-
-A shipping method represents a type of delivery, such as flat rate, weight-based, free shipping, or in-store collection. Each method uses a driver that determines how pricing is resolved.
-
-| Field | Type | Description |
-|:------|:-----|:------------|
-| id | `bigIncrements` | Primary key |
-| name | `string` | |
-| description | `text` `nullable` | |
-| code | `string` `nullable` | Unique identifier used as the shipping option identifier |
-| enabled | `boolean` | Whether the method is active |
-| stock_available | `boolean` | When enabled, the method is only available if all cart items are in stock |
-| cutoff | `time` `nullable` | Daily order cutoff time; orders placed after this time will not see this method |
-| data | `json` `nullable` | Driver-specific configuration (cast to `AsArrayObject`) |
-| driver | `string` | Driver identifier (e.g., `ship-by`, `flat-rate`, `free-shipping`, `collection`) |
-| created_at | `timestamp` | |
-| updated_at | `timestamp` | |
-
-#### Relationships
-
-| Relationship | Type | Related Model | Description |
-|:-------------|:-----|:--------------|:------------|
-| shippingRates | HasMany | `ShippingRate` | Rates associated with this method |
-| customerGroups | BelongsToMany | `Lunar\Models\CustomerGroup` | Customer groups that can see and use this method |
-
----
-
-### ShippingRate
-
-```php
-Lunar\Shipping\Models\ShippingRate
-```
-
-A shipping rate connects a shipping method to a shipping zone and holds the pricing. It implements the `Lunar\Models\Contracts\Purchasable` interface and uses the `HasPrices` trait, meaning prices are stored in Lunar's core `prices` table with support for tiered pricing and multiple currencies.
-
-| Field | Type | Description |
-|:------|:-----|:------------|
-| id | `bigIncrements` | Primary key |
-| shipping_method_id | `foreignId` | References the shipping method |
-| shipping_zone_id | `foreignId` | References the shipping zone |
-| enabled | `boolean` | Whether the rate is active |
-| created_at | `timestamp` | |
-| updated_at | `timestamp` | |
-
-#### Relationships
-
-| Relationship | Type | Related Model | Description |
-|:-------------|:-----|:--------------|:------------|
-| shippingMethod | BelongsTo | `ShippingMethod` | The parent shipping method |
-| shippingZone | BelongsTo | `ShippingZone` | The parent shipping zone |
-| prices | MorphMany | `Lunar\Models\Price` | Tiered pricing via the `HasPrices` trait |
-
----
-
-### ShippingZonePostcode
-
-```php
-Lunar\Shipping\Models\ShippingZonePostcode
-```
-
-| Field | Type | Description |
-|:------|:-----|:------------|
-| id | `bigIncrements` | Primary key |
-| shipping_zone_id | `foreignId` | References the shipping zone |
-| postcode | `string` | Indexed; spaces are automatically stripped on save |
-| created_at | `timestamp` | |
-| updated_at | `timestamp` | |
-
-#### Relationships
-
-| Relationship | Type | Related Model | Description |
-|:-------------|:-----|:--------------|:------------|
-| shippingZone | BelongsTo | `ShippingZone` | The parent shipping zone |
-
----
-
-### ShippingExclusionList
-
-```php
-Lunar\Shipping\Models\ShippingExclusionList
-```
-
-An exclusion list groups products that should not be shipped to certain zones. If a cart contains any product on an exclusion list associated with a zone, shipping options for that zone are not available.
-
-| Field | Type | Description |
-|:------|:-----|:------------|
-| id | `bigIncrements` | Primary key |
-| name | `string` | Unique name for the list |
-| created_at | `timestamp` | |
-| updated_at | `timestamp` | |
-
-#### Relationships
-
-| Relationship | Type | Related Model | Description |
-|:-------------|:-----|:--------------|:------------|
-| exclusions | HasMany | `ShippingExclusion` | Products in this list |
-| shippingZones | BelongsToMany | `ShippingZone` | Zones this list applies to |
-
----
-
-### ShippingExclusion
-
-```php
-Lunar\Shipping\Models\ShippingExclusion
-```
-
-| Field | Type | Description |
-|:------|:-----|:------------|
-| id | `bigIncrements` | Primary key |
-| shipping_exclusion_list_id | `foreignId` | References the exclusion list |
-| purchasable_type | `string` | Polymorphic type |
-| purchasable_id | `unsignedBigInteger` | Polymorphic ID |
-| created_at | `timestamp` | |
-| updated_at | `timestamp` | |
-
-#### Relationships
-
-| Relationship | Type | Related Model | Description |
-|:-------------|:-----|:--------------|:------------|
-| list | BelongsTo | `ShippingExclusionList` | The parent exclusion list |
-| purchasable | MorphTo | — | The excluded purchasable (e.g., a `Product`) |
-
-## Drivers
-
-Each shipping method uses a driver to determine how pricing is resolved. The add-on ships with four built-in drivers.
-
-### Ship By
-
-**Driver identifier:** `ship-by`
-
-The most flexible driver. Pricing is based on either the cart total or the total weight of items in the cart. Prices are stored as tiered rates on the shipping rate, where each tier's `min_quantity` represents the threshold (cart subtotal in minor units, or total weight).
-
-**Data configuration:**
-
-| Key | Values | Description |
-|:----|:-------|:------------|
-| `charge_by` | `cart_total` (default), `weight` | Determines what value is used to match against price tiers. When set to `weight`, the total is calculated as `purchasable.weight_value * quantity` for each cart line. |
-
-### Flat Rate
-
-**Driver identifier:** `flat-rate`
-
-Charges a flat rate per order, with optional tiered pricing based on the cart subtotal. Prices are stored on the shipping rate using Lunar's pricing system with quantity tiers representing cart subtotal thresholds.
-
-### Free Shipping
-
-**Driver identifier:** `free-shipping`
-
-Offers free shipping when the cart meets a minimum spend requirement.
-
-**Data configuration:**
-
-| Key | Values | Description |
-|:----|:-------|:------------|
-| `minimum_spend` | `array` or `number` | Minimum cart subtotal required. Can be a single value or an array keyed by currency code (e.g., `{"GBP": 5000, "USD": 6000}`). Values are in minor units. |
-| `use_discount_amount` | `boolean` | When `true`, discount amounts are subtracted from the cart subtotal before checking the minimum spend. |
-
-### Collection
-
-**Driver identifier:** `collection`
-
-Allows customers to collect their order in store. Returns a shipping option with a price of zero and sets `collect: true` on the shipping option, which can be used to identify collection orders in the storefront.
-
-## Storefront Usage
-
-This add-on registers a `ShippingModifier` with Lunar's shipping modifier pipeline. Shipping options are automatically resolved and available through the `ShippingManifest`:
-
-```php
-use Lunar\Facades\ShippingManifest;
-
-$options = ShippingManifest::getOptions($cart);
-```
-
-The modifier resolves shipping zones based on the cart's shipping address, finds applicable rates, and converts them into `ShippingOption` instances that are added to the manifest.
-
-<Info>
-If an existing storefront already uses the `ShippingManifest` to retrieve shipping options, no changes are needed. The add-on integrates automatically.
-</Info>
-
-## Advanced Usage
-
-### Retrieving Supported Drivers
-
-```php
-use Lunar\Shipping\Facades\Shipping;
-
-$drivers = Shipping::getSupportedDrivers();
-```
-
-### Resolving a Driver Directly
-
-```php
-use Lunar\Shipping\Facades\Shipping;
-use Lunar\Shipping\DataTransferObjects\ShippingOptionRequest;
-
-$option = Shipping::driver('ship-by')
-    ->on($shippingRate)
-    ->resolve(
-        new ShippingOptionRequest(
-            shippingRate: $shippingRate,
-            cart: $cart,
-        )
-    );
-```
-
-### Resolving Shipping Zones
-
-The zone resolver finds matching zones based on address criteria. Each method is optional; combining them makes the lookup more specific.
-
-```php
-use Lunar\Shipping\Facades\Shipping;
-use Lunar\Shipping\DataTransferObjects\PostcodeLookup;
-
-$zones = Shipping::zones()
-    ->country($country)
-    ->state($state)
-    ->postcode(
-        new PostcodeLookup(
-            country: $country,
-            postcode: 'NW1'
-        )
-    )
-    ->get();
-```
-
-The resolver always includes zones with type `unrestricted`, plus any zones matching the specified country, state, or postcode criteria.
-
-### Resolving Shipping Rates
-
-The rate resolver finds applicable shipping rates for a cart, filtering by customer group, cutoff time, and stock availability.
-
-```php
-use Lunar\Shipping\Facades\Shipping;
-
-$rates = Shipping::shippingRates($cart)->get();
-```
-
-### Resolving Shipping Options
-
-The option resolver takes shipping rates and resolves them into priced `ShippingOption` instances using each rate's driver.
-
-```php
-use Lunar\Shipping\Facades\Shipping;
-use Lunar\Shipping\DataTransferObjects\ShippingOptionLookup;
-
-$rates = Shipping::shippingRates($cart)->get();
-
-$options = Shipping::shippingOptions($cart)->get(
-    new ShippingOptionLookup(shippingRates: $rates)
+$options = \Lunar\Base\ShippingManifest::getOptions(
+    $cart
 );
 ```
 
-## Events
+## Advanced usage
 
-### ShippingOptionResolvedEvent
+### Return available drivers
 
 ```php
-Lunar\Shipping\Events\ShippingOptionResolvedEvent
+\Lunar\Shipping\Facades\Shipping::getSupportedDrivers();
 ```
 
-Dispatched each time a shipping option is successfully resolved from a shipping rate.
+### Using the driver directly
 
-| Property | Type | Description |
-|:---------|:-----|:------------|
-| `cart` | `Lunar\Models\Contracts\Cart` | The cart being resolved |
-| `shippingRate` | `ShippingRate` | The shipping rate that was resolved |
-| `shippingOption` | `Lunar\DataTypes\ShippingOption` | The resulting shipping option |
+```php
+\Lunar\Shipping\Facades\Shipping::with('ship-by')->resolve(
+    new \Lunar\Shipping\DataTransferObjects\ShippingOptionRequest(
+        shippingRate: \Lunar\Shipping\Models\ShippingRate $shippingRate,
+        cart: \Lunar\Models\Cart $cart
+    )
+);
+```
 
-## Order Observer
+### Shipping Zones
 
-When an order is created or updated, the add-on automatically resolves the shipping zone from the order's shipping address and attaches it to the order via the `order_shipping_zone` pivot table. The zone name is also stored in the order's meta for search indexing.
+Each method is optional, the more you add the more strict it becomes.
+
+```php
+$shippingZones = Lunar\Shipping\Facades\Shipping::zones()
+    ->country(\Lunar\Models\Country $country)
+    ->state(\Lunar\Models\State $state)
+    ->postcode(
+        new \Lunar\Shipping\DataTransferObjects\PostcodeLookup(
+            country: \Lunar\Models\Country $country,
+            postcode: 'NW1'
+        )
+    )->get()
+    
+$shippingZones->map(/* .. */);
+```
+
+### Shipping Rates
+
+```php
+$shippingRates = \Lunar\Shipping\Facades\Shipping::shippingRates(
+    \Lunar\Models\Cart $cart
+);
+```
+
+### Shipping Options
+
+```php
+$shippingOptions = \Lunar\Shipping\Facades\Shipping::shippingOptions(
+    \Lunar\Models\Cart $cart
+);
+```

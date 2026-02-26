@@ -1,6 +1,3 @@
----
-title: "Products"
----
 ## Overview
 
 Products are generally what you will be selling in your store. You define all your attributes against the product and
@@ -663,10 +660,8 @@ available on the `Lunar\Models\Price` model.
 
 ```php
 $price->priceIncTax();
-$price->priceIncTax($yourTaxZone); // TaxIncl Price based on your Tax Zone and Tax Rate.
 $price->priceExTax();
 $price->comparePriceIncTax(); // to retrieve the tax inclusive compare price
-$price->comparePriceIncTax($yourTaxZone); // TaxIncl Price based on your Tax Zone and Tax Rate.
 ```
 
 ### Customising Prices with Pipelines

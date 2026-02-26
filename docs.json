@@ -64,31 +64,6 @@
             ]
           },
           {
-            "tab": "Guides",
-            "groups": [
-              {
-                "group": "Storefront",
-                "pages": [
-                  "1.x/guides/catalog-menu",
-                  "1.x/guides/product-listing-page",
-                  "1.x/guides/product-display-page",
-                  "1.x/guides/search",
-                  "1.x/guides/cart",
-                  "1.x/guides/checkout",
-                  "1.x/guides/payment-integration"
-                ]
-              },
-              {
-                "group": "Customer Account",
-                "pages": [
-                  "1.x/guides/customer-authentication",
-                  "1.x/guides/order-history",
-                  "1.x/guides/customer-addresses"
-                ]
-              }
-            ]
-          },
-          {
             "tab": "Reference",
             "groups": [
               {
@@ -111,7 +86,6 @@
                     "pages": [
                       "1.x/reference/addresses",
                       "1.x/reference/carts",
-                      "1.x/reference/countries-states",
                       "1.x/reference/customers",
                       "1.x/reference/discounts",
                       "1.x/reference/orders",
@@ -134,7 +108,9 @@
               },
               {
                 "group": "Storefront",
-                "pages": ["1.x/storefront-utils/storefront-session"]
+                "pages": [
+                  "1.x/storefront-utils/storefront-session"
+                ]
               },
               {
                 "group": "Extending",
@@ -156,7 +132,9 @@
             "groups": [
               {
                 "group": "Getting Started",
-                "pages": ["1.x/admin/introduction"]
+                "pages": [
+                  "1.x/admin/introduction"
+                ]
               },
               {
                 "group": "Extending",
@@ -179,7 +157,10 @@
             "groups": [
               {
                 "group": "General",
-                "pages": ["1.x/addons/table-rate-shipping", "1.x/addons/search"]
+                "pages": [
+                  "1.x/addons/table-rate-shipping",
+                  "1.x/addons/search"
+                ]
               },
               {
                 "group": "Payments",
@@ -191,7 +172,9 @@
               },
               {
                 "group": "Community",
-                "pages": ["1.x/addons/community/overview"]
+                "pages": [
+                  "1.x/addons/community/overview"
+                ]
               }
             ]
           },
@@ -200,7 +183,9 @@
             "groups": [
               {
                 "group": "Community",
-                "pages": ["support/community"]
+                "pages": [
+                  "support/community"
+                ]
               },
               {
                 "group": "Lunar Alliance",
@@ -217,7 +202,9 @@
                   {
                     "group": "Asia Pacific",
                     "expanded": true,
-                    "pages": ["support/alliance/weby-digital"]
+                    "pages": [
+                      "support/alliance/weby-digital"
+                    ]
                   }
                 ]
               }
@@ -228,11 +215,15 @@
             "groups": [
               {
                 "group": "Trajectory",
-                "pages": ["logs/flight-plan"]
+                "pages": [
+                  "logs/flight-plan"
+                ]
               },
               {
                 "group": "Mission Log",
-                "pages": ["logs/2025/new-docs"]
+                "pages": [
+                  "logs/2025/new-docs"
+                ]
               }
             ]
           }
@@ -292,7 +283,9 @@
               },
               {
                 "group": "Storefront",
-                "pages": ["0.x/storefront-utils/storefront-session"]
+                "pages": [
+                  "0.x/storefront-utils/storefront-session"
+                ]
               },
               {
                 "group": "Extending",
@@ -351,17 +344,18 @@
   },
   "contextual": {
     "options": [
-      "copy",
-      "view",
-      "chatgpt",
-      "claude",
-      "perplexity",
-      "mcp",
-      "cursor",
-      "vscode"
-    ]
+     "copy",
+     "view",
+     "chatgpt",
+     "claude",
+     "perplexity",
+     "mcp",
+     "cursor",
+     "vscode"
+   ]
   },
   "footer": {
+
     "socials": {
       "website": "https://lunarphp.com",
       "x": "https://x.com/lunarphp",
