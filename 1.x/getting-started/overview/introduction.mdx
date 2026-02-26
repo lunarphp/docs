@@ -3,39 +3,60 @@ title: "Introduction"
 description: "Start building e-commerce with Laravel"
 ---
 
-We are delighted you are considering Lunar for your project. We've spent a lot of time developing this project to
-bring headless e-commerce functionality to Laravel.
+Lunar is a headless e-commerce package for [Laravel](https://laravel.com/) that provides everything needed to build a fully featured online store.
 
-## What is Lunar?
+## Why Lunar?
 
-Lunar is a [Laravel e-commerce package](https://lunarphp.io/) which brings functionality akin to Shopify and other
-e-commerce platforms to Laravel. You have complete freedom to create your own storefront(s), but we've already done the
-hard work for you in the backend.
+Unlike hosted platforms such as Shopify or WooCommerce, Lunar gives developers complete ownership of the codebase, the data, and the storefront. It handles the complex e-commerce logic — products, carts, orders, payments, discounts, taxation, and more — while leaving full creative control over the customer-facing experience.
+
+Because Lunar is a Laravel package (not a standalone application), it integrates directly into any Laravel project. There is no separate system to maintain, no external API to call, and no vendor lock-in.
 
 ## Tech Stack
 
 Lunar is made up of two primary Composer packages:
 
-- `lunarphp/core` -  provides the e-commerce functionality
-- `lunarphp/lunar` - provides the admin panel, built on [Filament](https://filamentphp.com/).
+- **`lunarphp/core`** — the e-commerce engine: models, pipelines, pricing, search, and all core functionality.
+- **`lunarphp/lunar`** — the admin panel, built on [Filament](https://filamentphp.com/), for managing products, orders, customers, and more.
 
-<Info>Although the admin panel uses Laravel Livewire, there is no requirement for your app to use Livewire itself.</Info>
+<Info>Although the admin panel uses Laravel Livewire, there is no requirement for the storefront to use Livewire.</Info>
 
-## What are the future plans?
+## Key Features
 
-Lunar as a company has grand plans to continue developing new functionality to help you build awesome e-commerce
-websites. We want Lunar to be a true alternative to the likes of Magento, Shopify, WooCommerce, etc.
+- **Product catalog** — products, variants, options, collections, associations, and flexible attribute system
+- **Cart and checkout** — cart management with built-in pipelines for validation, tax calculation, and shipping
+- **Order management** — full order lifecycle with statuses, transactions, and PDF support
+- **Discounts** — percentage, fixed amount, and "buy X get Y" discount types with conditions and limitations
+- **Payments** — first-party drivers for Stripe, PayPal, and Opayo, plus an extensible payment interface
+- **Search** — Algolia and Meilisearch support through Laravel Scout with pre-configured indexing
+- **Multi-channel and multi-currency** — sell across multiple channels with localized pricing
+- **Taxation** — configurable tax classes, zones, and rates
+- **Extensible admin panel** — customize pages, resources, and relation managers through Filament
 
-
-## Getting started
-
-Get your store up and running in minutes...
+## Getting Started
 
 <Card
-  title="Start here"
+  title="Install Lunar"
   icon="rocket"
   href="/1.x/getting-started/setup/installation"
   horizontal
 >
-  Follow our simple quickstart guide.
+  Add Lunar to a Laravel application with Composer.
+</Card>
+
+<Card
+  title="Livewire Starter Kit"
+  icon="bolt"
+  href="/1.x/getting-started/starter-kits/livewire"
+  horizontal
+>
+  Spin up a fully working storefront as a starting point.
+</Card>
+
+<Card
+  title="Storefront Guides"
+  icon="book"
+  href="/1.x/guides/catalog-menu"
+  horizontal
+>
+  Step-by-step guides for building catalog, cart, and checkout flows.
 </Card>
