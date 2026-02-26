@@ -1,118 +1,159 @@
 ---
 title: "URLs"
+description: "Create SEO-friendly slugs for products, collections, brands, and custom models."
 ---
+
 ## Overview
 
-URLs are not to be confused with Routes in Laravel. You can create routes for a number of resources, but most commonly they would be created for a Product.
+URLs provide SEO-friendly slugs for models such as products, collections, and brands. Instead of exposing database IDs in storefront routes:
 
-They allow you to add a way to identify/query for a resource without having to use the ID of that resource. Notably these would be useful for vanity URLs so instead of something like:
-
-```bash
+```
 /products/1
 ```
 
-On your storefront, you could have:
+A URL slug allows routes like:
 
-```bash
+```
 /products/apple-iphone
 ```
 
-`apple-iphone` is the slug for a URL which would correspond to a product and would allow you to fetch it easily without having to expose IDs or do any weird round trips to your API.
+URLs are polymorphic, so any Eloquent model can support them. Each URL belongs to a language, and each model can have one default URL per language.
 
-<Tip>
-A URL cannot share the same `slug` and `language_id` columns. You can also only have one `default` URL per language for that resource.
-</Tip>
+<Info>
+URLs are not to be confused with Laravel routes. They provide a slug-based lookup mechanism for storefront routing, not route definitions.
+</Info>
+
+## Model
+
+```php
+Lunar\Models\Url
+```
+
+### Fields
+
+| Field | Type | Description |
+|:------|:-----|:------------|
+| `id` | `bigIncrements` | Primary key |
+| `language_id` | `foreignId` | The language this URL belongs to |
+| `element_type` | `string` | Morph type of the parent model |
+| `element_id` | `unsignedBigInteger` | Morph ID of the parent model |
+| `slug` | `string` | The URL slug |
+| `default` | `boolean` | Whether this is the default URL for this element and language combination |
+| `created_at` | `timestamp` | |
+| `updated_at` | `timestamp` | |
+
+### Relationships
+
+| Relationship | Type | Related Model | Description |
+|:-------------|:-----|:--------------|:------------|
+| `element` | MorphTo | Polymorphic | The parent model (e.g. Product, Collection, Brand) |
+| `language` | BelongsTo | `Lunar\Models\Language` | The language this URL is for |
+
+### Scopes
+
+| Scope | Description |
+|:------|:------------|
+| `default()` | Filter to URLs where `default` is `true` |
 
 ## Creating a URL
 
+URLs can be created directly or through a model's `urls()` relationship.
+
 ```php
-\Lunar\Models\Url::create([
+use Lunar\Models\Url;
+
+Url::create([
+    'slug' => 'apple-iphone',
+    'language_id' => $language->id,
+    'element_type' => $product->getMorphClass(),
+    'element_id' => $product->id,
+    'default' => true,
+]);
+
+// Or through the relationship
+$product->urls()->create([
     'slug' => 'apple-iphone',
     'language_id' => $language->id,
     'default' => true,
 ]);
 ```
 
-<Tip>
-If you add a new default URL for a language which already has one, the new URL will override and become the new default.
-</Tip>
+### Default URL behavior
+
+Only one URL can be the default per element and language combination. When a new URL is created or updated with `default` set to `true`, any existing default URL for that same element and language is automatically set to `false`.
 
 ```php
-$urlA = \Lunar\Models\Url::create([
+$urlA = $product->urls()->create([
     'slug' => 'apple-iphone',
     'language_id' => 1,
     'default' => true,
 ]);
 
-$urlA->default // true
+$urlA->default; // true
 
-$urlB = \Lunar\Models\Url::create([
-    'slug' => 'apple-iphone-26',
+$urlB = $product->urls()->create([
+    'slug' => 'apple-iphone-16',
     'language_id' => 1,
     'default' => true,
 ]);
 
-$urlA->default // false
-$urlB->default // true
+$urlA->refresh()->default; // false
+$urlB->default; // true
+```
 
-/**
- * Since this is a different language, no other URLs will be changed.
- **/
-$urlC = \Lunar\Models\Url::create([
-    'slug' => 'apple-iphone-french',
+This behavior is scoped to each language independently. Setting a default for one language does not affect defaults in another language.
+
+```php
+// This URL is for a different language, so $urlB remains the default for language 1
+$urlC = $product->urls()->create([
+    'slug' => 'apple-iphone-fr',
     'language_id' => 2,
     'default' => true,
 ]);
 
-
-$urlA->default // false
-$urlB->default // true
-$urlC->default // true
+$urlB->refresh()->default; // true (still default for language 1)
+$urlC->default; // true (default for language 2)
 ```
 
 ## Deleting a URL
 
-When you delete a URL, if it was the default then Lunar will look for a non default of the same language and assign that instead.
-
+When a default URL is deleted, Lunar automatically promotes another URL for the same element and language to become the new default.
 
 ```php
-$urlA = \Lunar\Models\Url::create([
+$urlA = $product->urls()->create([
     'slug' => 'apple-iphone',
     'language_id' => 1,
     'default' => true,
 ]);
 
-$urlB = \Lunar\Models\Url::create([
-    'slug' => 'apple-iphone-26',
+$urlB = $product->urls()->create([
+    'slug' => 'apple-iphone-16',
     'language_id' => 1,
     'default' => false,
 ]);
 
-$urlB->default // false
-
 $urlA->delete();
 
-$urlB->default // true
+$urlB->refresh()->default; // true
 ```
 
+## Adding URL support to models
 
-## Adding URL support to Models
+Lunar ships with URL support on the following models:
 
-Out the box Lunar has a few pre-configured models which have URLs
+- `Lunar\Models\Product`
+- `Lunar\Models\Collection`
+- `Lunar\Models\Brand`
 
-- Products
-- Collections
-
-You are free to add URLs to your own models.
+To add URL support to a custom model, use the `HasUrls` trait:
 
 ```php
 <?php
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Model;
 use Lunar\Base\Traits\HasUrls;
-
-// ...
 
 class MyModel extends Model
 {
@@ -120,26 +161,61 @@ class MyModel extends Model
 }
 ```
 
+### Available relationships
 
-You will then have access to the `url` relationship which is Polymorphic.
+The `HasUrls` trait provides the following relationships:
 
 ```php
-$myModel->urls; // Collection
+// All URLs for the model
+$model->urls;
+
+// The default URL (where default is true)
+$model->defaultUrl;
+
+// The URL for the application's current locale
+$model->localeUrl;
+
+// The URL for a specific locale (matches against the language code)
+$model->localeUrl('fr')->first();
 ```
 
-## Automatically generating URLs
+<Info>
+When a model using the `HasUrls` trait is deleted (hard delete only), all associated URLs are automatically removed.
+</Info>
 
-You can tell Lunar to generate URLs for models that use the `HasUrls` trait automatically by setting the `generator` config option in `config/lunar/urls.php`.
+## Automatic URL generation
 
-By default this is set to `Lunar\Generators\UrlGenerator::class` which means URLs will be generated. To disable this, set the config like below:
+Lunar can automatically generate a URL when a model with the `HasUrls` trait is created. This is controlled by the `generator` option in `config/lunar/urls.php`.
 
 ```php
+<?php
+
+use Lunar\Generators\UrlGenerator;
+
 return [
-    'generator' => null
+    'required' => true,
+    'generator' => UrlGenerator::class,
 ];
 ```
 
-By default this will use the default language and take the `name` attribute as the slug, you are of course free to use your own class for this. You just need to make sure there is a `handle` method which accepts a `Model`.
+| Option | Type | Default | Description |
+|:-------|:-----|:--------|:------------|
+| `required` | `bool` | `true` | Whether URLs are required when creating or editing models in the admin panel. Has no effect if a generator is configured. |
+| `generator` | `string\|null` | `UrlGenerator::class` | The class responsible for generating URLs on model creation. Set to `null` to disable automatic generation. |
+
+### Default generator behavior
+
+The built-in `Lunar\Generators\UrlGenerator` performs the following steps when a model is created:
+
+1. Checks whether the model already has any URLs (skips generation if it does).
+2. Reads the model's `name` column, falling back to the `name` attribute (via `attr('name')`).
+3. Converts the name to a slug using `Str::slug()`.
+4. Ensures uniqueness by appending a numeric suffix if the slug already exists (e.g. `test-product`, `test-product-2`, `test-product-3`).
+5. Creates the URL as the default for the system's default language.
+
+### Custom generator
+
+To customize URL generation, create a class with a `handle` method that accepts an Eloquent model:
 
 ```php
 <?php
@@ -148,11 +224,30 @@ namespace App\Generators;
 
 use Illuminate\Database\Eloquent\Model;
 
-class MyCustomUrlGenerator
+class CustomUrlGenerator
 {
     public function handle(Model $model)
     {
-        // ...
+        // Custom URL generation logic
     }
 }
+```
+
+Then reference it in the config:
+
+```php
+// config/lunar/urls.php
+return [
+    'required' => true,
+    'generator' => \App\Generators\CustomUrlGenerator::class,
+];
+```
+
+To disable automatic generation entirely, set the generator to `null`:
+
+```php
+return [
+    'required' => true,
+    'generator' => null,
+];
 ```

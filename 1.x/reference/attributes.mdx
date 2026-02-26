@@ -1,16 +1,46 @@
 ---
 title: "Attributes"
+description: "Store custom, translatable data on Eloquent models using configurable field types."
 ---
+
 ## Overview
 
-Attributes can be associated to Eloquent models to allow custom data to be stored. Typically, these will be used the most with Products where different information is needed to be stored and presented to visitors.
+Attributes allow custom data to be stored against Eloquent models. They are most commonly used with products, where different information needs to be stored and presented to visitors.
 
-For example, a television might have the following attributes assigned...
+For example, a television might have the following attributes assigned:
 
-* Screen Size
-* Screen Technology
-* Tuner
-* Resolution
+- Screen Size
+- Screen Technology
+- Tuner
+- Resolution
+
+Attributes are organized into **Attribute Groups** for display purposes. A group like "SEO" might contain attributes for "Meta Title" and "Meta Description".
+
+## Attribute Groups
+
+```php
+Lunar\Models\AttributeGroup
+```
+
+Attribute groups form a logical collection of attributes. Each group belongs to a specific model type (e.g. products, collections, customers).
+
+### Fields
+
+| Field | Type | Description |
+|:------|:-----|:------------|
+| `id` | `id` | Primary key |
+| `attributable_type` | `string` | The morph map name of the model type this group belongs to (e.g. `product`) |
+| `name` | `json` | Translated name, e.g. `{"en": "SEO"}` |
+| `handle` | `string` | Kebab-cased reference, e.g. `seo`. Must be unique |
+| `position` | `integer` | Sort order of the group |
+| `created_at` | `timestamp` | |
+| `updated_at` | `timestamp` | |
+
+### Relationships
+
+| Relationship | Type | Related Model | Description |
+|:-------------|:-----|:--------------|:------------|
+| `attributes` | HasMany | `Lunar\Models\Attribute` | All attributes in this group, ordered by position |
 
 ## Attributes
 
@@ -18,197 +48,216 @@ For example, a television might have the following attributes assigned...
 Lunar\Models\Attribute
 ```
 
-|Field| Description                                                                       |
-|:-|:----------------------------------------------------------------------------------|
-|`attribute_type`| Morph map of the model type that can use attribute, e.g. `product`                |
-|`attribute_group_id`| The associated group                                                              |
-|`position`| An integer used to define the sorting order of attributes within attribute groups |
-|`name`| Laravel Collection of translations `{'en': 'Screen Size'}`                        |
-|`handle`| Kebab-cased reference, e.g. `screen-size`                                         |
-|`section`| An optional name to define where an attribute should be used.                     |
-|`type`| The field type to be used, e.g. `Lunar\FieldTypes\Number`                         |
-|`required`| Boolean                                                                           |
-|`default_value`|                                                                                   |
-|`configuration`| Meta data stored as a Laravel Collection                                          |
-|`system`| If set to true, indicates it should not be deleted                                |
+### Fields
 
-### Field Types
+| Field | Type | Description |
+|:------|:-----|:------------|
+| `id` | `id` | Primary key |
+| `attribute_type` | `string` | The morph map name of the model type that can use this attribute, e.g. `product` |
+| `attribute_group_id` | `foreignId` | The associated attribute group |
+| `position` | `integer` | Sort order within the attribute group |
+| `name` | `json` | Translated name, e.g. `{"en": "Screen Size"}` |
+| `description` | `json` `nullable` | Translated description |
+| `handle` | `string` | Kebab-cased reference, e.g. `screen-size`. Unique per `attribute_type` |
+| `section` | `string` `nullable` | An optional label to define where an attribute should be used in the UI |
+| `type` | `string` | The field type class, e.g. `Lunar\FieldTypes\Number` |
+| `required` | `boolean` | Whether a value must be provided |
+| `default_value` | `string` `nullable` | Default value for the attribute |
+| `configuration` | `json` | Field-type-specific configuration stored as a collection |
+| `system` | `boolean` | If `true`, the attribute should not be deleted |
+| `validation_rules` | `string` `nullable` | Laravel validation rules, e.g. `required\|max:255` |
+| `filterable` | `boolean` | Whether the attribute can be used for filtering (default `false`) |
+| `searchable` | `boolean` | Whether the attribute is included in search indexing (default `true`) |
+| `created_at` | `timestamp` | |
+| `updated_at` | `timestamp` | |
 
+### Relationships
 
-|Type|Config|
-|:-|:-|
-|`Lunar\FieldTypes\Number`|Integer or Decimal|
-|`Lunar\FieldTypes\Text`|Single-line, Multi-line, Rich Text|
-|`Lunar\FieldTypes\TranslatedText`|Single-line, Multi-line, Rich Text|
-|`Lunar\FieldTypes\ListField`|An re-orderable list of text values|
+| Relationship | Type | Related Model | Description |
+|:-------------|:-----|:--------------|:------------|
+| `attributeGroup` | BelongsTo | `Lunar\Models\AttributeGroup` | The group this attribute belongs to |
 
-::: tip INFO
-More field types will be coming soon.
-:::
+### Scopes
 
-### Models that use Attributes
+| Scope | Description |
+|:------|:------------|
+| `system(string $type)` | Filter to system attributes for a given model type |
 
-* Lunar\Models\Product
-* Lunar\Models\ProductVariant
-* Lunar\Models\Collection
+## Field Types
 
-### Saving Attribute Data
+Field types determine how an attribute's value is stored and retrieved. Each type implements the `Lunar\Base\FieldType` interface.
+
+| Type | Description |
+|:-----|:------------|
+| `Lunar\FieldTypes\Text` | Single-line, multi-line, or rich text |
+| `Lunar\FieldTypes\TranslatedText` | Translatable text with a `Text` value per locale |
+| `Lunar\FieldTypes\Number` | Integer or decimal value |
+| `Lunar\FieldTypes\Toggle` | Boolean on/off value |
+| `Lunar\FieldTypes\Dropdown` | Single selection from a list of predefined options |
+| `Lunar\FieldTypes\ListField` | A reorderable list of text values |
+| `Lunar\FieldTypes\File` | Single or multiple file references |
+| `Lunar\FieldTypes\YouTube` | A YouTube video ID or URL |
+| `Lunar\FieldTypes\Vimeo` | A Vimeo video ID or URL |
+
+### Custom Field Types
+
+Custom field types can be created by implementing the `Lunar\Base\FieldType` interface. Once created, the field type should be registered with the `FieldTypeManifest` in a service provider:
 
 ```php
+use Lunar\Facades\FieldTypeManifest;
+
+FieldTypeManifest::add(\App\FieldTypes\CustomField::class);
+```
+
+To make a custom field type editable in the admin panel, a corresponding Filament component and Livewire synthesizer are also needed. See [Extending Attributes](/1.x/admin/extending/attributes) for a full walkthrough.
+
+## Models That Use Attributes
+
+The following models support attributes out of the box:
+
+- `Lunar\Models\Product`
+- `Lunar\Models\ProductVariant`
+- `Lunar\Models\Collection`
+- `Lunar\Models\Customer`
+- `Lunar\Models\Brand`
+- `Lunar\Models\CustomerGroup`
+
+## Saving Attribute Data
+
+Attribute values are stored in an `attribute_data` JSON column on the model. Each key is an attribute handle, and each value is a field type instance.
+
+```php
+use Lunar\FieldTypes\Number;
+use Lunar\FieldTypes\Text;
+use Lunar\FieldTypes\TranslatedText;
+
 $product->attribute_data = collect([
-    'meta_title' => new \Lunar\FieldTypes\Text('The best screwdriver you will ever buy!'),
-    'pack_qty' => new \Lunar\FieldTypes\Number(2),
-    'description' => new \Lunar\FieldTypes\TranslatedText(collect([
-        'en' => new \Lunar\FieldTypes\Text('Blue'),
-        'fr' => new \Lunar\FieldTypes\Text('Bleu'),
+    'meta_title' => new Text('The best screwdriver you will ever buy!'),
+    'pack_qty' => new Number(2),
+    'description' => new TranslatedText(collect([
+        'en' => new Text('Blue'),
+        'fr' => new Text('Bleu'),
     ])),
 ]);
+
+$product->save();
 ```
 
+## Accessing Attribute Data
 
-### Adding attributes to your own model
-
-```php
-use Lunar\Base\Casts\AsAttributeData;
-use Lunar\Base\Traits\HasAttributes;
-
-class Collection extends Model
-{
-    use HasAttributes;
-
-    /**
-     * Define which attributes should be cast.
-     *
-     * @var array
-     */
-    protected $casts = [
-        'attribute_data' => AsAttributeData::class,
-    ];
-
-    //...
-}
-
-```
-
-Then ensure you have a [JSON field](https://laravel.com/docs/8.x/migrations#column-method-json) on your model's table called `attribute_data`.
-
-
-::: tip
-When loading models it is advised you eager load the attribute data required.
-:::
-
-### Accessing Attribute Data.
-
-There will come times where you need to be able to retrieve the attribute data you have stored against a model. When you target the `attribute_data` property it will be cast as a collection and resolved into it's corresponding field type.
+When the `attribute_data` property is accessed, it is cast to a collection of field type instances.
 
 ```php
 dump($product->attribute_data);
 
-Illuminate\Support\Collection {#1522 ▼
-  #items: array:2 [▼
-    "name" => Lunar\FieldTypes\TranslatedText {#1533 ▼
-      #value: Illuminate\Support\Collection {#1505 ▼
-        #items: array:3 [▼
-          "de" => Lunar\FieldTypes\Text {#1506 ▼
+Illuminate\Support\Collection {#1522
+  #items: array:2 [
+    "name" => Lunar\FieldTypes\TranslatedText {#1533
+      #value: Illuminate\Support\Collection {#1505
+        #items: array:3 [
+          "de" => Lunar\FieldTypes\Text {#1506
             #value: "Leren laarzen"
           }
-          "en" => Lunar\FieldTypes\Text {#1514 ▼
+          "en" => Lunar\FieldTypes\Text {#1514
             #value: "Leather boots"
           }
-          "fr" => Lunar\FieldTypes\Text {#1502 ▼
-            #value: "Bottes en cuires"
+          "fr" => Lunar\FieldTypes\Text {#1502
+            #value: "Bottes en cuir"
           }
         ]
       }
     }
-    "description" => Lunar\FieldTypes\Text {#1537 ▼
+    "description" => Lunar\FieldTypes\Text {#1537
       #value: "<p>I'm a description!</p>"
     }
   ]
 }
 ```
 
-If you need to just get the value for one field, you can use the `translateAttribute` method on the model:
+### Retrieving a Single Attribute Value
+
+The `translateAttribute` method returns the resolved value for a single attribute. For `TranslatedText` fields, it resolves the correct locale automatically.
 
 ```php
-// Leather boots
+// Returns the value for the current app locale
 $product->translateAttribute('name');
 
-// Bootes en cuires
+// Returns the French translation
 $product->translateAttribute('name', 'fr');
 
-// Leather boots
+// Falls back to the current locale or the first available value
 $product->translateAttribute('name', 'FOO');
-// We will default here to either the current system locale or the first value available.
 ```
 
-### Advanced usage
+The shorthand `attr` method does the same thing:
 
 ```php
+$product->attr('name');
+$product->attr('name', 'fr');
+```
+
+For non-translatable fields, `translateAttribute` returns the raw value directly:
+
+```php
+// Returns the integer value
+$product->translateAttribute('pack_qty');
+```
+
+## Adding Attributes to a Custom Model
+
+To make a custom model support attributes:
+
+1. Add the `HasAttributes` trait.
+2. Cast the `attribute_data` column using `AsAttributeData`.
+3. Add an `attribute_data` JSON column to the model's database table.
+
+```php
+use Lunar\Base\Casts\AsAttributeData;
 use Lunar\Base\Traits\HasAttributes;
 
-class ProductType extends Model
+class MyModel extends Model
 {
     use HasAttributes;
 
-    //...
-}
-
-```
-
-```php
-
-use Lunar\Base\Casts\AsAttributeData;
-
-class Product extends Model
-{
-    /**
-     * Define which attributes should be cast.
-     *
-     * @var array
-     */
     protected $casts = [
         'attribute_data' => AsAttributeData::class,
     ];
-
-    //...
 }
-
 ```
+
+Then add the JSON column via a migration:
 
 ```php
-
-use Lunar\Base\Casts\AsAttributeData;
-
-class ProductVariant extends Model
-{
-    /**
-     * Define which attributes should be cast.
-     *
-     * @var array
-     */
-    protected $casts = [
-        'attribute_data' => AsAttributeData::class,
-    ];
-
-    //...
-}
-
+Schema::table('my_models', function (Blueprint $table) {
+    $table->json('attribute_data')->nullable();
+});
 ```
 
-
-## Attribute Groups
-
-Attribute Groups form a collection of attributes that are logically grouped together for display purposes.
-
-A good example might be an "SEO" attribute group which has attributes for "Meta Title" and "Meta Description".
+Finally, register the model as an attributable type so that attribute groups and attributes can be created for it:
 
 ```php
-Lunar\Models\AttributeGroup
+use Lunar\Facades\AttributeManifest;
+
+// In a service provider's boot method
+AttributeManifest::addType(\App\Models\MyModel::class);
 ```
 
-|Field|Description|
-|:-|:-|
-|`name`|Laravel Collection of translations `{'en': 'SEO'}`|
-|`handle`|Kebab-cased reference, e.g. `seo`|
-|`position`|An integer used to define the sorting order of groups|
+## Attribute Manifest
+
+The `AttributeManifest` manages which model types support attributes and provides access to searchable attribute data.
+
+```php
+use Lunar\Facades\AttributeManifest;
+
+// Get all registered attributable types
+$types = AttributeManifest::getTypes();
+
+// Get a specific type by key (lowercase class basename)
+$type = AttributeManifest::getType('product');
+
+// Register a new attributable type
+AttributeManifest::addType(\App\Models\MyModel::class);
+
+// Get all searchable attributes for a model type
+$searchable = AttributeManifest::getSearchableAttributes('product');
+```
