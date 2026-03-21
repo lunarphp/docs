@@ -209,24 +209,24 @@ scenarios.
 Lunar\Models\Transaction
 ```
 
-| Field                 | Description                                     | Example                                                                                     |
-|:----------------------|:------------------------------------------------|:--------------------------------------------------------------------------------------------|
-| id                    |                                                 |
-| parent_transaction_id | The ID of the related transaction, nullable     |
-| order_id              | The ID of the order this transaction relates to |
-| success               | Whether or not the transaction was successful   | 1                                                                                           
-| type                  | Whether `intent`,`capture` or `refund`          | `intent`                                                                                    
-| driver                | The driver used i.e. `stripe`                   | `stripe`                                                                                    
-| amount                | The amount for the transaction in cents         | `10000`                                                                                     
-| reference             | The reference for the driver to use             | `STRIPE_123456`                                                                             
-| status                | Usually populated from the payment provider     | `success`                                                                                   
-| notes                 | Any additional notes for the transaction        |
-| card_type             | The card type                                   | `visa`                                                                                      
-| last_four             | The last four digits of the card used           | `1234`                                                                                      
-| captured_at           | The DateTime the transaction was captured       |
-| meta                  | Any additional meta info for the transaction    | `{"cvc_check": "pass", "address_line1_check": "pass", "address_postal_code_check": "pass"}` 
-| created_at            |                                                 |
-| updated_at            |                                                 |
+| Field                    | Type                   | Description                                | Example         |
+| :----------------------- | :--------------------- | :----------------------------------------- | :-------------- |
+| `id`                     | `bigint`               | Primary key                                |                 |
+| `parent_transaction_id`  | `foreignId` `nullable` | The ID of the preceding transaction        |                 |
+| `order_id`               | `foreignId`            | The associated order                       |                 |
+| `success`                | `boolean`              | Whether the transaction succeeded          | `true`          |
+| `type`                   | `enum`                 | `intent`, `capture`, or `refund`           | `capture`       |
+| `driver`                 | `string`               | The payment driver                         | `stripe`        |
+| `amount`                 | `integer`              | Amount in the currency's smallest unit     | `10000`         |
+| `reference`              | `string`               | Provider reference                         | `STRIPE_123456` |
+| `status`                 | `string`               | Provider-specific status                   | `success`       |
+| `notes`                  | `string` `nullable`    | Any additional notes for the transaction   |                 |
+| `card_type`              | `string` `nullable`    | Card brand                                 | `visa`          |
+| `last_four`              | `string` `nullable`    | Last four digits of the card               |                 |
+| `meta`                   | `json` `nullable`      | Additional provider data                   |                 |
+| `created_at`             | `timestamp` `nullable` |                                            |                 |
+| `updated_at`             | `timestamp` `nullable` |                                            |                 |
+| `captured_at`            | `timestamp` `nullable` | When the payment was captured              |                 |
 
 ### Best Practices
 
