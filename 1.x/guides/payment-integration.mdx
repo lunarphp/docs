@@ -411,22 +411,24 @@ A new transaction record with type `refund` is created automatically.
 
 Every payment event is recorded as a `Lunar\Models\Transaction` on the order. Transactions provide a complete audit trail.
 
-| Field | Type | Description |
-|:---|:---|:---|
-| `id` | `bigint` | Primary key |
-| `order_id` | `foreignId` | The associated order |
-| `success` | `boolean` | Whether the transaction succeeded |
-| `type` | `string` | `intent`, `capture`, or `refund` |
-| `driver` | `string` | The payment driver (e.g., `stripe`) |
-| `amount` | `integer` | Amount in the currency's smallest unit |
-| `reference` | `string` | Provider reference (e.g., Stripe charge ID) |
-| `status` | `string` | Provider-specific status |
-| `card_type` | `string` `nullable` | Card brand (e.g., `visa`, `mastercard`) |
-| `last_four` | `string` `nullable` | Last four digits of the card |
-| `captured_at` | `timestamp` `nullable` | When the payment was captured |
-| `meta` | `json` `nullable` | Additional provider data |
-| `created_at` | `timestamp` | |
-| `updated_at` | `timestamp` | |
+| Field                    | Type                   | Description                                  |
+| :----------------------- | :--------------------- | :------------------------------------------- |
+| `id`                     | `bigint`               | Primary key                                  |
+| `parent_transaction_id`  | `foreignId` `nullable` | The ID of the preceding transaction          |
+| `order_id`               | `foreignId`            | The associated order                         |
+| `success`                | `boolean`              | Whether the transaction succeeded            |
+| `type`                   | `string`               | `intent`, `capture`, or `refund`             |
+| `driver`                 | `string`               | The payment driver (e.g., `stripe`)          |
+| `amount`                 | `integer`              | Amount in the currency's smallest unit       |
+| `reference`              | `string`               | Provider reference (e.g., Stripe charge ID)  |
+| `status`                 | `string`               | Provider-specific status                     |
+| `notes`                  | `string` `nullable`    | Any additional notes for the transaction     |
+| `card_type`              | `string` `nullable`    | Card brand (e.g., `visa`, `mastercard`)      |
+| `last_four`              | `string` `nullable`    | Last four digits of the card                 |
+| `meta`                   | `json` `nullable`      | Additional provider data                     |
+| `created_at`             | `timestamp` `nullable` |                                              |
+| `updated_at`             | `timestamp` `nullable` |                                              |
+| `captured_at`            | `timestamp` `nullable` |                                              |
 
 ### Displaying Transaction History
 
