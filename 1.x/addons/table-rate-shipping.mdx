@@ -255,6 +255,114 @@ Offers free shipping when the cart meets a minimum spend requirement.
 
 Allows customers to collect their order in store. Returns a shipping option with a price of zero and sets `collect: true` on the shipping option, which can be used to identify collection orders in the storefront.
 
+## Postcode Resolvers
+
+Postcode formats vary between countries, so the add-on provides a pluggable resolver system that splits a postcode into the query-able parts used when matching zones by postcode. Each resolver declares which countries it supports, and Lunar picks the right resolver at lookup time based on the country attached to the shipping address.
+
+### Default Resolver
+
+The add-on registers a single default resolver:
+
+```php
+Lunar\Shipping\Resolvers\PostcodeResolver
+```
+
+It uses a UK-flavored splitting strategy. Its `$countries` property is empty, which makes it act as a catch-all: every country is matched until a more specific resolver is registered.
+
+### Creating a Custom Resolver
+
+Any class implementing `Lunar\Shipping\Interfaces\PostcodeResolverInterface` can be registered as a resolver:
+
+```php
+use Illuminate\Support\Collection;
+use Lunar\Models\Contracts\Country as CountryContract;
+use Lunar\Shipping\Interfaces\PostcodeResolverInterface;
+
+class UsPostcodeResolver implements PostcodeResolverInterface
+{
+    public function supportsCountry(CountryContract $country): bool
+    {
+        return $country->iso2 === 'US';
+    }
+
+    public function getParts(string $postcode, CountryContract $country): Collection
+    {
+        // US ZIP codes: 12345 or 12345-6789. Return the 5-digit base plus prefixes.
+        $zip = substr(str_replace(' ', '', $postcode), 0, 5);
+
+        return collect([
+            $zip,
+            substr($zip, 0, 3).'*',
+            substr($zip, 0, 1).'*',
+        ])->filter()->unique()->values();
+    }
+}
+```
+
+`supportsCountry` returns `true` when the resolver is responsible for the given country. `getParts` returns a `Collection` of strings; each one is compared against the `postcode` column on `ShippingZonePostcode`, so the parts should match the patterns stored for zones (for example, `390*`).
+
+### Registering a Resolver
+
+Resolvers are registered in a service provider's `boot` method using the `Postcode` facade:
+
+```php
+use Lunar\Shipping\Facades\Postcode;
+
+public function boot(): void
+{
+    Postcode::addResolver(UsPostcodeResolver::class);
+    Postcode::addResolver(AustralianPostcodeResolver::class);
+}
+```
+
+Registration accepts either a class string (resolved lazily through the container on first use) or an already-constructed instance.
+
+### Matching Precedence
+
+When several resolvers' `supportsCountry` returns `true` for the same country, the **last-registered resolver wins**. The default resolver is registered first by the add-on's service provider, so custom resolvers registered in an application's service provider automatically override it for the countries they claim, while other countries continue to fall back to the default.
+
+```php
+// Default catch-all is registered by ShippingServiceProvider.
+// UsPostcodeResolver claims US only; the default still handles everything else.
+Postcode::addResolver(UsPostcodeResolver::class);
+```
+
+### Restricting the Default Resolver
+
+The default `PostcodeResolver` is designed to be subclass-friendly. A protected `$countries` property restricts the resolver to a specific list of ISO-2 codes without needing a new `supportsCountry` implementation:
+
+```php
+use Lunar\Shipping\Resolvers\PostcodeResolver;
+
+class UkOnlyPostcodeResolver extends PostcodeResolver
+{
+    protected array $countries = ['GB'];
+}
+```
+
+Registering this narrows the default parser to the UK.
+
+### Using in Storefront Code
+
+`Lunar\Shipping\DataTransferObjects\PostcodeLookup` is the canonical way to use a resolver. It holds a country and a postcode, and its `getParts` method delegates to the matching resolver automatically:
+
+```php
+use Lunar\Shipping\DataTransferObjects\PostcodeLookup;
+
+$lookup = new PostcodeLookup(
+    country: $country,
+    postcode: 'SW1A 1AA'
+);
+
+$parts = $lookup->getParts();
+```
+
+This is what the zone resolver uses internally when `Shipping::zones()->postcode(...)` is called, so storefront code rarely needs to call the resolver directly.
+
+### Error Handling
+
+If no registered resolver claims the country being looked up, a `Lunar\Shipping\Exceptions\NoPostcodeResolverException` is thrown. This cannot occur under the default configuration because the built-in `PostcodeResolver` matches every country, but it provides a safety net if the default is ever removed.
+
 ## Storefront Usage
 
 This add-on registers a `ShippingModifier` with Lunar's shipping modifier pipeline. Shipping options are automatically resolved and available through the `ShippingManifest`:
