@@ -37,6 +37,66 @@ Review the version-specific notes below for any additional steps required by the
 
 ---
 
+## 1.5
+
+<Warning>
+1.5.0 is currently available as a beta release. Pin to `1.5.0-beta.1` (or later) and review each section below before upgrading a production project.
+</Warning>
+
+### High Impact
+
+#### Filament v4
+
+The admin panel has been upgraded from Filament v3 to Filament v4. Projects that extend the panel with custom resources, pages, widgets, or actions will need to follow the official [Filament v4 upgrade guide](https://filamentphp.com/docs/4.x/upgrade-guide) and adapt any extension code to the new APIs.
+
+Update the constraint in `composer.json`:
+
+```diff
+- "filament/filament": "^3.0",
++ "filament/filament": "^4.1",
+```
+
+Common areas that require changes:
+
+- Form and table builders now use the dedicated `Filament\Schemas\Schema` and `Filament\Tables\Table` signatures.
+- Actions have moved to the `Filament\Actions` namespace (for example, `EditAction`, `DeleteBulkAction`, and `BulkActionGroup`).
+- Form components such as `Section`, `Group`, and `Get` now live under `Filament\Schemas\Components`.
+
+Run the Filament upgrade tooling to assist with the migration:
+
+```sh
+composer require filament/upgrade:^4.0 -W --dev
+vendor/bin/filament-v4
+```
+
+After upgrading, run migrations to apply the staff table column rename described below:
+
+```sh
+php artisan migrate
+```
+
+#### Two-factor staff columns renamed
+
+Filament v4 ships its own multi-factor authentication primitives. As part of the upgrade, the columns on the `staff` table have been renamed and the redundant confirmation timestamp removed:
+
+- `two_factor_secret` is renamed to `app_authentication_secret`.
+- `two_factor_recovery_codes` is renamed to `app_authentication_recovery_codes`.
+- `two_factor_confirmed_at` is dropped.
+
+The rename is handled automatically by a Lunar migration. Update any application code that references the old column names directly.
+
+The previous `lunarphp/filament3-2fa` package is no longer required and can be removed from `composer.json`.
+
+### Low Impact
+
+#### `shipping:manage` permission
+
+The Table Rate Shipping add-on now enforces a `shipping:manage` permission on its admin resources (Shipping Methods, Shipping Zones, and Shipping Exclusion Lists). A migration creates the permission automatically; staff who previously had unrestricted access need to be assigned the new permission (or a role that includes it) to continue managing shipping.
+
+See [Table Rate Shipping](/1.x/addons/table-rate-shipping) for details.
+
+---
+
 ## 1.3
 
 ### Low Impact

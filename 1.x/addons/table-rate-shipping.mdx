@@ -56,6 +56,12 @@ return [
 | `enabled` | `true` | Enable or disable the shipping tables add-on. |
 | `shipping_rate_tax_calculation` | `'default'` | Tax class strategy for shipping rates. Use `'default'` for the system default tax class, or `'highest'` to use the highest tax rate found among cart items. |
 
+## Permissions
+
+The add-on registers a `shipping:manage` permission and enforces it on the Shipping Methods, Shipping Zones, and Shipping Exclusion Lists resources in the admin panel. Staff members need this permission (either directly or via a role) to view or manage shipping configuration.
+
+The permission is created automatically by a migration when the add-on is installed. See [Access Control](/1.x/admin/extending/access-control) for guidance on assigning permissions to roles and staff.
+
 ## Models
 
 ### ShippingZone
