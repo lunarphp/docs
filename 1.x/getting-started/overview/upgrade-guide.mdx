@@ -37,22 +37,6 @@ Review the version-specific notes below for any additional steps required by the
 
 ---
 
-## Unreleased
-
-### Medium Impact
-
-#### Optimised default search indexer relationship select
-
-Indexer now eager-loads only the columns each indexer uses in `toSearchableArray()`. Search output is unchanged. 
-If you using default search indexers there are not action required.
-If you implmented custom indexers by extending Lunar's indexer, please review `makeAllSearchableUsing()` method 
-
-Indexers updated — CustomerIndexer, OrderIndexer, ProductIndexer, ProductOptionIndexer
-
-Unchanged — BrandIndexer, CollectionIndexer
-
----
-
 ## 1.5
 
 <Warning>
@@ -134,6 +118,15 @@ The rename is handled automatically by a Lunar migration. Update any application
 The previous `lunarphp/filament3-2fa` package is no longer required and can be removed from `composer.json`.
 
 ### Medium Impact
+
+#### Optimized default search indexer relationship select
+
+The default search indexers now eager-load only the columns each indexer uses in `toSearchableArray()`. Search output is unchanged, so no action is required when using the default indexers.
+
+Projects with custom indexers that extend Lunar's indexers should review their `makeAllSearchableUsing()` method to confirm the required columns are still selected.
+
+- Indexers updated: `CustomerIndexer`, `OrderIndexer`, `ProductIndexer`, `ProductOptionIndexer`.
+- Indexers unchanged: `BrandIndexer`, `CollectionIndexer`.
 
 #### Shipping method cutoff replaced by availability schedule
 
