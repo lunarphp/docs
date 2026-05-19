@@ -40,10 +40,40 @@ Review the version-specific notes below for any additional steps required by the
 ## 1.5
 
 <Warning>
-1.5.0 is currently available as a beta release. Pin to `1.5.0-beta.1` (or later) and review each section below before upgrading a production project.
+**Breaking changes ahead.** Lunar 1.5 raises the minimum PHP and Laravel versions, upgrades the admin panel to Filament v4, and changes a number of database columns. Every section below should be reviewed before upgrading; skipping steps will leave the application in a broken state.
 </Warning>
 
+<Info>
+1.5.0 is currently available as a beta release. Pin to `1.5.0-beta.2` (or later) in `composer.json` while testing the upgrade on a staging environment first.
+</Info>
+
+### Summary of breaking changes
+
+- **PHP 8.3+ required.** PHP 8.2 is no longer supported.
+- **Laravel 12 or 13 required.** Laravel 11 is no longer supported.
+- **Admin panel upgraded to Filament v4.** Custom resources, pages, widgets, and actions must be migrated to the new APIs.
+- **Staff two-factor columns renamed.** `two_factor_secret` → `app_authentication_secret`, `two_factor_recovery_codes` → `app_authentication_recovery_codes`, and `two_factor_confirmed_at` removed.
+- **Shipping method `cutoff` column removed.** Method availability is now controlled by an availability schedule.
+
+Each item is covered in detail below.
+
 ### High Impact
+
+#### PHP and Laravel requirements
+
+Lunar 1.5 raises the minimum supported versions:
+
+- PHP 8.3 or later (PHP 8.2 is no longer supported).
+- Laravel 12 or Laravel 13 (Laravel 11 is no longer supported, as it has reached end of life).
+
+Upgrade the application's `composer.json` accordingly before bumping Lunar:
+
+```diff
+- "php": "^8.2",
++ "php": "^8.3",
+- "laravel/framework": "^11.0",
++ "laravel/framework": "^12.0|^13.0",
+```
 
 #### Filament v4
 
@@ -87,6 +117,14 @@ The rename is handled automatically by a Lunar migration. Update any application
 
 The previous `lunarphp/filament3-2fa` package is no longer required and can be removed from `composer.json`.
 
+### Medium Impact
+
+#### Shipping method cutoff replaced by availability schedule
+
+The `cutoff` column on `shipping_methods` has been removed. Method availability is now controlled through a dedicated availability schedule, offering finer control over when each shipping method is offered. A migration drops the column and Lunar's migration state copies any existing cutoff value into a schedule entry.
+
+Update any application code that reads or writes `cutoff` directly on `Lunar\Shipping\Models\ShippingMethod`. See [Table Rate Shipping](/1.x/addons/table-rate-shipping) for the new model.
+
 ### Low Impact
 
 #### `shipping:manage` permission
@@ -94,6 +132,22 @@ The previous `lunarphp/filament3-2fa` package is no longer required and can be r
 The Table Rate Shipping add-on now enforces a `shipping:manage` permission on its admin resources (Shipping Methods, Shipping Zones, and Shipping Exclusion Lists). A migration creates the permission automatically; staff who previously had unrestricted access need to be assigned the new permission (or a role that includes it) to continue managing shipping.
 
 See [Table Rate Shipping](/1.x/addons/table-rate-shipping) for details.
+
+#### Min and max weight on shipping methods
+
+Shipping methods now support optional `min_weight`, `max_weight`, and `weight_unit` fields. A migration adds the columns as nullable, so existing methods continue to work without changes.
+
+#### `card_type` on transactions is now nullable
+
+The `card_type` column on the `transactions` table is now nullable and stored as `string` (no length constraint). Existing rows are unaffected. Custom code that assumed a non-null value should be updated.
+
+#### Per-currency base price for table rate shipping
+
+Table rate shipping rates can now hold a base price per currency, not just the default currency. No schema change is required; the admin panel exposes the additional inputs.
+
+#### New `ShippingDiscount` discount type
+
+The Table Rate Shipping add-on registers a new `ShippingDiscount` discount type, allowing discounts to target specific shipping methods (or all methods) with a fixed price per currency or a percentage off. See [Table Rate Shipping](/1.x/addons/table-rate-shipping) for usage.
 
 ---
 

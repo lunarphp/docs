@@ -1,0 +1,62 @@
+---
+title: "Lunar 1.5.0-beta.2"
+sidebarTitle: "1.5.0-beta.2"
+date: "2026-04-10"
+description: "Second beta of the 1.5 cycle: Laravel 13 support, table rate shipping improvements, and a new shipping discount type."
+---
+
+The second beta of the 1.5 cycle is now available, building on `1.5.0-beta.1` with framework updates, new shipping features, and a sweep of bug fixes.
+
+<Warning>
+This is a pre-release. Pin to `1.5.0-beta.2` in `composer.json` and review the [upgrade guide](/1.x/getting-started/overview/upgrade-guide#15) before installing on a production project.
+</Warning>
+
+## Framework support
+
+### Laravel 13, PHP 8.3+
+
+Lunar 1.5 now requires Laravel 12 or Laravel 13 and PHP 8.3 or later. Laravel 11 and PHP 8.2 have reached end of life and are no longer supported.
+
+See the [installation requirements](/1.x/getting-started/setup/installation) and the [upgrade guide](/1.x/getting-started/overview/upgrade-guide#15) for the full list of changes.
+
+## Table Rate Shipping
+
+This beta introduces several improvements to the Table Rate Shipping add-on.
+
+### Availability schedules
+
+The single daily `cutoff` time on shipping methods has been replaced by a richer availability schedule, allowing finer control over when each method is offered. A migration drops the `cutoff` column; existing cutoff times are migrated automatically.
+
+### Min and max weight
+
+Shipping methods can now define optional minimum and maximum cart weights. Methods whose constraints are not met are excluded from the rate resolver's results.
+
+### Per-currency base prices
+
+Shipping rates now support a base price per currency, not just the store's default currency.
+
+### Shipping discount type
+
+A new `Lunar\Shipping\DiscountTypes\ShippingDiscount` discount type targets the shipping portion of the cart. Discounts can replace the price for specific shipping methods (or all methods) with a fixed value per currency or a percentage off — enough to express common scenarios like free shipping or flat-rate promotions.
+
+### Callable tax rate calculator
+
+The `shipping_rate_tax_calculation` config now accepts a callable for projects that need bespoke logic to determine the shipping tax class.
+
+See [Table Rate Shipping](/1.x/addons/table-rate-shipping) for the full updated documentation.
+
+## Core changes
+
+- The `card_type` column on the `transactions` table is now nullable and no longer length-constrained.
+- Cart retrieval now prefers the latest unmerged active cart, avoiding a case where merged source carts could be selected after login/logout cycles.
+- Buy X Get Y discounts now record their use in `$cart->discounts` so usage tracking works correctly.
+
+## Fixes and polish
+
+A range of smaller fixes ship in this beta, including: weight unit defaults on new product variants, attribute field type compatibility on the Filament v4 panel, deterministic activity log ordering for same-second events, number field type hydration, list field rendering, and validation for shipping dimensions.
+
+## Upgrading
+
+Follow the [1.5 section of the upgrade guide](/1.x/getting-started/overview/upgrade-guide#15) for the full set of steps and breaking changes.
+
+[View the full release on GitHub](https://github.com/lunarphp/lunar/releases/tag/1.5.0-beta.2).
