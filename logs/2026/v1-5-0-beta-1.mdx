@@ -1,0 +1,38 @@
+---
+title: "Lunar 1.5.0-beta.1"
+sidebarTitle: "1.5.0-beta.1"
+date: "2026-02-26"
+description: "First beta of the 1.5 cycle, introducing Filament v4 for the admin panel and a new shipping management permission."
+---
+
+The first beta of the 1.5 cycle is available. This release focuses on the admin panel and brings the underlying Filament framework up to its latest major version.
+
+<Warning>
+This is a pre-release. Pin to `1.5.0-beta.1` in `composer.json` and review the [upgrade guide](/1.x/getting-started/overview/upgrade-guide) before installing on a production project.
+</Warning>
+
+## What's new
+
+### Filament v4
+
+The admin panel has been upgraded to Filament v4. The upgrade modernises the resource APIs the panel is built on and unlocks the latest Filament features for projects extending the panel.
+
+Projects with custom Filament resources, pages, or widgets will need to follow the [Filament v4 upgrade guide](https://filamentphp.com/docs/4.x/upgrade-guide) alongside the Lunar upgrade. The Lunar upgrade guide covers the framework-level changes that affect Lunar installations specifically.
+
+As part of this work, the two-factor authentication columns on the `staff` table have been renamed to align with Filament v4's multi-factor authentication primitives. A Lunar migration handles the rename automatically.
+
+### `shipping:manage` permission
+
+The Table Rate Shipping add-on now enforces a dedicated `shipping:manage` permission on the Shipping Methods, Shipping Zones, and Shipping Exclusion Lists resources. The permission is created automatically by a migration. Staff who previously managed shipping need to be assigned the new permission (or a role that includes it) to retain access.
+
+See the [Table Rate Shipping](/1.x/addons/table-rate-shipping) page for details.
+
+## Upgrading
+
+Follow the [1.5 section of the upgrade guide](/1.x/getting-started/overview/upgrade-guide#15) for the full set of steps and breaking changes.
+
+## Feedback
+
+Beta feedback is welcome through [GitHub Discussions](https://github.com/lunarphp/lunar/discussions) or the [Discord](https://lunarphp.com/discord) community.
+
+[View the full release on GitHub](https://github.com/lunarphp/lunar/releases/tag/1.5.0-beta.1).
