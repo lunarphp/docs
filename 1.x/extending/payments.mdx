@@ -209,24 +209,24 @@ scenarios.
 Lunar\Models\Transaction
 ```
 
-| Field                    | Type                   | Description                                | Example         |
-| :----------------------- | :--------------------- | :----------------------------------------- | :-------------- |
-| `id`                     | `bigint`               | Primary key                                |                 |
-| `parent_transaction_id`  | `foreignId` `nullable` | The ID of the preceding transaction        |                 |
-| `order_id`               | `foreignId`            | The associated order                       |                 |
-| `success`                | `boolean`              | Whether the transaction succeeded          | `true`          |
-| `type`                   | `enum`                 | `intent`, `capture`, or `refund`           | `capture`       |
-| `driver`                 | `string`               | The payment driver                         | `stripe`        |
-| `amount`                 | `integer`              | Amount in the currency's smallest unit     | `10000`         |
-| `reference`              | `string`               | Provider reference                         | `STRIPE_123456` |
-| `status`                 | `string`               | Provider-specific status                   | `success`       |
-| `notes`                  | `string` `nullable`    | Any additional notes for the transaction   |                 |
-| `card_type`              | `string` `nullable`    | Card brand                                 | `visa`          |
-| `last_four`              | `string` `nullable`    | Last four digits of the card               |                 |
-| `meta`                   | `json` `nullable`      | Additional provider data                   |                 |
-| `created_at`             | `timestamp` `nullable` |                                            |                 |
-| `updated_at`             | `timestamp` `nullable` |                                            |                 |
-| `captured_at`            | `timestamp` `nullable` | When the payment was captured              |                 |
+| Field                   | Type                   | Description                                                  |
+| :---------------------- | :--------------------- | :----------------------------------------------------------- |
+| `id`                    | `bigint`               | Primary key                                                  |
+| `parent_transaction_id` | `foreignId` `nullable` | The ID of the preceding transaction                          |
+| `order_id`              | `foreignId`            | The associated order                                         |
+| `success`               | `boolean`              | Whether the transaction succeeded                            |
+| `type`                  | `enum`                 | One of `intent`, `capture`, or `refund`                      |
+| `driver`                | `string`               | The payment driver, e.g. `stripe`                            |
+| `amount`                | `integer`              | Amount in the currency's smallest unit, e.g. `10000`         |
+| `reference`             | `string`               | Provider reference, e.g. `STRIPE_123456`                     |
+| `status`                | `string`               | Provider-specific status                                     |
+| `notes`                 | `string` `nullable`    | Any additional notes for the transaction                     |
+| `card_type`             | `string` `nullable`    | Card brand, e.g. `visa`                                      |
+| `last_four`             | `string` `nullable`    | Last four digits of the card                                 |
+| `meta`                  | `json` `nullable`      | Additional provider data                                     |
+| `captured_at`           | `dateTime` `nullable`  | When the payment was captured                                |
+| `created_at`            | `timestamp` `nullable` |                                                              |
+| `updated_at`            | `timestamp` `nullable` |                                                              |
 
 ### Best Practices
 
