@@ -1,0 +1,54 @@
+---
+title: "Lunar 1.5.0-beta.3"
+sidebarTitle: "1.5.0-beta.3"
+date: "2026-04-24"
+description: "Third beta of the 1.5 cycle, focused on attribute handling fixes, new locales, and polish for the Filament v4 panel."
+---
+
+The third beta of the 1.5 cycle is now available. This release focuses on stabilising the Filament v4 admin panel, fixing a number of attribute-handling issues, and adding new locales contributed by the community.
+
+<Warning>
+This is a pre-release. Pin to `1.5.0-beta.3` in `composer.json` and review the [upgrade guide](/1.x/getting-started/overview/upgrade-guide#15) before installing on a production project.
+</Warning>
+
+## Attribute fixes
+
+A focused pass on attribute handling resolves several issues that surfaced on Filament v4:
+
+- Duplicated translated names in attribute resources are now prevented.
+- Translated rich text attributes hydrate and persist correctly.
+- Dropdown lookup state is normalized when editing attributes.
+- Translated text synthesis in the admin defensively handles edge-case payloads.
+
+## Admin panel improvements
+
+- The Dashboard page now exposes a `getColumns` Lunar hook, allowing add-ons and extensions to control the column count.
+- Handles (for example, on collection groups, customer groups, channels, and attribute groups) are sanitized to a standardised format on save. Existing valid handles are unaffected.
+- The Product Options resource list is now searchable by both label and handle, and the indexer no longer mis-indexes the name field.
+- Scout search now works correctly with soft-deleted resources, aligned with the recommended `soft_delete` configuration.
+
+## New locales
+
+The admin panel ships with three new community-contributed translations:
+
+- Bulgarian (`bg`)
+- Arabic (`ar`)
+- Persian (`fa`)
+
+## Dependency updates
+
+The `kalnoy/nestedset` constraint has been widened to support Laravel 13, matching the wider 1.5 framework support.
+
+## Upgrading
+
+No additional manual steps are required when moving from `1.5.0-beta.2`. Run the usual upgrade sequence:
+
+```sh
+composer update lunarphp/lunar
+php artisan migrate
+php artisan optimize:clear
+```
+
+If upgrading from `1.4` or earlier, follow the [1.5 section of the upgrade guide](/1.x/getting-started/overview/upgrade-guide#15) in full.
+
+[View the full release on GitHub](https://github.com/lunarphp/lunar/releases/tag/1.5.0-beta.3).
