@@ -37,6 +37,22 @@ Review the version-specific notes below for any additional steps required by the
 
 ---
 
+## Unreleased
+
+### Medium Impact
+
+#### Optimised default search indexer relationship select
+
+Indexer now eager-loads only the columns each indexer uses in `toSearchableArray()`. Search output is unchanged. 
+If you using default search indexers there are not action required.
+If you implmented custom indexers by extending Lunar's indexer, please review `makeAllSearchableUsing()` method 
+
+Indexers updated — CustomerIndexer, OrderIndexer, ProductIndexer, ProductOptionIndexer
+
+Unchanged — BrandIndexer, CollectionIndexer
+
+---
+
 ## 1.3
 
 ### Low Impact
