@@ -49,10 +49,28 @@ use Lunar\Models\Price;
 
 $price = Price::find(1);
 
-$price->priceExTax();        // Lunar\DataTypes\Price
-$price->priceIncTax();       // Lunar\DataTypes\Price
+$price->priceExTax();         // Lunar\DataTypes\Price
+$price->priceIncTax();        // Lunar\DataTypes\Price
 $price->comparePriceIncTax(); // Lunar\DataTypes\Price
 ```
+
+#### Overriding the tax zone <Badge color="green" icon="sparkles" size="sm">Added in 1.5</Badge>
+
+Each method accepts an optional `Lunar\Models\TaxZone` to override the zone used when computing the tax rate. When no zone is passed, the store's default tax zone is used.
+
+```php
+use Lunar\Models\Price;
+use Lunar\Models\TaxZone;
+
+$price = Price::find(1);
+$zone = TaxZone::where('name', 'EU')->first();
+
+$price->priceIncTax($zone);
+$price->priceExTax($zone);
+$price->comparePriceIncTax($zone);
+```
+
+This is useful when displaying product prices for a known visitor region before the cart is built. Once items are in the cart, the cart's own `tax_zone_id` (see [Setting the Tax Zone](/1.x/reference/carts#setting-the-tax-zone)) drives tax-inclusive line totals.
 
 ## The Price data type
 

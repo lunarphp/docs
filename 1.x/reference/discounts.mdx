@@ -223,7 +223,7 @@ Discount::create([
 Lunar\DiscountTypes\BuyXGetY
 ```
 
-Allows "buy X, get Y free" style promotions. Condition products are defined through the `discountableConditions` relationship, and reward products through the `discountableRewards` relationship.
+Allows "buy X, get Y free" style promotions. Condition products are defined through the `discountableConditions` relationship, and reward products through the `discountableRewards` relationship. Both relationships accept products, product variants, or collections.
 
 ```php
 use Lunar\Models\Discount;
@@ -249,6 +249,32 @@ $discount = Discount::create([
 | `reward_qty` | `integer` | Number of reward items per qualifying group |
 | `max_reward_qty` | `integer` | Maximum total reward items (optional) |
 | `automatically_add_rewards` | `boolean` | Whether to automatically add reward items to the cart |
+
+#### Collection conditions and rewards <Badge color="green" icon="sparkles" size="sm">Added in 1.5</Badge>
+
+A `BuyXGetY` discount can match against an entire collection rather than listing every product or variant individually. The match logic walks each cart line's product, checks the collections it belongs to, and compares those against the collections attached as conditions or rewards.
+
+```php
+use Lunar\Models\Collection;
+use Lunar\Models\Discount;
+
+$collection = Collection::find(1);
+
+$discount = Discount::create([
+    'name' => 'Buy 2 from Summer, Get 1 from Sale',
+    'handle' => 'summer_sale',
+    'type' => 'Lunar\DiscountTypes\BuyXGetY',
+    'data' => [
+        'min_qty' => 2,
+        'reward_qty' => 1,
+    ],
+]);
+
+$discount->collections()->attach($collection, ['type' => 'condition']);
+$discount->collections()->attach($collection, ['type' => 'reward']);
+```
+
+Conditions and rewards can mix product, variant, and collection discountables on the same discount.
 
 ## Custom Discount Types
 

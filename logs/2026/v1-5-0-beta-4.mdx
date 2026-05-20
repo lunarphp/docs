@@ -1,0 +1,76 @@
+---
+title: "Lunar 1.5.0-beta.4"
+sidebarTitle: "1.5.0-beta.4"
+date: "2026-05-20"
+description: "Fourth beta of the 1.5 cycle, with new discount, shipping, and tax-zone capabilities plus a wide round of bug fixes."
+---
+
+The fourth beta of the 1.5 cycle is now available. This release rounds out a number of new capabilities across discounts, shipping, and tax-zone handling, and ships a broad pass of fixes contributed by the community.
+
+<Warning>
+This is a pre-release. Pin to `1.5.0-beta.4` in `composer.json` and review the [upgrade guide](/1.x/getting-started/overview/upgrade-guide#15) before installing on a production project.
+</Warning>
+
+## New capabilities
+
+### Cart-level tax zones
+
+The `carts` table now carries an optional `tax_zone_id`. Setting it through `Cart::setTaxZone()` lets line totals be calculated tax-inclusive before a shipping address is captured, which is helpful when the customer's region is already known from middleware. The `Price` model's `priceIncTax`, `priceExTax`, and `comparePriceIncTax` methods also accept an optional `TaxZone` so product display prices can be calculated for an arbitrary zone. See [Carts → Setting the Tax Zone](/1.x/reference/carts#setting-the-tax-zone) and [Pricing → Tax helper methods](/1.x/reference/pricing#tax-helper-methods).
+
+### Configurable postcode resolvers
+
+Postcode formats vary by country, so the table-rate shipping add-on now resolves postcodes through registerable resolvers implementing `Lunar\Shipping\Interfaces\PostcodeResolverInterface`. The default UK-style resolver remains in place, and country-specific resolvers can be added through the `Postcode` facade. See [Postcode Resolvers](/1.x/addons/table-rate-shipping#postcode-resolvers).
+
+### Collection rewards in BuyXGetY discounts
+
+`BuyXGetY` discounts can now use collections as the reward, in addition to products and variants. Collection conditions and rewards are wired through the same `discount->collections()` relationship and can be combined freely with product or variant discountables. See [BuyXGetY](/1.x/reference/discounts#buyxgety).
+
+### File attribute disk and directory
+
+The File field type accepts new `disk` and `directory` configuration values, letting file attributes write to a configured filesystem disk and subdirectory.
+
+### Extending relation-style admin pages
+
+`RelationPageExtension` now exposes an `extendTable` hook for relation-style pages such as `ManageProductVariants`, `ManageCollectionProducts`, and `ManageVariantMedia`. Columns, actions, filters, and query modifiers can be applied without replacing the page class. See [RelationPageExtension](/1.x/admin/extending/pages#relationpageextension).
+
+## Fixes and hardening
+
+A wide round of fixes lands in this beta:
+
+- Editing tier or customer-group prices in the admin no longer triggers a `Price` cast error.
+- File attribute uploads are persisted correctly after save.
+- Stripe phantom payment bugs and zero-decimal currency conversions are fixed.
+- `ProductVariant` casts the real `shippable` attribute (the cast previously referenced an unused `requires_shipping` key).
+- Customer deletion now respects the configured foreign key constraints.
+- Attribute handle uniqueness is scoped by `attribute_type`, allowing the same handle on different attribute types.
+- The standalone `CouponValidator` enforces `max_uses_per_user`.
+- Products keep their navigation visibility when single-variant variants are deleted.
+- Soft-deleted purchasables are handled gracefully in cart lines.
+- The cart shipping breakdown is reset on every calculate, preventing stale entries.
+- Discount stop flags are now honored mid-apply loop.
+- Brand deletion nulls the `brand_id` on related products instead of cascading.
+- Tag values are normalized through a model mutator on save.
+- Telemetry rate-limiting is defensive against missing cache stores and HTTP failures.
+- Search indexers load related models more efficiently.
+- Weight-based shipping rate breakpoints evaluate correctly across band boundaries.
+- A composite unique index has been added to `product_product_option`.
+- Payment types validate amounts before transacting.
+
+## New locales
+
+- Croatian (`hr`)
+- Mongolian (`mn`)
+
+## Upgrading
+
+```sh
+composer update lunarphp/lunar
+php artisan migrate
+php artisan optimize:clear
+```
+
+The migration in this release adds a nullable `tax_zone_id` to the `carts` table. No additional manual steps are required when upgrading from `1.5.0-beta.3`.
+
+If upgrading from `1.4` or earlier, follow the [1.5 section of the upgrade guide](/1.x/getting-started/overview/upgrade-guide#15) in full.
+
+[View the full release on GitHub](https://github.com/lunarphp/lunar/releases/tag/1.5.0-beta.4).
