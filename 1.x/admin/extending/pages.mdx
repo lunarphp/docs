@@ -299,10 +299,20 @@ LunarPanel::extensions([
 
 ## RelationPageExtension
 
-Extends relation pages with custom headings and actions.
+Extends relation pages with custom headings, actions, and table customization.
+
+Relation-style pages (those built on `Lunar\Admin\Support\Pages\BaseManageRelatedRecords`) include:
+
+- `ManageBrandCollections`, `ManageBrandProducts`
+- `ManageCollectionChildren`, `ManageCollectionProducts`
+- `ManageProductAssociations`, `ManageProductCollections`, `ManageProductVariants`
+- `ManageVariantMedia`
+- `ManageUrlsRelatedRecords`
 
 ```php
 use Filament\Actions;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
 use Lunar\Admin\Support\Extending\RelationPageExtension;
 
@@ -327,6 +337,14 @@ class MyRelationExtension extends RelationPageExtension
             ]),
         ];
     }
+
+    public function extendTable(Table $table): Table
+    {
+        return $table->columns([
+            ...$table->getColumns(),
+            TextColumn::make('sku')->label('SKU'),
+        ]);
+    }
 }
 
 // Typically placed in a service provider...
@@ -334,6 +352,12 @@ LunarPanel::extensions([
     \Lunar\Admin\Filament\Resources\ProductResource\Pages\ManageProductMedia::class => MyRelationExtension::class,
 ]);
 ```
+
+### Extending the table <Badge color="green" icon="sparkles" size="sm">Added in 1.5</Badge>
+
+`extendTable` receives the page's default table and returns the modified instance. It is the same seam used by resource and relation-manager extensions, so columns, actions, filters, and query modifiers can all be applied without replacing the page class.
+
+When no extension is registered, the default table behavior is unchanged.
 
 ## Extending Pages in Addons
 

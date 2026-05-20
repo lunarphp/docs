@@ -27,6 +27,7 @@ Lunar\Models\Cart
 | merged_id    | `foreignId` `nullable`  | References the cart this was merged into              |
 | currency_id  | `foreignId`  |                                                      |
 | channel_id   | `foreignId`  |                                                      |
+| tax_zone_id  | `foreignId` `nullable`  | Overrides the resolved tax zone when set. <Badge color="green" icon="sparkles" size="sm">Added in 1.5</Badge> |
 | order_id     | `foreignId` `nullable`  | References the order created from this cart           |
 | coupon_code  | `string` `nullable`     | Promotional coupon code                               |
 | completed_at | `dateTime` `nullable`   |                                                      |
@@ -55,6 +56,7 @@ $cart = Cart::create([
 | `shippingAddress` | Has one    | `CartAddress`   | The shipping address (filtered by `type = shipping`).   |
 | `billingAddress`  | Has one    | `CartAddress`   | The billing address (filtered by `type = billing`).     |
 | `currency`        | Belongs to | `Currency`      | The currency for the cart.                              |
+| `taxZone`         | Belongs to | `TaxZone`       | An explicit tax zone for this cart, when set. <Badge color="green" icon="sparkles" size="sm">Added in 1.5</Badge> |
 | `user`            | Belongs to | Auth user model | The authenticated user who owns the cart.               |
 | `customer`        | Belongs to | `Customer`      | The customer associated with the cart.                  |
 | `orders`          | Has many   | `Order`         | All orders created from the cart.                       |
@@ -86,6 +88,25 @@ $unmergedCarts = Cart::unmerged()->get();
 
 $activeCarts = Cart::active()->get();
 ```
+
+### Setting the Tax Zone <Badge color="green" icon="sparkles" size="sm">Added in 1.5</Badge>
+
+A cart can be assigned an explicit tax zone, which lets line totals be calculated tax-inclusive before a shipping address is captured. This is typically wired up in middleware that infers the customer's tax zone from their IP address.
+
+```php
+use Lunar\Models\Cart;
+use Lunar\Models\TaxZone;
+
+$cart->setTaxZone(TaxZone::find(1));
+
+$cart->setTaxZone(null); // Clear the explicit tax zone.
+```
+
+`setTaxZone` triggers a recalculation by default. Pass `false` as the second argument to defer the recalculation.
+
+<Info>
+When `setShippingAddress` is called on a cart that already has an explicit tax zone, the zone is cleared so that address-based resolution can take over. Pass `clearTaxZone: false` to keep the explicit zone in place.
+</Info>
 
 ## Cart Lines
 

@@ -387,6 +387,87 @@ $options = Shipping::shippingOptions($cart)->get(
 );
 ```
 
+## Postcode Resolvers <Badge color="green" icon="sparkles" size="sm">Added in 1.5</Badge>
+
+Postcode formats vary considerably between countries, so the add-on splits a raw postcode into a set of "parts" that are matched against `ShippingZonePostcode` records. The default `Lunar\Shipping\Resolvers\PostcodeResolver` works well for UK-style postcodes (and any country that follows a similar prefix structure), but custom resolvers can be registered for stores operating in regions where a different breakdown is needed.
+
+### The PostcodeResolverInterface
+
+A resolver implements `Lunar\Shipping\Interfaces\PostcodeResolverInterface`:
+
+```php
+namespace Lunar\Shipping\Interfaces;
+
+use Illuminate\Support\Collection;
+use Lunar\Models\Contracts\Country as CountryContract;
+
+interface PostcodeResolverInterface
+{
+    public function supportsCountry(CountryContract $country): bool;
+
+    public function getParts(string $postcode, CountryContract $country): Collection;
+}
+```
+
+- `supportsCountry` declares which countries the resolver handles. Returning `true` for every country makes the resolver a catch-all.
+- `getParts` returns the postcode permutations to match against the zone's stored postcodes. Wildcards (`*`) are honored by the zone resolver.
+
+### Registering a custom resolver
+
+Resolvers are registered through the `Lunar\Shipping\Facades\Postcode` facade, typically in the `boot` method of a service provider:
+
+```php
+use Lunar\Shipping\Facades\Postcode;
+use App\Shipping\UsZipResolver;
+
+Postcode::addResolver(UsZipResolver::class);
+```
+
+Resolvers are evaluated in reverse registration order — the last-registered resolver that supports the country wins. Register country-specific resolvers after the default, more general ones.
+
+```php
+use Lunar\Shipping\Facades\Postcode;
+
+// Match the resolver for the cart's shipping country.
+$resolver = Postcode::country($country);
+$parts = $resolver->getParts('SW1A 1AA', $country);
+```
+
+### Example resolver
+
+```php
+namespace App\Shipping;
+
+use Illuminate\Support\Collection;
+use Lunar\Models\Contracts\Country as CountryContract;
+use Lunar\Shipping\Interfaces\PostcodeResolverInterface;
+
+class UsZipResolver implements PostcodeResolverInterface
+{
+    public function supportsCountry(CountryContract $country): bool
+    {
+        return $country->iso2 === 'US';
+    }
+
+    public function getParts(string $postcode, CountryContract $country): Collection
+    {
+        $zip = preg_replace('/[^0-9]/', '', $postcode);
+
+        return collect([
+            $zip,                       // 902101234
+            substr($zip, 0, 5),         // 90210
+            substr($zip, 0, 5).'*',     // 90210*
+            substr($zip, 0, 3),         // 902
+            substr($zip, 0, 3).'*',     // 902*
+        ])->filter()->unique()->values();
+    }
+}
+```
+
+<Info>
+If no registered resolver supports the cart's country, a `Lunar\Shipping\Exceptions\NoPostcodeResolverException` is thrown. The default resolver ships unrestricted, so this only applies when it has been removed.
+</Info>
+
 ## Events
 
 ### ShippingOptionResolvedEvent
