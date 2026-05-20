@@ -1,0 +1,589 @@
+---
+title: "Upgrade Guide"
+description: "Instructions for upgrading between Lunar versions, including breaking changes and migration steps."
+---
+
+This page covers the steps required to upgrade between Lunar releases, along with any breaking changes or manual actions needed for each version.
+
+## General Upgrade Instructions
+
+<Warning>
+Before upgrading, back up the database and commit (or stash) any uncommitted changes. This makes it easy to roll back if something goes wrong.
+</Warning>
+
+Update the Lunar package to the latest version:
+
+```sh
+composer update lunarphp/lunar
+```
+
+Run any new migrations:
+
+```sh
+php artisan migrate
+```
+
+After migrating, clear cached config and views to ensure the application picks up any changes:
+
+```sh
+php artisan optimize:clear
+```
+
+<Tip>
+Pin Lunar to a specific minor version in `composer.json` (e.g., `"lunarphp/lunar": "^1.3"`) to avoid unexpected breaking changes when running `composer update`.
+</Tip>
+
+Review the version-specific notes below for any additional steps required by the target release.
+
+---
+
+## 1.5
+
+<Warning>
+**Breaking changes ahead.** Lunar 1.5 raises the minimum PHP and Laravel versions, upgrades the admin panel to Filament v4, and changes a number of database columns. Every section below should be reviewed before upgrading; skipping steps will leave the application in a broken state.
+</Warning>
+
+<Info>
+1.5.0 is currently available as a beta release. Pin to `1.5.0-beta.3` (or later) in `composer.json` while testing the upgrade on a staging environment first.
+</Info>
+
+### Summary of breaking changes
+
+- **PHP 8.3+ required.** PHP 8.2 is no longer supported.
+- **Laravel 12 or 13 required.** Laravel 11 is no longer supported.
+- **Admin panel upgraded to Filament v4.** Custom resources, pages, widgets, and actions must be migrated to the new APIs.
+- **Staff two-factor columns renamed.** `two_factor_secret` → `app_authentication_secret`, `two_factor_recovery_codes` → `app_authentication_recovery_codes`, and `two_factor_confirmed_at` removed.
+- **Shipping method `cutoff` column removed.** Method availability is now controlled by an availability schedule.
+
+Each item is covered in detail below.
+
+### High Impact
+
+#### PHP and Laravel requirements
+
+Lunar 1.5 raises the minimum supported versions:
+
+- PHP 8.3 or later (PHP 8.2 is no longer supported).
+- Laravel 12 or Laravel 13 (Laravel 11 is no longer supported, as it has reached end of life).
+
+Upgrade the application's `composer.json` accordingly before bumping Lunar:
+
+```diff
+- "php": "^8.2",
++ "php": "^8.3",
+- "laravel/framework": "^11.0",
++ "laravel/framework": "^12.0|^13.0",
+```
+
+#### Filament v4
+
+The admin panel has been upgraded from Filament v3 to Filament v4. Projects that extend the panel with custom resources, pages, widgets, or actions will need to follow the official [Filament v4 upgrade guide](https://filamentphp.com/docs/4.x/upgrade-guide) and adapt any extension code to the new APIs.
+
+Update the constraint in `composer.json`:
+
+```diff
+- "filament/filament": "^3.0",
++ "filament/filament": "^4.1",
+```
+
+Common areas that require changes:
+
+- Form and table builders now use the dedicated `Filament\Schemas\Schema` and `Filament\Tables\Table` signatures.
+- Actions have moved to the `Filament\Actions` namespace (for example, `EditAction`, `DeleteBulkAction`, and `BulkActionGroup`).
+- Form components such as `Section`, `Group`, and `Get` now live under `Filament\Schemas\Components`.
+
+Run the Filament upgrade tooling to assist with the migration:
+
+```sh
+composer require filament/upgrade:^4.0 -W --dev
+vendor/bin/filament-v4
+```
+
+After upgrading, run migrations to apply the staff table column rename described below:
+
+```sh
+php artisan migrate
+```
+
+#### Two-factor staff columns renamed
+
+Filament v4 ships its own multi-factor authentication primitives. As part of the upgrade, the columns on the `staff` table have been renamed and the redundant confirmation timestamp removed:
+
+- `two_factor_secret` is renamed to `app_authentication_secret`.
+- `two_factor_recovery_codes` is renamed to `app_authentication_recovery_codes`.
+- `two_factor_confirmed_at` is dropped.
+
+The rename is handled automatically by a Lunar migration. Update any application code that references the old column names directly.
+
+The previous `lunarphp/filament3-2fa` package is no longer required and can be removed from `composer.json`.
+
+### Medium Impact
+
+#### Shipping method cutoff replaced by availability schedule
+
+The `cutoff` column on `shipping_methods` has been removed. Method availability is now controlled through a dedicated availability schedule, offering finer control over when each shipping method is offered. A migration drops the column and Lunar's migration state copies any existing cutoff value into a schedule entry.
+
+Update any application code that reads or writes `cutoff` directly on `Lunar\Shipping\Models\ShippingMethod`. See [Table Rate Shipping](/1.x/addons/table-rate-shipping) for the new model.
+
+### Low Impact
+
+#### `shipping:manage` permission
+
+The Table Rate Shipping add-on now enforces a `shipping:manage` permission on its admin resources (Shipping Methods, Shipping Zones, and Shipping Exclusion Lists). A migration creates the permission automatically; staff who previously had unrestricted access need to be assigned the new permission (or a role that includes it) to continue managing shipping.
+
+See [Table Rate Shipping](/1.x/addons/table-rate-shipping) for details.
+
+#### Min and max weight on shipping methods
+
+Shipping methods now support optional `min_weight`, `max_weight`, and `weight_unit` fields. A migration adds the columns as nullable, so existing methods continue to work without changes.
+
+#### `card_type` on transactions is now nullable
+
+The `card_type` column on the `transactions` table is now nullable and stored as `string` (no length constraint). Existing rows are unaffected. Custom code that assumed a non-null value should be updated.
+
+#### Per-currency base price for table rate shipping
+
+Table rate shipping rates can now hold a base price per currency, not just the default currency. No schema change is required; the admin panel exposes the additional inputs.
+
+#### New `ShippingDiscount` discount type
+
+The Table Rate Shipping add-on registers a new `ShippingDiscount` discount type, allowing discounts to target specific shipping methods (or all methods) with a fixed price per currency or a percentage off. See [Table Rate Shipping](/1.x/addons/table-rate-shipping) for usage.
+
+---
+
+## 1.3
+
+### Low Impact
+
+The `stephenjude/filament-two-factor-authentication` package has been removed due to an issue with Fortify and no suitable release being tagged. Replace the package with the forked version provided by Lunar:
+
+```diff
+- "stephenjude/filament-two-factor-authentication": "^2.0",
++ "lunarphp/filament3-2fa": "^2.1.0",
+```
+
+---
+
+## 1.2
+
+### Low Impact
+
+#### Product association types ENUM
+
+Product association types have been moved to a dedicated ENUM. The model constants are now deprecated. The ENUM class can be swapped in config to allow for extending.
+
+#### Added meta fields to product options
+
+The `ProductOption` and `ProductOptionValue` models now include a `meta` field. If the application already defines custom `meta` fields on these models, a migration conflict may occur.
+
+---
+
+## 1.1
+
+### Medium Impact
+
+#### Renamed Order resource extension hook
+
+There was a typo in the extension hook. Rename `exendOrderSummaryInfolist` to `extendOrderSummaryInfolist` in any code that references it.
+
+---
+
+## 1.0.0 (stable release)
+
+This release introduces anonymous usage insights, sent via a deferred API call. The purpose of this addition is to provide insight into how Lunar is being used and at what capacity. No identifying information is sent or stored.
+
+This is completely optional; however, it is turned on by default. To opt out, add the following to a service provider:
+
+```php
+\Lunar\Facades\Telemetry::optOut();
+```
+
+---
+
+## 1.0.0-beta.24
+
+### Medium Impact
+
+#### Customer `vat_no` field renamed
+
+The field on the `customers` table has been renamed to `tax_identifier`. This aligns with the new field of the same name on `addresses`, `cart_addresses`, and `order_addresses`.
+
+### Low Impact
+
+#### Buy X Get Y discount conditions and rewards
+
+Buy X Get Y discounts can now use collections and variants as conditions, and variants as rewards. As part of this change, the `discount_purchasables` table has been renamed to `discountables` and has its own `Discountable` model. Any code referencing `discount_purchasables` directly, or the `purchasables` relation on the discount model, must be updated.
+
+---
+
+## 1.0.0-beta.22
+
+### High Impact
+
+<Warning>
+This release removes Laravel 10 support. Projects must be upgraded to Laravel 11 or later before updating Lunar. [Laravel Shift](https://laravelshift.com/) can assist with this process.
+</Warning>
+
+#### Lunar Panel discount interface
+
+The `LunarPanelDiscountInterface` now requires a `lunarPanelRelationManagers` method that returns an array of relation managers to show in the admin panel for the discount type. Update any custom discount types to include this method.
+
+---
+
+## 1.0.0-beta.21
+
+### High Impact
+
+#### Order reference generation changes
+
+The previous order reference generator used the format `YYYY-MM-{X}`, which had been in place since the early days of the project. This approach was not ideal for order references and could lead to anomalies when determining the next reference in the sequence.
+
+The new format uses the Order ID with leading zeros and an optional prefix:
+
+```
+// Old (assuming order #250 in April 2025)
+2025-04-00250
+
+// New (assuming order ID is 1965)
+00001965
+```
+
+The length of the reference and the prefix can be defined in the `lunar/orders.php` config file:
+
+```php
+'reference_format' => [
+    /**
+     * Optional prefix for the order reference
+     */
+    'prefix' => null,
+
+    /**
+     * STR_PAD_LEFT: 00001965
+     * STR_PAD_RIGHT: 19650000
+     * STR_PAD_BOTH: 00196500
+     */
+    'padding_direction' => STR_PAD_LEFT,
+
+    /**
+     * 00001965
+     * AAAA1965
+     */
+    'padding_character' => '0',
+
+    /**
+     * If the length specified below is smaller than the length
+     * of the Order ID, then no padding will take place.
+     */
+    'length' => 8,
+],
+```
+
+To keep using the previous reference generation logic, [copy the existing class](https://github.com/lunarphp/lunar/blob/1.0.0-beta20/packages/core/src/Base/OrderReferenceGenerator.php) into the application and update the `reference_generator` path in config.
+
+### Medium Impact
+
+#### Two-factor authentication
+
+Staff members now have the ability to set up two-factor authentication (2FA). Currently this is opt-in; however, it can be enforced for all staff members:
+
+```php
+public function register()
+{
+    \Lunar\Admin\Support\Facades\LunarPanel::enforceTwoFactorAuth()->register();
+}
+```
+
+To disable 2FA entirely (the setup option will not appear):
+
+```php
+public function register()
+{
+    \Lunar\Admin\Support\Facades\LunarPanel::disableTwoFactorAuth()->register();
+}
+```
+
+---
+
+## 1.0.0-beta.1
+
+### High Impact
+
+#### Model extending
+
+<Warning>
+Model extending has been completely rewritten and requires changes to any Laravel application that has previously extended Lunar models.
+</Warning>
+
+Lunar models now implement a contract (interface) and support dependency injection across the storefront and the Lunar panel.
+
+Update how models are registered:
+
+```php
+// Old
+ModelManifest::register(collect([
+    Product::class => \App\Models\Product::class,
+    // ...
+]));
+
+// New
+ModelManifest::replace(
+    \Lunar\Models\Contracts\Product::class,
+    \App\Models\Product::class
+);
+```
+
+<Tip>
+If custom models do not extend their Lunar counterpart, they must implement the relevant contract in `Lunar\Models\Contracts`.
+</Tip>
+
+See the [model extending](/1.x/extending/models) section for all available functionality.
+
+#### Polymorphic relationships
+
+To better support model extending, all polymorphic relationships now use an alias instead of the fully qualified class name. This allows relationships to resolve to custom models when interacting with Eloquent.
+
+There is an additional config setting in `config/lunar/database.php` where polymorph mappings can be prefixed:
+
+```php
+'morph_prefix' => null,
+```
+
+By default this is set to `null`, so the mapping for a product would just be `product`.
+
+A migration handles this change for Lunar tables and some third-party tables; however, additional migrations may be needed for other tables or custom models.
+
+#### Shipping methods availability
+
+Shipping methods are now associated with customer groups. When using the shipping add-on, ensure that all shipping methods are associated with the correct customer groups.
+
+#### Stripe add-on
+
+The Stripe add-on now attempts to update an order's billing and shipping address based on what is stored against the Payment Intent. This is due to Stripe not always returning this information during express checkout flows. To disable this behavior, set the `lunar.stripe.sync_addresses` config value to `false`.
+
+##### PaymentIntent storage and reference to carts/orders
+
+Previously, PaymentIntent information was stored in the Cart model's meta and then transferred to the order when created. This approach caused limitations and meant that if the cart's meta was updated elsewhere (or the intent information was removed), it could result in unrecoverable data loss.
+
+PaymentIntent data has been moved from the `payment_intent` key in meta to a dedicated `StripePaymentIntent` model. This allows more flexibility in how payment intents are handled. A `StripePaymentIntent` is associated with both a cart and an order.
+
+The stored information is now:
+
+- `intent_id` — the PaymentIntent ID provided by Stripe
+- `status` — the PaymentIntent status
+- `event_id` — if the order was placed via the webhook, this contains the event ID
+- `processing_at` — populated when a request to place the order is made
+- `processed_at` — populated with the current timestamp once the order is placed
+
+##### Preventing overlap
+
+Previously, the job to place the order was dispatched to the queue with a 20-second delay. Now the payment type checks whether the order is already being processed and, if so, takes no further action. This prevents overlaps regardless of how they are triggered.
+
+---
+
+## 1.0.0-alpha.34
+
+### Medium Impact
+
+#### Stripe add-on
+
+The Stripe driver now checks whether an order already has a `placed_at` value. If so, no further processing takes place.
+
+Additionally, the webhook logic has been moved to the job queue with a 20-second dispatch delay. This allows storefronts to manually process a payment intent alongside the webhook without worrying about overlap.
+
+The Stripe webhook environment variable has been renamed:
+
+```diff
+- STRIPE_WEBHOOK_PAYMENT_INTENT=...
++ LUNAR_STRIPE_WEBHOOK_SECRET=...
+```
+
+The Stripe config that Lunar looks for in `config/services.php` has changed:
+
+```php
+'stripe' => [
+    'key' => env('STRIPE_SECRET'),
+    'public_key' => env('STRIPE_PK'),
+    'webhooks' => [
+        'lunar' => env('LUNAR_STRIPE_WEBHOOK_SECRET'),
+    ],
+],
+```
+
+---
+
+## 1.0.0-alpha.32
+
+### High Impact
+
+<Warning>
+A new `LunarUser` interface must be implemented on the application's `User` model.
+</Warning>
+
+```php
+// ...
+class User extends Authenticatable implements \Lunar\Base\LunarUser
+{
+    use \Lunar\Base\Traits\LunarUser;
+}
+```
+
+---
+
+## 1.0.0-alpha.31
+
+### High Impact
+
+Certain parts of `config/cart.php` that are specific to session-based cart interaction have been relocated to a new `config/cart_session.php` file.
+
+```php
+// Move to config/cart_session.php
+'session_key' => 'lunar_cart',
+'auto_create' => false,
+```
+
+Check this file for any new config values that may need to be added.
+
+---
+
+## 1.0.0-alpha.29
+
+### High Impact
+
+#### Cart calculate function no longer recalculates
+
+The `$cart->calculate()` method previously ran calculations every time it was called, regardless of whether the cart had already been calculated. Now `calculate()` only runs if cart totals do not exist. To force a recalculation, use `$cart->recalculate()`.
+
+#### Unique index for collection group handle
+
+The `handle` column on collection groups now has a unique index. If collection groups are created through the admin panel, no changes are required.
+
+### Medium Impact
+
+#### Update custom shipping modifiers signature
+
+The `\Lunar\Base\ShippingModifier` `handle` method now correctly passes a closure as the second parameter. Update any custom shipping modifiers that extend this class:
+
+```php
+public function handle(\Lunar\Models\Cart $cart, \Closure $next)
+{
+    // ...
+
+    return $next($cart);
+}
+```
+
+---
+
+## 1.0.0-alpha.26
+
+### Medium Impact
+
+If custom classes implement the `Purchasable` interface, add the following methods:
+
+```php
+public function canBeFulfilledAtQuantity(int $quantity): bool;
+public function getTotalInventory(): int;
+```
+
+If checking the `ProductVariant` `purchasable` attribute, update the following check:
+
+```php
+// Old
+$variant->purchasable == 'backorder';
+
+// New
+$variant->purchasable == 'in_stock_or_on_backorder';
+```
+
+---
+
+## 1.0.0-alpha.22
+
+### Medium Impact
+
+Carts now use soft deletes. A cart is deleted when `CartSession::forget()` is called. To forget the session without deleting the cart, pass `delete: false`:
+
+```php
+\Lunar\Facades\CartSession::forget(delete: false);
+```
+
+---
+
+## 1.0.0-alpha.20
+
+### High Impact
+
+#### Stripe add-on facade change
+
+The Stripe add-on facade has been renamed:
+
+```php
+// Old
+\Lunar\Stripe\Facades\StripeFacade;
+
+// New
+\Lunar\Stripe\Facades\Stripe;
+```
+
+---
+
+## 1.0.0-alpha.x
+
+<Warning>
+When upgrading to `1.x` from `0.x`, ensure the application is upgraded to `0.8` first.
+</Warning>
+
+### High Impact
+
+#### Change to Staff model namespace
+
+The Staff model has moved from `Lunar\Hub\Models\Staff` to `Lunar\Admin\Models\Staff`. Update all references in the codebase and any polymorphic relations.
+
+#### Spatie Media Library
+
+This package has been upgraded to version 11, which introduces some breaking changes.
+See the [Spatie Media Library upgrade guide](https://github.com/spatie/laravel-medialibrary/blob/main/UPGRADING.md) for more information.
+
+#### Media conversions
+
+The `lunar.media.conversions` configuration has been removed in favor of registering custom media definitions instead. Media definition classes allow registration of media collections, conversions, and more. See [Media Collections](/1.x/reference/media.html#media-collections) for further information.
+
+#### Product options
+
+The `position` field has been removed from the `product_options` table and is now found on the `product_product_option` pivot table. Position data is automatically adjusted when running migrations.
+
+#### Tiers renamed to price breaks
+
+The `tier` column on pricing has been renamed to `min_quantity`. Any references in code to `tiers` must be updated.
+
+##### Price model
+
+```php
+// Old
+$priceModel->tier
+// New
+$priceModel->min_quantity
+
+// Old
+$priceModel->tiers
+// New
+$priceModel->priceBreaks
+```
+
+##### Lunar\Base\DataTransferObjects\PricingResponse
+
+```php
+// Old
+public Collection $tiered,
+// New
+public Collection $priceBreaks,
+```
+
+##### Lunar\Base\DataTransferObjects\PaymentAuthorize
+
+Two new properties have been added to the constructor for this DTO:
+
+```php
+public ?int $orderId = null,
+public ?string $paymentType = null
+```

@@ -242,6 +242,211 @@
         ]
       },
       {
+        "version": "v2.x (alpha)",
+        "tabs": [
+          {
+            "tab": "Getting Started",
+            "groups": [
+              {
+                "group": "Overview",
+                "pages": [
+                  "2.x/getting-started/overview/introduction",
+                  "2.x/getting-started/overview/upgrade-guide",
+                  "2.x/getting-started/overview/security",
+                  "2.x/getting-started/overview/contributing",
+                  "2.x/getting-started/overview/local-development",
+                  "2.x/getting-started/overview/ai-development"
+                ]
+              },
+              {
+                "group": "Setup & Configuration",
+                "pages": [
+                  "2.x/getting-started/setup/installation",
+                  "2.x/getting-started/setup/system-settings"
+                ]
+              },
+              {
+                "group": "Starter Kits",
+                "pages": [
+                  "2.x/getting-started/starter-kits/livewire",
+                  "2.x/getting-started/starter-kits/inertia-vue"
+                ]
+              }
+            ]
+          },
+          {
+            "tab": "Guides",
+            "groups": [
+              {
+                "group": "Storefront",
+                "pages": [
+                  "2.x/guides/catalog-menu",
+                  "2.x/guides/product-listing-page",
+                  "2.x/guides/product-display-page",
+                  "2.x/guides/search",
+                  "2.x/guides/cart",
+                  "2.x/guides/checkout",
+                  "2.x/guides/payment-integration"
+                ]
+              },
+              {
+                "group": "Customer Account",
+                "pages": [
+                  "2.x/guides/customer-authentication",
+                  "2.x/guides/order-history",
+                  "2.x/guides/customer-addresses"
+                ]
+              }
+            ]
+          },
+          {
+            "tab": "Reference",
+            "groups": [
+              {
+                "group": "Core",
+                "pages": [
+                  {
+                    "group": "Catalog",
+                    "pages": [
+                      "2.x/reference/associations",
+                      "2.x/reference/attributes",
+                      "2.x/reference/collections",
+                      "2.x/reference/media",
+                      "2.x/reference/products",
+                      "2.x/reference/search",
+                      "2.x/reference/urls"
+                    ]
+                  },
+                  {
+                    "group": "Order Management",
+                    "pages": [
+                      "2.x/reference/addresses",
+                      "2.x/reference/carts",
+                      "2.x/reference/countries-states",
+                      "2.x/reference/customers",
+                      "2.x/reference/discounts",
+                      "2.x/reference/orders",
+                      "2.x/reference/payments",
+                      "2.x/reference/pricing"
+                    ]
+                  },
+                  {
+                    "group": "Configuration",
+                    "pages": [
+                      "2.x/reference/activity-log",
+                      "2.x/reference/channels",
+                      "2.x/reference/currencies",
+                      "2.x/reference/languages",
+                      "2.x/reference/tags",
+                      "2.x/reference/taxation"
+                    ]
+                  }
+                ]
+              },
+              {
+                "group": "Storefront",
+                "pages": ["2.x/storefront-utils/storefront-session"]
+              },
+              {
+                "group": "Extending",
+                "pages": [
+                  "2.x/extending/carts",
+                  "2.x/extending/discounts",
+                  "2.x/extending/models",
+                  "2.x/extending/orders",
+                  "2.x/extending/payments",
+                  "2.x/extending/search",
+                  "2.x/extending/shipping",
+                  "2.x/extending/taxation"
+                ]
+              }
+            ]
+          },
+          {
+            "tab": "Admin Panel",
+            "groups": [
+              {
+                "group": "Getting Started",
+                "pages": ["2.x/admin/introduction"]
+              },
+              {
+                "group": "Extending",
+                "pages": [
+                  "2.x/admin/extending/overview",
+                  "2.x/admin/extending/access-control",
+                  "2.x/admin/extending/addons",
+                  "2.x/admin/extending/attributes",
+                  "2.x/admin/extending/configuration",
+                  "2.x/admin/extending/panel",
+                  "2.x/admin/extending/pages",
+                  "2.x/admin/extending/resources",
+                  "2.x/admin/extending/relation-managers",
+                  "2.x/admin/extending/order-management"
+                ]
+              }
+            ]
+          },
+          {
+            "tab": "Add-ons",
+            "groups": [
+              {
+                "group": "General",
+                "pages": ["2.x/addons/table-rate-shipping", "2.x/addons/search"]
+              },
+              {
+                "group": "Payments",
+                "pages": [
+                  "2.x/addons/payments/stripe",
+                  "2.x/addons/payments/paypal",
+                  "2.x/addons/payments/opayo"
+                ]
+              },
+              {
+                "group": "Community",
+                "pages": ["2.x/addons/community/overview"]
+              }
+            ]
+          },
+          {
+            "tab": "Support",
+            "groups": [
+              {
+                "group": "Community",
+                "pages": ["support/community"]
+              },
+              {
+                "group": "Lunar Alliance",
+                "pages": [
+                  "support/lunar-alliance",
+                  {
+                    "group": "Europe",
+                    "expanded": true,
+                    "pages": [
+                      "support/alliance/neon-digital",
+                      "support/alliance/thought-collective"
+                    ]
+                  },
+                  {
+                    "group": "Asia Pacific",
+                    "expanded": true,
+                    "pages": ["support/alliance/weby-digital"]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "tab": "Flight Plan",
+            "groups": [
+              {
+                "group": "Trajectory",
+                "pages": ["logs/flight-plan"]
+              }
+            ]
+          }
+        ]
+      },
+      {
         "version": "v0.x",
         "tabs": [
           {
