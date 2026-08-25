@@ -30,7 +30,7 @@ php artisan optimize:clear
 ```
 
 <Tip>
-Pin Lunar to a specific minor version in `composer.json` (e.g., `"lunarphp/lunar": "^1.3"`) to avoid unexpected breaking changes when running `composer update`.
+Pin Lunar to a specific minor version in `composer.json` (e.g., `"lunarphp/lunar": "^1.4"`) to avoid unexpected breaking changes when running `composer update`.
 </Tip>
 
 Review the version-specific notes below for any additional steps required by the target release.
@@ -44,7 +44,7 @@ Review the version-specific notes below for any additional steps required by the
 </Warning>
 
 <Info>
-1.5.0 is currently available as a beta release. Pin to `1.5.0-beta.3` (or later) in `composer.json` while testing the upgrade on a staging environment first.
+1.5.0 is currently available as a beta release. Pin to `1.5.0-beta.6` (or later) in `composer.json` while testing the upgrade on a staging environment first. Projects that need to remain on Filament v3 should stay on the [1.4 release line](#14).
 </Info>
 
 ### Summary of breaking changes
@@ -127,12 +127,6 @@ Update any application code that reads or writes `cutoff` directly on `Lunar\Shi
 
 ### Low Impact
 
-#### `shipping:manage` permission
-
-The Table Rate Shipping add-on now enforces a `shipping:manage` permission on its admin resources (Shipping Methods, Shipping Zones, and Shipping Exclusion Lists). A migration creates the permission automatically; staff who previously had unrestricted access need to be assigned the new permission (or a role that includes it) to continue managing shipping.
-
-See [Table Rate Shipping](/1.x/addons/table-rate-shipping) for details.
-
 #### Min and max weight on shipping methods
 
 Shipping methods now support optional `min_weight`, `max_weight`, and `weight_unit` fields. A migration adds the columns as nullable, so existing methods continue to work without changes.
@@ -148,6 +142,20 @@ Table rate shipping rates can now hold a base price per currency, not just the d
 #### New `ShippingDiscount` discount type
 
 The Table Rate Shipping add-on registers a new `ShippingDiscount` discount type, allowing discounts to target specific shipping methods (or all methods) with a fixed price per currency or a percentage off. See [Table Rate Shipping](/1.x/addons/table-rate-shipping) for usage.
+
+---
+
+## 1.4
+
+Lunar 1.4 is the latest stable release and the final minor version built on Filament v3. Lunar 1.5, currently in beta, upgrades the admin panel to Filament v4. Projects that need to remain on Filament v3 should stay on the 1.4 release line.
+
+### Low Impact
+
+#### `shipping:manage` permission
+
+The Table Rate Shipping add-on now enforces a `shipping:manage` permission on its admin resources (Shipping Methods, Shipping Zones, and Shipping Exclusion Lists). A migration creates the permission automatically; staff who previously had unrestricted access need to be assigned the new permission (or a role that includes it) to continue managing shipping.
+
+See [Table Rate Shipping](/1.x/addons/table-rate-shipping) for details.
 
 ---
 
