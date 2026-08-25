@@ -119,6 +119,15 @@ The previous `lunarphp/filament3-2fa` package is no longer required and can be r
 
 ### Medium Impact
 
+#### Optimized default search indexer relationship select
+
+The default search indexers now eager-load only the columns each indexer uses in `toSearchableArray()`. Search output is unchanged, so no action is required when using the default indexers.
+
+Projects with custom indexers that extend Lunar's indexers should review their `makeAllSearchableUsing()` method to confirm the required columns are still selected.
+
+- Indexers updated: `CustomerIndexer`, `OrderIndexer`, `ProductIndexer`, `ProductOptionIndexer`.
+- Indexers unchanged: `BrandIndexer`, `CollectionIndexer`.
+
 #### Shipping method cutoff replaced by availability schedule
 
 The `cutoff` column on `shipping_methods` has been removed. Method availability is now controlled through a dedicated availability schedule, offering finer control over when each shipping method is offered. A migration drops the column and Lunar's migration state copies any existing cutoff value into a schedule entry.
