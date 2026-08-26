@@ -230,8 +230,8 @@ Lunar\Models\OrderLine
 |:------|:-----|:------------|
 | id | `id` | Primary key |
 | order_id | `foreignId` | |
-| purchasable_type | `string` | Polymorphic type for the purchasable item |
-| purchasable_id | `unsignedBigInteger` | Polymorphic ID for the purchasable item |
+| purchasable_type | `string` `nullable` | Polymorphic type for the purchasable item. Empty on shipping lines |
+| purchasable_id | `unsignedBigInteger` `nullable` | Polymorphic ID for the purchasable item. Empty on shipping lines |
 | type | `string` | The line type, e.g. `physical`, `digital`, `shipping` |
 | description | `string` | A description of the line item |
 | option | `string` `nullable` | Option information if the item is a variant |
@@ -254,8 +254,20 @@ Lunar\Models\OrderLine
 | Relationship | Type | Related Model | Description |
 |:-------------|:-----|:--------------|:------------|
 | `order` | BelongsTo | `Lunar\Models\Order` | |
-| `purchasable` | MorphTo | — | The polymorphic purchasable item |
+| `purchasable` | MorphTo | — | The polymorphic purchasable item. `null` on shipping lines |
 | `currency` | HasOneThrough | `Lunar\Models\Currency` | Resolved through the order |
+
+<Info>
+Shipping lines do not have a purchasable. A shipping option is a data transfer object rather than a model, so from Lunar 1.5 shipping lines are stored with no morph and `$line->purchasable` returns `null`. Everything needed to display the line (`description`, `unit_price`, `total`, `meta`) is snapshotted onto the line itself.
+
+Guard for `null` when iterating `$order->lines`, or use `$order->productLines` to exclude shipping lines:
+
+```php
+foreach ($order->productLines as $line) {
+    $line->purchasable->sku;
+}
+```
+</Info>
 
 ### Creating an Order Line
 

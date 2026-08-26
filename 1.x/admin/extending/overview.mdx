@@ -80,3 +80,42 @@ use Lunar\Admin\Filament\Resources\TaxClassResource;
 use Lunar\Admin\Filament\Resources\TaxRateResource;
 use Lunar\Admin\Filament\Resources\TaxZoneResource;
 ```
+
+## Events
+
+The admin panel dispatches events for changes made through its relation managers and management pages, where an Eloquent model event alone would not describe what happened. These are useful for invalidating caches, syncing to an external system, or triggering downstream work.
+
+Every event lives in the `Lunar\Admin\Events` namespace and exposes a single public property, `$model`. For changes made through a relation manager, `$model` is the record that owns the relationship rather than the related record that changed.
+
+| Event | Dispatched when | `$model` |
+|:------|:----------------|:---------|
+| `ChildCollectionCreated` | A child collection is created beneath another collection | Parent collection |
+| `CollectionProductAttached` | A product is attached to a collection | Collection |
+| `CollectionProductDetached` | A product is detached from a collection | Collection |
+| `CustomerAddressEdited` | A customer's address is edited | Address |
+| `CustomerUserEdited` | A user associated with a customer is edited | User |
+| `ModelChannelsUpdated` | A model's channel availability is updated | Owning model |
+| `ModelMediaUpdated` | A model's media is added, edited, or removed | Owning model |
+| `ModelPricesUpdated` | A model's prices are updated | Owning model |
+| `ModelUrlsUpdated` | A model's URLs are updated | Owning model |
+| `ProductAssociationsUpdated` | A product's associations are updated | Product |
+| `ProductCollectionsUpdated` | The collections a product belongs to are updated | Product |
+| `ProductCustomerGroupsUpdated` | A product's customer group availability is updated | Product |
+| `ProductPricingUpdated` | A product's customer group pricing is updated | Product |
+| `ProductVariantInventoryUpdated` <Badge color="green" icon="sparkles" size="sm">Added in 1.5</Badge> | Stock is saved on the product or variant inventory page | Product variant |
+| `ProductVariantOptionsUpdated` | A product's option values are updated | Product |
+
+Listen for them as with any Laravel event:
+
+```php
+use Illuminate\Support\Facades\Event;
+use Lunar\Admin\Events\ProductVariantInventoryUpdated;
+
+Event::listen(ProductVariantInventoryUpdated::class, function (ProductVariantInventoryUpdated $event) {
+    $event->model; // Lunar\Models\ProductVariant
+});
+```
+
+<Info>
+These events cover changes made through the admin panel only. To react to changes from any source, including the storefront and queued jobs, observe the Eloquent model instead.
+</Info>

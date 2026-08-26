@@ -104,6 +104,10 @@ $taxZone->states()->create([
 ]);
 ```
 
+<Info>
+State lookups are scoped to the address country, so a state zone only applies to addresses in that state's own country. This matters because state codes are reused across countries: `WA` is both Washington and Western Australia. Scoping was added in Lunar 1.5; earlier versions matched a state zone against any country.
+</Info>
+
 ### Tax Zone Postcodes
 
 ```php
@@ -133,6 +137,22 @@ Lunar\Models\TaxZoneCustomerGroup
 | `created_at` | `timestamp` | |
 | `updated_at` | `timestamp` | |
 
+### Zone resolution
+
+`Lunar\Actions\Taxes\GetTaxZone` resolves the tax zone for an address, checking each type of zone in turn and returning the first match:
+
+1. **Postcode** — matched against the address postcode, honoring wildcards.
+2. **State** — matched against the address state, scoped to the address country.
+3. **Country** — matched against the address country.
+4. **Default** — the tax zone flagged as the default, returned when nothing above matches.
+
+```php
+use Lunar\Actions\Taxes\GetTaxZone;
+
+$taxZone = app(GetTaxZone::class)->execute($address);
+```
+
+Passing no address (or an address with none of these fields set) returns the default tax zone. A cart can also override this resolution entirely, see [Carts → Setting the Tax Zone](/1.x/reference/carts#setting-the-tax-zone).
 
 ## Tax Rates
 

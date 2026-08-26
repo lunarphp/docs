@@ -252,7 +252,17 @@ The most flexible driver. Pricing is based on either the cart total or the total
 
 | Key | Values | Description |
 |:----|:-------|:------------|
-| `charge_by` | `cart_total` (default), `weight` | Determines what value is used to match against price tiers. When set to `weight`, the total is calculated as `purchasable.weight_value * quantity` for each cart line. |
+| `charge_by` | `cart_total` (default), `weight` | Determines what value is used to match against price tiers. When set to `weight`, each cart line's weight is converted into the method's `weight_unit` and multiplied by its quantity. |
+
+#### Weight tiers <Badge color="green" icon="sparkles" size="sm">Added in 1.5</Badge>
+
+When `charge_by` is set to `weight`, tiers are evaluated in the unit configured as the shipping method's `weight_unit`, defaulting to `kg` when it is empty. Each cart line's weight is converted from its own purchasable unit first, so a cart mixing items measured in grams and kilograms is totaled correctly.
+
+Tier thresholds are stored as whole numbers. To express a threshold below one kilogram, configure the method in a smaller unit: a method with a `weight_unit` of `g` can use tiers of `500` and `1000` where kilograms would have required `0.5` and `1`. The admin panel shows the configured unit alongside the tier field and rejects decimal values rather than truncating them.
+
+<Warning>
+Before Lunar 1.5, weight tiers were always evaluated in kilograms regardless of the method's `weight_unit`. Methods that set a unit other than `kg` need their tier thresholds re-entered in that unit after upgrading. Methods that left `weight_unit` empty are unaffected.
+</Warning>
 
 ### Flat Rate
 

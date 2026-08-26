@@ -111,7 +111,7 @@ Lunar internally expects a `name` attribute on collection attribute data. It mus
 
 ### Nested Collections
 
-Collections form a tree hierarchy using the [kalnoy/nestedset](https://github.com/lazychaser/laravel-nestedset) package. Child collections can be added using the `appendNode` method:
+Collections form a tree hierarchy using the [lunarphp/nestedset](https://github.com/lunarphp/nestedset) package, a Lunar-maintained fork of `kalnoy/nestedset`. Child collections can be added using the `appendNode` method:
 
 ```php
 use Lunar\Models\Collection;
@@ -176,7 +176,11 @@ $collection->getSiblings();
 Collection::withDepth()->find($collection->id)->depth;
 ```
 
-Refer to the [kalnoy/nestedset documentation](https://github.com/lazychaser/laravel-nestedset) for the full API.
+Refer to the [lunarphp/nestedset documentation](https://github.com/lunarphp/nestedset) for the full API.
+
+<Info>
+Lunar 1.5 replaced `kalnoy/nestedset` with `lunarphp/nestedset`. The API is unchanged, but the trait and query builder namespaces moved from `Kalnoy\Nestedset` to `Lunar\Nestedset`. See the [1.5 section of the upgrade guide](/1.x/getting-started/overview/upgrade-guide#nested-set-package-replaced).
+</Info>
 
 ## Products
 
