@@ -44,15 +44,21 @@ Review the version-specific notes below for any additional steps required by the
 </Warning>
 
 <Info>
-1.5.0 is currently available as a beta release. Pin to `1.5.0-beta.6` (or later) in `composer.json` while testing the upgrade on a staging environment first. Projects that need to remain on Filament v3 should stay on the [1.4 release line](#14).
+**Filament v4 only.** Lunar 1.5 upgrades the admin panel to Filament v4 and drops support for Filament v3. Projects that need to stay on Filament v3 should remain on the [1.4 release line](#14), which is the final Lunar version built on Filament v3.
 </Info>
+
+<Tip>
+Test the upgrade on a staging environment before applying it to production. Filament v4 and the Filament v3 to v4 migration account for most of the work involved.
+</Tip>
 
 ### Summary of breaking changes
 
 - **PHP 8.3+ required.** PHP 8.2 is no longer supported.
 - **Laravel 12 or 13 required.** Laravel 11 is no longer supported.
-- **Admin panel upgraded to Filament v4.** Custom resources, pages, widgets, and actions must be migrated to the new APIs.
+- **Admin panel upgraded to Filament v4.** Filament v3 is no longer supported. Custom resources, pages, widgets, and actions must be migrated to the new APIs.
 - **Staff two-factor columns renamed.** `two_factor_secret` → `app_authentication_secret`, `two_factor_recovery_codes` → `app_authentication_recovery_codes`, and `two_factor_confirmed_at` removed.
+- **Nested set package replaced.** `kalnoy/nestedset` is replaced by `lunarphp/nestedset`, which changes the trait and query builder namespaces used by `Lunar\Models\Collection`.
+- **Order line purchasable morph is now nullable.** Shipping lines no longer store a placeholder morph, so `$orderLine->purchasable` returns `null` for them.
 - **Shipping method `cutoff` column removed.** Method availability is now controlled by an availability schedule.
 
 Each item is covered in detail below.
@@ -117,7 +123,68 @@ The rename is handled automatically by a Lunar migration. Update any application
 
 The previous `lunarphp/filament3-2fa` package is no longer required and can be removed from `composer.json`.
 
+#### Nested set package replaced
+
+Collections build their tree using a nested set implementation. Lunar 1.5 switches from `kalnoy/nestedset` to `lunarphp/nestedset`, a Lunar-maintained fork kept current for Laravel 12 and 13. Composer resolves the new package as a Lunar dependency, so no manual `require` is needed, but the namespaces have changed:
+
+```diff
+- use Kalnoy\Nestedset\NodeTrait;
+- use Kalnoy\Nestedset\QueryBuilder;
+- use Kalnoy\Nestedset\NestedSetServiceProvider;
++ use Lunar\Nestedset\NodeTrait;
++ use Lunar\Nestedset\QueryBuilder;
++ use Lunar\Nestedset\NestedSetServiceProvider;
+```
+
+Update any application code that imports these classes directly, type-hints against them, or extends `Lunar\Models\Collection` and re-declares a nested set method. The API itself is unchanged, so tree queries such as `whereIsRoot()`, `appendNode()`, and `withDepth()` continue to work as before. See [Collections → Nested Collections](/1.x/reference/collections#nested-collections).
+
+If the application requires `kalnoy/nestedset` for its own models, it can stay in `composer.json` alongside the fork.
+
 ### Medium Impact
+
+#### Order line purchasable morph is now nullable
+
+Shipping order lines previously stored a placeholder morph (`purchasable_type` set to `Lunar\DataTypes\ShippingOption`, `purchasable_id` set to `1`) purely to satisfy the non-nullable morph columns. `ShippingOption` is a data transfer object rather than an Eloquent model, so reading `$orderLine->purchasable` on a shipping line raised a fatal error, as did eager loading `lines.purchasable` across an order.
+
+In 1.5, `order_lines.purchasable_type` and `order_lines.purchasable_id` are nullable, and shipping lines are stored with no morph at all. A migration nulls the placeholder morph on existing shipping lines. The migration is scoped to that exact class, so custom morphs stored on shipping-type lines are left untouched.
+
+```php
+$order->shippingLines->first()->purchasable; // null (previously a fatal error)
+```
+
+Shipping lines are self-describing: `description`, `unit_price`, `total`, and `meta` are snapshotted onto the line, so display and totals are unaffected. Storefront code that iterates `$order->lines` and reaches for `$line->purchasable` should guard against `null`:
+
+```php
+foreach ($order->lines as $line) {
+    if (! $line->purchasable) {
+        continue; // Shipping line
+    }
+
+    // ...
+}
+```
+
+Alternatively, iterate `$order->productLines` to exclude shipping lines entirely. See [Orders → Order Lines](/1.x/reference/orders#order-lines).
+
+#### Discount conditions are now honored by BuyXGetY
+
+`Lunar\DiscountTypes\BuyXGetY` did not check the discount's conditions before awarding a reward. Minimum spend, customer restrictions, and `max_uses_per_user` were all ignored, and only the quantity condition (`min_qty`) gated the discount.
+
+These conditions are now enforced, matching `Lunar\DiscountTypes\AmountOff`. Existing BuyXGetY discounts that were configured with a minimum spend or a customer restriction will start applying it, so a discount that previously awarded a reward on every qualifying cart may now award it on fewer carts. Review live BuyXGetY discounts before upgrading to confirm their conditions reflect what the store intends to offer.
+
+#### Stripe amounts converted using currency decimal places
+
+`Lunar\Stripe\Managers\StripeManager::toStripeAmount()` previously passed the stored cart total straight through to Stripe for all but three currencies, assuming the currency's configured `decimal_places` matched the sub-unit Stripe expects. A currency configured with more decimal places than Stripe uses was overcharged, by a factor of 100 in the case of a four decimal place currency.
+
+Amounts are now converted back to the major unit using the currency's `decimal_places`, then re-scaled to the sub-unit Stripe expects for that currency code (zero decimal places for JPY, KRW, and similar, three for BHD, JOD, KWD, OMR, and TND, two otherwise).
+
+Stores using the Stripe add-on with a currency whose `decimal_places` is not `2` should verify the amounts sent to Stripe after upgrading. No action is needed for currencies configured with two decimal places. See [Stripe](/1.x/addons/payments/stripe).
+
+#### Weight tiers evaluated in the shipping method's weight unit
+
+The `ship-by` driver hardcoded kilograms when summing cart weight, ignoring the `weight_unit` column on the shipping method. Each cart line's weight is now converted from its own unit into the method's configured `weight_unit`, defaulting to `kg` when the column is empty.
+
+Methods that left `weight_unit` empty behave exactly as before. Methods that set a `weight_unit` other than `kg` will now match tiers in that unit, so their tier thresholds need to be re-entered in the configured unit. Weight tiers remain whole numbers; the admin panel now shows the configured unit alongside the field and rejects decimal values instead of silently truncating them. See [Table Rate Shipping → Ship By](/1.x/addons/table-rate-shipping#ship-by).
 
 #### Optimized default search indexer relationship select
 
@@ -152,11 +219,71 @@ Table rate shipping rates can now hold a base price per currency, not just the d
 
 The Table Rate Shipping add-on registers a new `ShippingDiscount` discount type, allowing discounts to target specific shipping methods (or all methods) with a fixed price per currency or a percentage off. See [Table Rate Shipping](/1.x/addons/table-rate-shipping) for usage.
 
+#### Date parameters widened to `DateTimeInterface`
+
+Applications that call `Date::use(CarbonImmutable::class)` receive a `CarbonImmutable` from `now()`, which is not a `DateTime` subclass. Any cart or discount calculation then failed with a `TypeError`, because these methods declared `DateTime` parameters.
+
+The parameter type hints are now `DateTimeInterface` across three traits:
+
+| Trait | Methods |
+|:------|:--------|
+| `Lunar\Base\Traits\HasCustomerGroups` | `scheduleCustomerGroup()`, `applyCustomerGroupScope()`, `scopeCustomerGroup()` |
+| `Lunar\Base\Traits\HasChannels` | `scheduleChannel()`, `scopeChannel()` |
+| `Lunar\Base\Traits\CanScheduleAvailability` | `schedule()` |
+
+Widening a parameter type is backwards compatible, so all existing call sites continue to work. The one exception is a custom model that overrides one of these methods and re-declares the narrower `DateTime` type: PHP raises a fatal error when the class loads. Widen the override's signature to `DateTimeInterface` to match.
+
+#### `getDefault()` can return `null`
+
+`Lunar\Base\Traits\HasDefaultRecord::getDefault()` was annotated as returning a model, but it returns `null` when no record is flagged as the default. The annotation now reflects that.
+
+There is no runtime change, but static analysis will start reporting calls that assume a model is always returned, such as `Currency::getDefault()->code`. Guard these calls or seed a default record:
+
+```php
+if ($currency = \Lunar\Models\Currency::getDefault()) {
+    // ...
+}
+```
+
+#### `DefaultPriceFormatter` formatter style type
+
+The `$formatterStyle` parameter on `Lunar\Pricing\DefaultPriceFormatter` is now typed `int` rather than `string`, matching the `NumberFormatter` constants (such as `NumberFormatter::CURRENCY`) that are passed to it. Custom price formatters that extend this class should update their signature to match.
+
+#### Deterministic relationship ordering
+
+Several relationships had no explicit ordering, so the row order was left to the database engine. MySQL happens to return primary key order; PostgreSQL returns heap order, which can change after an unrelated update. Because `Lunar\Actions\Carts\GenerateFingerprint` reduces cart lines in iteration order, an unstable order could change a cart's fingerprint.
+
+Explicit ordering has been added:
+
+| Relationship | Ordering |
+|:-------------|:---------|
+| `Lunar\Models\Cart::lines()` | `id` |
+| `Lunar\Models\Order::lines()` | `id` |
+| `Lunar\Models\ProductVariant::values()` | `position`, then the pivot `id` |
+
+Ordering `Order::lines()` also stabilizes the derived `physicalLines`, `digitalLines`, `shippingLines`, and `productLines` relationships. Applications that relied on the previous incidental ordering may see a different (but now consistent) line order.
+
+#### Order addresses are no longer duplicated by type
+
+`Lunar\Pipelines\Order\Creation\CreateOrderAddresses` matched existing order addresses on both type and postcode, so a cart whose draft order was rebuilt with a changed address added a second row of the same type rather than updating the first. Because `$order->shippingAddress` returns the oldest match, the order then reported the stale address.
+
+Existing addresses are now matched on type alone, so each order holds at most one address per type and rebuilding the draft order updates it in place. No migration is included, so orders that already hold duplicate addresses keep them, and the extra rows can be cleaned up manually if needed.
+
+#### State tax zones are scoped to the address country
+
+A tax zone attached to a state matched any address whose state code or name matched, in any country. Because state codes collide across countries (`WA` is both Washington and Western Australia), the wrong zone could apply, and a wrong state match also suppressed the correct country zone.
+
+State lookups are now scoped to the address country, so a state zone applies only to addresses in that state's country. Stores that unintentionally relied on a cross-country match will see the lookup fall through to the country zone, then the default zone. See [Taxation → Zone resolution](/1.x/reference/taxation#zone-resolution).
+
+#### Cart repriced when the session currency changes
+
+`Lunar\Facades\CartSession::setCurrency()` updated the cart's `currency_id` but left the loaded relationships in place, so the next `calculate()` priced every line in the previous currency. The cart's loaded `currency` and `lines` relationships are now reset when the currency changes, so pricing resolves against the new currency's `Price` records. See [Carts → Setting the currency](/1.x/reference/carts#setting-the-currency).
+
 ---
 
 ## 1.4
 
-Lunar 1.4 is the latest stable release and the final minor version built on Filament v3. Lunar 1.5, currently in beta, upgrades the admin panel to Filament v4. Projects that need to remain on Filament v3 should stay on the 1.4 release line.
+Lunar 1.4 is the final minor version built on Filament v3. [Lunar 1.5](#15) upgrades the admin panel to Filament v4, so projects that need to remain on Filament v3 should stay on the 1.4 release line.
 
 ### Low Impact
 
