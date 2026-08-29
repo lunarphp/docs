@@ -1,0 +1,35 @@
+---
+title: "Lunar 1.4.0"
+sidebarTitle: "1.4.0"
+date: "2026-08-25"
+description: "Stable release on the Filament v3 line, adding a shipping management permission and fixing product variant handling in the admin panel."
+---
+
+Lunar 1.4.0 is now available. This stable release adds permission enforcement for the Table Rate Shipping add-on and fixes two related product variant bugs in the admin panel.
+
+<Info>
+Lunar 1.4 is the latest stable release supporting Filament v3. Lunar 1.5, currently in beta, upgrades the admin panel to Filament v4. Projects that need to remain on Filament v3 should stay on the 1.4 release line.
+</Info>
+
+## `shipping:manage` permission
+
+The Table Rate Shipping add-on now registers and enforces a `shipping:manage` permission on the Shipping Methods, Shipping Zones, and Shipping Exclusion Lists resources in the admin panel. A migration creates the permission automatically; staff members who previously had unrestricted access need to be assigned the new permission (or a role that includes it) to continue managing shipping. See [Table Rate Shipping](/1.x/addons/table-rate-shipping) for details.
+
+## Product variant fixes
+
+Two related bugs in the admin panel's product options handling are fixed:
+
+- Products with a sparse option matrix (for example, Size and Color combinations that do not all have a variant) no longer show the first variant's SKU under the wrong option labels.
+- Newly added option permutations now save correctly. The new variant copies its tax class and pricing deterministically from the oldest sibling variant, instead of failing because no tax class was set.
+
+## Upgrading
+
+```sh
+composer update lunarphp/lunar
+php artisan migrate
+php artisan optimize:clear
+```
+
+The migration in this release creates the `shipping:manage` permission for the Table Rate Shipping add-on. After migrating, assign the permission to any staff members or roles that manage shipping. See the [1.4 section of the upgrade guide](/1.x/getting-started/overview/upgrade-guide#14).
+
+[View the full release on GitHub](https://github.com/lunarphp/lunar/releases/tag/1.4.0).

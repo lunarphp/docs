@@ -1,0 +1,117 @@
+---
+title: "Lunar 1.5.0"
+sidebarTitle: "1.5.0"
+date: "2026-08-26"
+description: "Stable release of the 1.5 cycle, bringing Filament v4, Laravel 13 and PHP 8.3 support, a Lunar-maintained nested set package, and a broad round of discount, shipping, tax, and payment fixes."
+---
+
+Lunar 1.5.0 is now available. This is the stable release of the 1.5 cycle, closing out the work that shipped across six betas: a Filament v4 admin panel, Laravel 13 and PHP 8.3 support, and a wide round of new capabilities and fixes across discounts, shipping, tax, and payments.
+
+<Warning>
+**Filament v4 only.** Lunar 1.5 upgrades the admin panel to Filament v4 and drops support for Filament v3. Projects that need to stay on Filament v3 should remain on the [1.4 release line](/logs/2026/v1-4-0), which is the final Lunar version built on Filament v3.
+</Warning>
+
+## Framework support
+
+Lunar 1.5 requires PHP 8.3 or later and Laravel 12 or 13. PHP 8.2 and Laravel 11 have reached end of life and are no longer supported.
+
+The admin panel is built on Filament v4. Projects with custom Filament resources, pages, widgets, or actions need to follow the [Filament v4 upgrade guide](https://filamentphp.com/docs/4.x/upgrade-guide) alongside the Lunar upgrade. The `lunarphp/filament3-2fa` package is no longer required, as Filament v4 provides its own multi-factor authentication primitives.
+
+See the [installation requirements](/1.x/getting-started/setup/installation) for the full list.
+
+## High impact changes
+
+### Nested set package replaced
+
+Collections build their tree using a nested set implementation, and Lunar now ships its own maintained fork. `kalnoy/nestedset` is replaced by [`lunarphp/nestedset`](https://github.com/lunarphp/nestedset), kept current for Laravel 12 and 13.
+
+The API is unchanged, so tree queries continue to work as before, but the namespaces have moved from `Kalnoy\Nestedset` to `Lunar\Nestedset`. Application code that imports `NodeTrait`, `QueryBuilder`, or `NestedSetServiceProvider` directly needs updating. See [Collections](/1.x/reference/collections#nested-collections).
+
+### Order line purchasable morph is now nullable
+
+Shipping order lines previously stored a placeholder morph pointing at `Lunar\DataTypes\ShippingOption`, a data transfer object rather than a model. Reading `$orderLine->purchasable` on a shipping line, or eager loading `lines.purchasable` across an order, raised a fatal error as a result.
+
+The `purchasable_type` and `purchasable_id` columns on `order_lines` are now nullable, and shipping lines are stored with no morph at all. A migration nulls the placeholder on existing shipping lines, scoped to that exact class so custom morphs are left untouched. `$orderLine->purchasable` now returns `null` for shipping lines instead of failing, so storefront code iterating `$order->lines` should guard for `null` or iterate `$order->productLines` instead.
+
+### Discount conditions honored by BuyXGetY
+
+`Lunar\DiscountTypes\BuyXGetY` never checked the discount's own conditions, so minimum spend, customer restrictions, and `max_uses_per_user` were all ignored and only `min_qty` gated the reward. These are now enforced, matching `AmountOff`.
+
+Live BuyXGetY discounts configured with a minimum spend or customer restriction will start applying it, so review them before upgrading to confirm they reflect what the store intends to offer.
+
+### Stripe amount conversion
+
+`StripeManager` passed the stored cart total straight through to Stripe for all but three currency codes, assuming the currency's configured `decimal_places` matched the sub-unit Stripe expects. A currency configured with four decimal places was overcharged by a factor of 100.
+
+Amounts are now converted back to the major unit using the currency's `decimal_places`, then re-scaled to the sub-unit Stripe requires for that currency code. Stores using a currency whose `decimal_places` is not `2` should verify the amounts sent to Stripe after upgrading. See [Stripe](/1.x/addons/payments/stripe#amount-conversion).
+
+## Discounts
+
+A focused round of work on discount correctness:
+
+- Coupon codes now apply immediately on stores that also have an always-on discount. The memoized discount set was reused across carts within a request, which excluded coupon discounts and left the total unchanged until the page was reloaded.
+- Re-creating a draft order for the same cart no longer consumes another use of its discounts. A card decline followed by a retry previously exhausted the coupon and re-priced the same order without it. Carts now track their own consumed discounts through `consumedDiscountIds()`.
+- `BuyXGetY` supports a specific product variant as an automatically added reward. This previously raised a fatal error during cart calculation, taking down the basket rather than just checkout.
+- A multi-quantity `BuyXGetY` reward is added as one line with that quantity, rather than one line per item.
+- Automatically added reward lines are stored using Lunar's morph map, so their `purchasable_type` matches every other line holding the same purchasable.
+- Automatic rewards only select items that can be fulfilled, so an out-of-stock reward is skipped rather than raising an error.
+- Collection breadcrumbs are shown in the admin panel's discount selection lists, making collections with the same name distinguishable.
+- Discount usage lookups are memoized per cart instance, cutting repeated draft-order queries on every calculate.
+
+## Carts and orders
+
+- Switching the session currency now reprices the cart. `CartSession::setCurrency()` updated the cart's `currency_id` but left the loaded relationships in place, so the next calculate priced every line in the previous currency. See [Carts](/1.x/reference/carts#setting-the-currency).
+- Shipping modifiers can safely calculate the cart. A modifier that did so previously re-entered the modifier pipeline and exhausted the stack, which surfaced only once a shipping address with a selected option was present.
+- Order creation no longer duplicates addresses of the same type. Existing addresses are matched on type alone, so rebuilding a draft order with a changed address updates it in place.
+- `Cart::lines()` and `Order::lines()` order by `id`, and `ProductVariant::values()` orders by `position`. These relationships previously left row order to the database engine, which is stable on MySQL but not on PostgreSQL, where it could change a cart's fingerprint after an unrelated update.
+- Order lines for digital products appear on the generated invoice PDF. The template iterated physical lines only, silently omitting non-shippable products and services.
+
+## Tax
+
+- State tax zones are scoped to the address country. A state zone previously matched any address with a matching state code or name in any country, so a shopper in Western Australia could be charged Washington State sales tax. See [Taxation](/1.x/reference/taxation#zone-resolution).
+- `SystemTaxDriver` resolves the default tax zone through `TaxZone::getDefault()`, removing duplicate queries during cart calculation.
+
+## Shipping
+
+- Weight tiers on the `ship-by` driver are evaluated in the shipping method's configured `weight_unit`, defaulting to `kg`. Each cart line's weight is converted from its own unit first, so a cart mixing grams and kilograms totals correctly. Methods that set a unit other than `kg` need their tier thresholds re-entered in that unit. See [Table Rate Shipping](/1.x/addons/table-rate-shipping#weight-tiers).
+- The admin tier form shows the configured unit and rejects decimal weight tiers, instead of silently truncating them.
+- Shipping Zone create and update no longer fail validation with "The selected countries is invalid" when limiting a zone to specific countries or states.
+- The Shipping permission is translated in the admin panel.
+
+## Admin panel
+
+- A new `Lunar\Admin\Events\ProductVariantInventoryUpdated` event is dispatched when stock is saved on the product or variant inventory pages, bringing inventory changes in line with the panel's other resource events. See [Extending the Admin Panel](/1.x/admin/extending/overview#events).
+- Attribute `default_value` is exposed in the admin panel and applied when creating records.
+- Media custom properties are no longer dropped on create or edit. Keys contributed through a `RelationManagerExtension` are persisted, and keys the edit form does not render survive a save.
+- Customers can be deleted individually, rather than only through the bulk action.
+- Product option mapping no longer shows the first variant's SKU against unmatched option permutations, and newly added permutations save correctly, inheriting their tax class and pricing from the oldest sibling variant.
+- The Unit Quantity field on product variants enforces a minimum of `1`, preventing a division by zero when the item is added to a cart.
+- Boolean order metadata is displayed as Yes or No rather than a raw value.
+- Product variant widget labels are translated.
+- Whitespace is trimmed from panel form inputs.
+
+## Developer experience
+
+- A [Laravel Boost](https://github.com/laravel/boost) skill ships with the core package, installable with `php artisan boost:add-skill lunarphp/lunar`. It orients an AI assistant in a Lunar project and points it at current documentation. See [AI Development](/1.x/getting-started/overview/ai-development#laravel-boost-skill).
+- Date parameters on the channel and customer group scoping and scheduling traits accept `DateTimeInterface`, so applications using `Date::use(CarbonImmutable::class)` no longer hit a `TypeError` during cart and discount calculation.
+- `HasDefaultRecord::getDefault()` is annotated as nullable, matching what it returns when no record is flagged as the default.
+- The `$formatterStyle` parameter on `DefaultPriceFormatter` is typed `int`, matching the `NumberFormatter` constants passed to it.
+- Route facade imports are fixed in the Opayo and PayPal route files.
+
+## Upgrading
+
+```sh
+composer update lunarphp/lunar
+php artisan migrate
+php artisan optimize:clear
+```
+
+Upgrading from 1.4 or earlier involves breaking changes, including the Filament v3 to v4 migration. Follow the [1.5 section of the upgrade guide](/1.x/getting-started/overview/upgrade-guide#15) in full, and test on a staging environment first.
+
+Upgrading from `1.5.0-beta.6` requires the migration in this release, which makes the order line purchasable morph nullable and clears the placeholder morph from existing shipping lines.
+
+## Thanks
+
+This release includes contributions from @kha333n, @wakqasahmed, @ryanmitchell, @bpotmalnik, @Huncsuga, @wychoong, @xlvis7, @alecgarcia, @punyflash, @sgregor, @yazdanghalavand, @mathis-gp, and @glennjacobs.
+
+[View the full release on GitHub](https://github.com/lunarphp/lunar/releases/tag/1.5.0).
