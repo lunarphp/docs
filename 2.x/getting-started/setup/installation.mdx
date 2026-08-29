@@ -9,10 +9,15 @@ Lunar integrates into an existing Laravel application as a Composer package. Thi
 
 - PHP >= 8.3 (Lunar 1.5+) — PHP 8.2 is supported on Lunar 1.4 and earlier
 - Laravel 12, 13 (Lunar 1.5+) — Laravel 11 is supported on Lunar 1.4 and earlier
+- Filament 4 (Lunar 1.5+) — Filament 3 is supported on Lunar 1.4 and earlier
 - MySQL 8.0+ / PostgreSQL 9.4+
 - `bcmath` PHP extension
 - `exif` PHP extension
 - `intl` PHP extension
+
+<Info>
+Lunar 1.5 builds the admin panel on Filament v4. Projects that need to stay on Filament v3 should install the 1.4 release line, which is the final Lunar version to support it: `composer require lunarphp/lunar:"^1.4"`. See the [upgrade guide](/1.x/getting-started/overview/upgrade-guide#15) for the differences between the two.
+</Info>
 
 ## 1. Install the package
 

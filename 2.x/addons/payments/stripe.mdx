@@ -121,6 +121,25 @@ If the cart has a shipping address, the addon also calls `updateShippingAddress(
 
 Any additional parameters passed in the `$options` array are merged with the defaults.
 
+#### Amount conversion <Badge color="green" icon="sparkles" size="sm">Added in 1.5</Badge>
+
+Lunar stores prices as integers scaled by the currency's configured `decimal_places`, which does not have to match the sub-unit Stripe expects for that currency code. The add-on converts between the two: the stored value is returned to the major unit using the currency's `decimal_places`, then re-scaled to the sub-unit Stripe requires. `Lunar\Stripe\Managers\StripeManager::fromStripeAmount()` performs the inverse conversion for amounts read back from Stripe, such as those on a charge or refund.
+
+The sub-unit is chosen from the currency code, following [Stripe's currency reference](https://docs.stripe.com/currencies):
+
+| Currency codes | Decimal places | Amount sent |
+|:---------------|:---------------|:------------|
+| `HUF`, `TWD`, `UGX` (Stripe [special cases](https://docs.stripe.com/currencies#special-cases)) | 2 | Major amount × 100 |
+| `BIF`, `CLP`, `DJF`, `GNF`, `JPY`, `KMF`, `KRW`, `MGA`, `PYG`, `RWF`, `VND`, `VUV`, `XAF`, `XOF`, `XPF` | 0 | Major amount, unscaled |
+| `BHD`, `JOD`, `KWD`, `OMR`, `TND` | 3 | Major amount × 1000 |
+| All others | 2 | Major amount × 100 |
+
+Conversion uses integer arithmetic throughout, because float division misrounds at half-unit boundaries.
+
+<Warning>
+Before Lunar 1.5, the stored value was passed through unchanged for all but three currency codes, assuming the configured `decimal_places` matched what Stripe expects. A currency configured with more decimal places was therefore overcharged: a currency with four decimal places sent 100 times the intended amount. Stores using a currency whose `decimal_places` is not `2` should verify the amounts sent to Stripe after upgrading.
+</Warning>
+
 ### Fetch or create a PaymentIntent
 
 ```php
