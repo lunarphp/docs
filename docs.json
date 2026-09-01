@@ -235,7 +235,7 @@
               },
               {
                 "group": "Mission Log",
-                "pages": ["logs/2026/v1-5-0", "logs/2026/v1-4-0", "logs/2026/v1-5-0-beta-4", "logs/2026/v1-5-0-beta-3", "logs/2026/v1-5-0-beta-2", "logs/2026/v1-5-0-beta-1", "logs/2025/new-docs"]
+                "pages": ["logs/2026/v2-0-0-alpha", "logs/2026/v1-5-0", "logs/2026/v1-4-0", "logs/2026/v1-5-0-beta-4", "logs/2026/v1-5-0-beta-3", "logs/2026/v1-5-0-beta-2", "logs/2026/v1-5-0-beta-1", "logs/2025/new-docs"]
               }
             ]
           }
@@ -263,13 +263,6 @@
                 "pages": [
                   "2.x/getting-started/setup/installation",
                   "2.x/getting-started/setup/system-settings"
-                ]
-              },
-              {
-                "group": "Starter Kits",
-                "pages": [
-                  "2.x/getting-started/starter-kits/livewire",
-                  "2.x/getting-started/starter-kits/inertia-vue"
                 ]
               }
             ]
@@ -311,6 +304,7 @@
                       "2.x/reference/associations",
                       "2.x/reference/attributes",
                       "2.x/reference/collections",
+                      "2.x/reference/inventory",
                       "2.x/reference/media",
                       "2.x/reference/products",
                       "2.x/reference/search",
@@ -325,6 +319,8 @@
                       "2.x/reference/countries-states",
                       "2.x/reference/customers",
                       "2.x/reference/discounts",
+                      "2.x/reference/fulfilments",
+                      "2.x/reference/notifications",
                       "2.x/reference/orders",
                       "2.x/reference/payments",
                       "2.x/reference/pricing"
@@ -337,6 +333,8 @@
                       "2.x/reference/channels",
                       "2.x/reference/currencies",
                       "2.x/reference/languages",
+                      "2.x/reference/public-ids",
+                      "2.x/reference/regions",
                       "2.x/reference/tags",
                       "2.x/reference/taxation"
                     ]
@@ -451,6 +449,10 @@
               {
                 "group": "Trajectory",
                 "pages": ["logs/flight-plan"]
+              },
+              {
+                "group": "Mission Log",
+                "pages": ["logs/2026/v2-0-0-alpha"]
               }
             ]
           }
