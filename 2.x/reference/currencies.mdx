@@ -9,7 +9,7 @@ Currencies define the monetary units available for pricing, with exchange rates 
 Currencies allow pricing to be managed in different monetary units. Each currency has an exchange rate relative to the default currency, enabling price conversion.
 
 ```php
-Lunar\Models\Currency
+Lunar\Core\Models\Currency
 ```
 
 ### Fields
@@ -20,18 +20,18 @@ Lunar\Models\Currency
 | `code` | `string` | The [ISO 4217](https://en.wikipedia.org/wiki/ISO_4217) currency code |
 | `name` | `string` | A descriptive name for the currency |
 | `exchange_rate` | `decimal(10,4)` | The exchange rate relative to the default currency |
-| `decimal_places` | `integer` | The number of decimal places, e.g. `2` |
+| `decimal_places` | `integer` | The number of decimal places, e.g. `2`. See [Pricing](/2.x/reference/pricing#decimal-value) for how this affects stored prices |
 | `enabled` | `boolean` | Whether the currency is enabled |
 | `default` | `boolean` | Whether the currency is the default |
-| `sync_prices` | `boolean` | Whether to synchronize prices for this currency |
 | `created_at` | `timestamp` | |
 | `updated_at` | `timestamp` | |
+| `sync_prices` | `boolean` | Whether to synchronize prices for this currency |
 
 ### Relationships
 
 | Relationship | Type | Related Model | Description |
 |:-|:-|:-|:-|
-| `prices` | `HasMany` | `Lunar\Models\Price` | Prices in this currency |
+| `prices` | `HasMany` | `Lunar\Core\Models\Price` | Prices in this currency |
 
 ### Scopes
 
@@ -43,7 +43,7 @@ Lunar\Models\Currency
 ## Creating a currency
 
 ```php
-use Lunar\Models\Currency;
+use Lunar\Core\Models\Currency;
 
 Currency::create([
     'code' => 'GBP',
@@ -60,7 +60,7 @@ Currency::create([
 Exchange rates are relative to the default currency. For example, given the following default currency:
 
 ```php
-use Lunar\Models\Currency;
+use Lunar\Core\Models\Currency;
 
 Currency::create([
     'code' => 'GBP',

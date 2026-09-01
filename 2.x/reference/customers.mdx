@@ -11,27 +11,29 @@ Lunar uses a dedicated Customer model to store customer details, rather than the
 ## Customers
 
 ```php
-Lunar\Models\Customer
+Lunar\Core\Models\Customer
 ```
 
 |Field|Type|Description|
 |:-|:-|:-|
 |`id`||primary key|
+|`public_id`|`ulid`|Public-facing identifier, generated automatically|
 |`title`|`string` `nullable`|Salutation e.g. Mr, Mrs, Miss|
 |`first_name`|`string`||
 |`last_name`|`string`||
 |`company_name`|`string` `nullable`||
 |`tax_identifier`|`string` `nullable`||
-|`account_ref`|`string` `nullable`||
-|`attribute_data`|`json` `nullable`||
-|`meta`|`json` `nullable`||
+|`meta`|`jsonb` `nullable`||
 |`created_at`|`timestamp`||
 |`updated_at`|`timestamp`||
+|`attribute_data`|`jsonb` `nullable`||
+|`account_ref`|`string` `nullable`||
+|`admin_notes`|`text` `nullable`||
 
 ### Creating a customer
 
 ```php
-Lunar\Models\Customer::create([
+Lunar\Core\Models\Customer::create([
     'title' => 'Mr.',
     'first_name' => 'Tony',
     'last_name' => 'Stark',
@@ -48,7 +50,7 @@ Lunar\Models\Customer::create([
 The Customer model provides a `full_name` accessor that combines the `title`, `first_name`, and `last_name` fields.
 
 ```php
-$customer = Lunar\Models\Customer::create([
+$customer = Lunar\Core\Models\Customer::create([
     'title' => 'Mr.',
     'first_name' => 'Tony',
     'last_name' => 'Stark',
@@ -61,12 +63,13 @@ $customer->full_name; // "Mr. Tony Stark"
 
 |Relationship|Type|Related Model|Description|
 |:-|:-|:-|:-|
-|`customerGroups`|`BelongsToMany`|`Lunar\Models\CustomerGroup`|Pivot: `customer_customer_group`|
+|`customerGroups`|`BelongsToMany`|`Lunar\Core\Models\CustomerGroup`|Pivot: `customer_customer_group`|
 |`users`|`BelongsToMany`|Configured via `auth.providers.users.model`|Pivot: `customer_user`|
-|`discounts`|`BelongsToMany`|`Lunar\Models\Discount`|Pivot: `customer_discount`|
-|`addresses`|`HasMany`|`Lunar\Models\Address`||
-|`orders`|`HasMany`|`Lunar\Models\Order`||
-|`mappedAttributes`|`MorphToMany`|`Lunar\Models\Attribute`||
+|`discounts`|`BelongsToMany`|`Lunar\Core\Models\Discount`|Pivot: `customer_discount`|
+|`addresses`|`HasMany`|`Lunar\Core\Models\Address`||
+|`orders`|`HasMany`|`Lunar\Core\Models\Order`||
+|`carts`|`HasMany`|`Lunar\Core\Models\Cart`||
+|`mappedAttributes`|`MorphToMany`|`Lunar\Core\Models\Attribute`||
 
 ## Users
 
@@ -75,7 +78,7 @@ Customers are typically associated with a user so that they can place orders. It
 ### Attaching users to a customer
 
 ```php
-$customer = \Lunar\Models\Customer::create([/* ... */]);
+$customer = \Lunar\Core\Models\Customer::create([/* ... */]);
 
 $customer->users()->attach($user);
 
@@ -85,7 +88,7 @@ $customer->users()->sync([$userA->id, $userB->id, $userC->id]);
 ## Attaching a customer to a customer group
 
 ```php
-$customer = \Lunar\Models\Customer::create([/* ... */]);
+$customer = \Lunar\Core\Models\Customer::create([/* ... */]);
 
 $customer->customerGroups()->attach($customerGroup);
 
@@ -114,7 +117,7 @@ At least one customer group must exist in the store. When Lunar is installed, a 
 ## Creating a customer group
 
 ```php
-$customerGroup = Lunar\Models\CustomerGroup::create([
+$customerGroup = Lunar\Core\Models\CustomerGroup::create([
     'name' => 'Retail',
     'handle' => 'retail', // Must be unique
     'default' => false,
@@ -131,7 +134,7 @@ To add customer group availability to custom models, the `HasCustomerGroups` tra
 
 ```php
 // ...
-use Lunar\Base\Traits\HasCustomerGroups;
+use Lunar\Core\Models\Concerns\HasCustomerGroups;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class MyModel extends Model
@@ -143,7 +146,7 @@ class MyModel extends Model
         $prefix = config('lunar.database.table_prefix');
 
         return $this->belongsToMany(
-            \Lunar\Models\CustomerGroup::class,
+            \Lunar\Core\Models\CustomerGroup::class,
             "{$prefix}customer_group_my_model"
         )->withTimestamps()->withPivot(['enabled', 'visible', 'starts_at', 'ends_at']);
     }

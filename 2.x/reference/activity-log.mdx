@@ -10,7 +10,7 @@ Lunar has activity logging built in to track changes on Eloquent models. This pr
 
 ## How it works
 
-Lunar uses the [laravel-activitylog](https://spatie.be/docs/laravel-activitylog) package by Spatie under the hood, wrapped in a custom trait at `Lunar\Base\Traits\LogsActivity`. This trait configures the following defaults:
+Lunar uses the [laravel-activitylog](https://spatie.be/docs/laravel-activitylog) package by Spatie under the hood, wrapped in a custom trait at `Lunar\Core\Models\Concerns\LogsActivity`. This trait configures the following defaults:
 
 - All attribute changes are logged (except `updated_at`)
 - Only dirty (changed) attributes are recorded
@@ -19,7 +19,7 @@ Lunar uses the [laravel-activitylog](https://spatie.be/docs/laravel-activitylog)
 
 The following models have activity logging enabled:
 
-AttributeGroup, Brand, Cart, CartAddress, CartLine, Channel, CollectionGroup, Currency, Customer, CustomerGroup, Discount, Order, OrderAddress, OrderLine, Product, ProductOption, ProductType, ProductVariant, Tag, TaxClass, TaxRate, TaxZone, and Transaction.
+AttributeGroup, Brand, Cart, CartAddress, CartLine, Channel, Collection, CollectionGroup, Currency, Customer, CustomerGroup, Discount, Fulfilment, FulfilmentLine, FulfilmentTracking, Location, Order, OrderAddress, OrderLine, Product, ProductOption, ProductType, ProductVariant, RefundLine, Staff, Tag, TaxClass, TaxRate, TaxZone, and Transaction.
 
 ## Enabling on your own models
 
@@ -31,7 +31,7 @@ To enable logging on custom models, use Lunar's trait rather than Spatie's direc
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Lunar\Base\Traits\LogsActivity;
+use Lunar\Core\Models\Concerns\LogsActivity;
 
 class MyCustomModel extends Model
 {

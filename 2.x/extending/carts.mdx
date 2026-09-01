@@ -3,41 +3,78 @@ title: "Extending Carts"
 sidebarTitle: "Carts"
 ---
 
-The cart system can be extended with custom pipelines and modifiers to add business logic.
+The cart system is extended by swapping action contracts in the container, and by registering pipeline steps and validators for its calculation and validation lists.
 
 ## Overview
 
-Carts are a central part of any e-commerce storefront. The cart system is designed to be easily extended, allowing any custom logic to be added throughout a cart's lifetime.
+Every operation `Lunar\Core\Models\Cart` performs — adding a line, setting a shipping option, creating an order — is a one-line delegation from a verb method on the model to an action contract resolved from the container. Swapping behavior means binding a different implementation of that contract in a service provider; the verb picks it up automatically.
 
-## Pipelines
+```php
+public function add(Purchasable $purchasable, int $quantity = 1, array $meta = [], bool $refresh = true): Cart
+{
+    // ...
+    app(AddsOrUpdatesPurchasable::class)->execute($this, $purchasable, $quantity, $meta);
 
-### Adding a Cart Pipeline
+    return $refresh ? $this->refresh()->recalculate() : $this;
+}
+```
 
-All pipelines are defined in `config/lunar/cart.php`
+## Cart action contracts
+
+`Lunar\Core\ActionServiceProvider`'s `$actions` map is the canonical list of swappable action seams. The cart-related entries, each a `Lunar\Core\Contracts\Actions\Carts\*` interface bound to its `Lunar\Core\Actions\Carts\*` default implementation:
+
+| Contract | Default implementation |
+| --- | --- |
+| `AddsAddress` | `AddAddress` |
+| `AddsOrUpdatesPurchasable` | `AddOrUpdatePurchasable` |
+| `AssociatesUser` | `AssociateUser` |
+| `CalculatesLine` | `CalculateLine` |
+| `CalculatesLineSubtotal` | `CalculateLineSubtotal` |
+| `CreatesOrder` | `CreateOrder` |
+| `GeneratesFingerprint` | `GenerateFingerprint` |
+| `GetsExistingCartLine` | `GetExistingCartLine` |
+| `MergesCart` | `MergeCart` |
+| `RemovesPurchasable` | `RemovePurchasable` |
+| `SetsShippingOption` | `SetShippingOption` |
+| `UpdatesCartLine` | `UpdateCartLine` |
+
+Rebind a contract from a consumer's own service provider:
+
+```php
+use Lunar\Core\Contracts\Actions\Carts\AddsOrUpdatesPurchasable;
+
+public function register(): void
+{
+    $this->app->bind(AddsOrUpdatesPurchasable::class, MyAddsOrUpdatesPurchasable::class);
+}
+```
+
+<Info>
+Config-string class substitution (`config('lunar.*', SomeClass::class)`) is not used for these seams — the contract is bound in the container, and a consumer swaps it there. Do not add a config key to point at a custom class.
+</Info>
+
+## Calculation pipelines
+
+Cart totals are calculated by running the cart through an ordered list of pipeline classes, and cart lines through a second list. Both lists live in `config/lunar/cart.php`, as ordered lists rather than single-implementation swaps:
 
 ```php
 'pipelines' => [
-    /*
-     * Run these pipelines when the cart is calculating.
-     */
     'cart' => [
-        Lunar\Pipelines\Cart\CalculateLines::class,
-        Lunar\Pipelines\Cart\ApplyShipping::class,
-        Lunar\Pipelines\Cart\ApplyDiscounts::class,
-        Lunar\Pipelines\Cart\CalculateTax::class,
-        Lunar\Pipelines\Cart\Calculate::class,
+        Lunar\Core\Pipelines\Cart\CalculateLines::class,
+        Lunar\Core\Pipelines\Cart\ApplyShipping::class,
+        Lunar\Core\Pipelines\Cart\CalculateShippingSubTotal::class,
+        Lunar\Core\Pipelines\Cart\ApplyDiscounts::class,
+        Lunar\Core\Pipelines\Cart\CalculateTax::class,
+        Lunar\Core\Pipelines\Cart\Calculate::class,
     ],
 
-    /*
-     * Run these pipelines when the cart lines are being calculated.
-     */
     'cart_lines' => [
-        Lunar\Pipelines\CartLine\GetUnitPrice::class,
+        Lunar\Core\Pipelines\CartLine\GetUnitPrice::class,
     ],
 ],
 ```
 
-You can add your own pipelines to the configuration, they might look something like:
+Add a pipe by appending a class to the relevant array. A cart pipe implements `handle(Cart $cart, Closure $next): mixed`; a cart line pipe implements the same shape against `CartLine`.
 
 ```php
 <?php
@@ -45,88 +82,130 @@ You can add your own pipelines to the configuration, they might look something l
 namespace App\Pipelines\Cart;
 
 use Closure;
-use Lunar\Models\Contracts\Cart;
+use Lunar\Core\Models\Cart;
 
 class CustomCartPipeline
 {
     public function handle(Cart $cart, Closure $next): mixed
     {
-        // Do something to the cart...
+        // ...
 
         return $next($cart);
     }
 }
 ```
 
+<Tip>
+Pipes run in the order listed, top to bottom.
+</Tip>
+
+## Validators
+
+`Cart::add()`, `updateLine()`, `remove()`, `addAddress()`, `setShippingOption()`, and `createOrder()` each run a list of validators, configured the same way, in `config/lunar/cart.php`:
+
 ```php
-'cart' => [
-    // ...
-    App\Pipelines\Cart\CustomCartPipeline::class,
+'validators' => [
+    'add_to_cart' => [
+        Lunar\Core\Validation\CartLine\CartLineQuantity::class,
+        Lunar\Core\Validation\CartLine\CartLineStock::class,
+        Lunar\Core\Validation\CartLine\CartLineAvailability::class,
+    ],
+    'update_cart_line' => [/* ... */],
+    'remove_from_cart' => [],
+    'set_shipping_option' => [
+        Lunar\Core\Validation\Cart\ShippingOptionValidator::class,
+    ],
+    'order_create' => [
+        Lunar\Core\Validation\Cart\ValidateCartForOrderCreation::class,
+    ],
 ],
 ```
 
-<Tip>
-Pipelines will run from top to bottom
-</Tip>
-
-## Actions
-
-During the lifecycle of a cart, various actions are taken. While generally what Lunar provides will be fine for most storefronts, there are times where something slightly different may be needed. For this reason, all actions are configurable and can be swapped out as needed.
-
-Actions are defined in `config/lunar/cart.php` and if you need to replace an action, check the class of the action you want to change to see what it is expecting.
-
-## Action validation
-
-You may wish to provide some validation against actions before they run. Your own validation may look something like:
-
+A validator extends `Lunar\Core\Validation\BaseValidator`:
 
 ```php
 <?php
 
 namespace App\Validation\CartLine;
 
-use Lunar\Validation\BaseValidator;
+use Lunar\Core\Validation\BaseValidator;
 
 class CartLineQuantity extends BaseValidator
 {
-    /**
-     * {@inheritDoc}
-     */
     public function validate(): bool
     {
         $quantity = $this->parameters['quantity'] ?? 0;
 
-        // ...
-
-        if (!$condition) {
+        if (! $condition) {
             return $this->fail('cart', 'Something went wrong');
         }
-
 
         return $this->pass();
     }
 }
-
 ```
 
-You can then register this class against the corresponding action in `config/lunar/cart.php`:
+Register it against the relevant action in `config/lunar/cart.php`:
 
 ```php
 'validators' => [
     'add_to_cart' => [
         // ...
-        \App\Validation\CartLine\CartLineQuantity::class,
+        App\Validation\CartLine\CartLineQuantity::class,
     ],
-    // ...
 ],
 ```
 
-If validation fails, a `Lunar\Exceptions\Carts\CartException` will be thrown. Errors can be accessed in the same way as Laravel's own validation responses.
+If validation fails, `Lunar\Core\Exceptions\Carts\CartException` is thrown. Errors are accessed the same way as Laravel's own validation responses:
 
 ```php
 try {
     $cart->setShippingOption($option);
-} catch (\Lunar\Exceptions\Carts\CartException $e) {
+} catch (\Lunar\Core\Exceptions\Carts\CartException $e) {
     $e->errors()->all();
 }
 ```
+
+## Cart line modifiers
+
+A cart line unit price and subtotal can be adjusted just after it is calculated, using a `Lunar\Core\Modifiers\CartLineModifier`:
+
+```php
+<?php
+
+namespace App\Modifiers;
+
+use Closure;
+use Lunar\Core\Models\CartLine;
+use Lunar\Core\Modifiers\CartLineModifier;
+
+class MyCartLineModifier extends CartLineModifier
+{
+    public function subtotalled(CartLine $cartLine, Closure $next): CartLine
+    {
+        // Adjust $cartLine->subTotal, ->unitPrice, ...
+
+        return $next($cartLine);
+    }
+}
+```
+
+`CartLineModifier` also exposes `calculating()` and `calculated()` hooks. Register an instance with the `Lunar\Core\Modifiers\CartLineModifiers` collection, resolved from the container:
+
+```php
+use App\Modifiers\MyCartLineModifier;
+use Lunar\Core\Modifiers\CartLineModifiers;
+
+public function boot(): void
+{
+    app(CartLineModifiers::class)->add(new MyCartLineModifier);
+}
+```
+
+<Warning>
+`Lunar\Core\Modifiers\CartModifier` and its `CartModifiers` collection are also registered in the container, but nothing in core currently runs a cart through them — only `CartLineModifier` (via `CalculateLineSubtotal`) and the shipping equivalent, `ShippingModifier` (see [Extending Shipping](/2.x/extending/shipping)), are wired into a live calculation step. Do not rely on `CartModifier` for cart-level hooks until it is dispatched somewhere in core.
+</Warning>
+
+## Overriding order creation
+
+`Cart::createOrder()` delegates to `Contracts\Carts\CreatesOrder`, which in turn runs the order through the pipeline configured in `config/lunar/orders.php`. See [Extending Orders](/2.x/extending/orders) for the order-side pipeline and action contracts.

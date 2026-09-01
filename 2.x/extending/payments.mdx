@@ -3,282 +3,269 @@ title: "Extending Payments"
 sidebarTitle: "Payments"
 ---
 
-Custom payment drivers can be added to support any payment provider.
+A custom payment driver can be built to support any payment provider, by implementing the `Lunar\Core\Contracts\PaymentType` contract and registering it with the `Payments` manager.
 
 ## Overview
 
-Lunar provides an easy way for you to add your own payment drivers, by default, there is a basic `OfflinePayment` driver
-that ships with Lunar, additional providers should be added to your Storefront via addons.
+Payments in Lunar are driver-based. Each driver is responsible for authorizing a payment, capturing an intent, and issuing refunds, then recording the result as transactions against the order. Lunar ships an `OfflinePayment` driver for cash-in-hand and manual scenarios; anything else, including card payments, is added as a driver.
 
-Below is a list of available payment drivers.
+`lunarphp/stripe` is Lunar's first-party reference implementation and is the best place to see a complete driver in production use. See [Stripe](/2.x/addons/payments/stripe) for the add-on itself, and [Payments](/2.x/reference/payments) for day-to-day configuration and usage.
 
-## Available drivers
+## The PaymentType contract
 
-### First party
-
-- [Stripe](https://github.com/lunarphp/stripe)
-
-### Community
-
-> Made a custom driver that should be listed here? Get in touch on the Lunar discord channel to get it added.
-
-## Building your own
-
-A payment driver should take into account 2 fundamentals:
-
-* Capturing a payment (whether straight away, or at a later date)
-* Refunding an existing payment
-
-### Registering your driver
+A driver implements `Lunar\Core\Contracts\PaymentType`:
 
 ```php
-use Lunar\Facades\Payments;
+namespace Lunar\Core\Contracts;
+
+use Lunar\Core\DataObjects\PaymentAuthorize;
+use Lunar\Core\DataObjects\PaymentCapture;
+use Lunar\Core\DataObjects\PaymentRefund;
+use Lunar\Core\Models\Cart;
+use Lunar\Core\Models\Order;
+use Lunar\Core\Models\Transaction;
+
+interface PaymentType
+{
+    public function cart(Cart $cart): self;
+
+    public function order(Order $order): self;
+
+    public function withData(array $data): self;
+
+    public function setConfig(array $config): self;
+
+    public function allowPartialPayment(bool $condition = true): self;
+
+    public function authorize(): ?PaymentAuthorize;
+
+    public function refund(Transaction $transaction, int $amount, $notes = null): PaymentRefund;
+
+    public function capture(Transaction $transaction, $amount = 0): PaymentCapture;
+}
+```
+
+| Method | Purpose |
+| :--- | :--- |
+| `cart()` | Sets the cart the driver is operating against, and clears any previously set order. Called before `authorize()` when paying from checkout. |
+| `order()` | Sets the order the driver is operating against, and clears any previously set cart. Called before `authorize()` when paying against an existing order (e.g. capturing a deferred payment). |
+| `withData()` | Passes provider-specific data to the driver, such as a payment intent ID submitted from the frontend. |
+| `setConfig()` | Passes the driver's configuration block from `config/lunar/payments.php`. Lunar calls this automatically when the driver is resolved. |
+| `allowPartialPayment()` | Toggles whether the driver should accept a payment for less than the full cart or order total, for example a deposit. Defaults to `false`. |
+| `authorize()` | Authorizes the payment, creates the order if one does not already exist, and records the resulting transaction. Returns `null` when nothing could be done, or a `PaymentAuthorize` object describing the outcome. |
+| `refund()` | Refunds a captured transaction for the given amount and returns a `PaymentRefund` object. |
+| `capture()` | Captures an amount against an `intent` transaction and returns a `PaymentCapture` object. |
+
+Rather than implementing the interface directly, a driver typically extends `Lunar\Core\PaymentTypes\AbstractPayment`, which implements `cart()`, `order()`, `withData()`, `setConfig()`, and `allowPartialPayment()`, leaving only `authorize()`, `refund()`, and `capture()` to be written.
+
+`AbstractPayment` also defines `getPaymentChecks(Transaction $transaction): Lunar\Core\DataObjects\PaymentChecks`. This method is not part of the `PaymentType` contract itself, but every transaction resolves its driver and calls it through `Transaction::paymentChecks()`, so a driver that performs verification checks (AVS, postal code, CVC, and similar) should override it. The default implementation returns an empty `PaymentChecks` collection.
+
+```php
+use Lunar\Core\DataObjects\PaymentCheck;
+use Lunar\Core\DataObjects\PaymentChecks;
+use Lunar\Core\Models\Transaction;
+
+public function getPaymentChecks(Transaction $transaction): PaymentChecks
+{
+    $checks = new PaymentChecks;
+
+    $checks->addCheck(new PaymentCheck(
+        successful: true,
+        label: 'CVC check',
+        message: 'CVC matched',
+    ));
+
+    return $checks;
+}
+```
+
+## Registering a driver
+
+A driver is registered with the `Payments` manager, usually from a service provider's `boot()` method:
+
+```php
+use Lunar\Core\Facades\Payments;
 
 Payments::extend('custom', function ($app) {
     return $app->make(CustomPayment::class);
 });
 ```
 
-### The payment driver class
-
-The following is the complete class, which is then broken down below.
+The driver is then made available by mapping a payment type to it in `config/lunar/payments.php`:
 
 ```php
-<?php
+return [
+    'default' => env('PAYMENTS_TYPE', 'cash-in-hand'),
 
+    'types' => [
+        'cash-in-hand' => [
+            'driver' => 'offline',
+            'authorized' => 'payment-offline',
+        ],
+        'card' => [
+            'driver' => 'custom',
+        ],
+    ],
+];
+```
+
+<Info>
+Whatever is set under a type's `driver` key is passed to `setConfig()` automatically when the driver is resolved, so any additional configuration a driver needs can be added alongside it.
+</Info>
+
+## Verifying the amount and currency
+
+Before an order is placed, a driver must confirm that the amount and currency it received from the provider match the cart or order total it is authorizing. Skipping this check allows a stale or tampered payment intent to place an order at the wrong price.
+
+```php
 namespace App\PaymentTypes;
 
-use Lunar\Base\DataTransferObjects\PaymentAuthorize;
-use Lunar\Base\DataTransferObjects\PaymentCapture;
-use Lunar\Base\DataTransferObjects\PaymentRefund;
-use Lunar\Events\PaymentAttemptEvent;
-use Lunar\Models\Transaction;
-use Lunar\PaymentTypes\AbstractPayment;
+use Lunar\Core\DataObjects\PaymentAuthorize;
+use Lunar\Core\Events\PaymentAttemptEvent;
+use Lunar\Core\Models\Currency;
+use Lunar\Core\PaymentTypes\AbstractPayment;
 
 class CustomPayment extends AbstractPayment
 {
-    /**
-     * {@inheritDoc}
-     */
-    public function authorize(): ?PaymentAuthorize
+    protected function assertAmountMatchesTotal(int $providerAmount, string $providerCurrency): ?PaymentAuthorize
     {
-        if (!$this->order) {
-            if (!$this->order = $this->cart->order) {
-                $this->order = $this->cart->createOrder();
-            }
+        if ($this->allowPartialPayment) {
+            return null;
         }
 
-        // ...
-        
-        $response = new PaymentAuthorize(
-            success: true,
-            message: 'The payment was successful',
-            orderId: $this->order->id,
-            paymentType: 'custom-type'
+        if ($this->order) {
+            $expectedAmount = $this->order->total->value;
+            $currency = $this->order->currency;
+        } else {
+            $calculated = $this->cart->calculate();
+            $expectedAmount = $calculated->total->value;
+            $currency = $calculated->currency;
+        }
+
+        $amountMatches = $this->toProviderAmount($expectedAmount, $currency) === $providerAmount;
+        $currencyMatches = strtolower($currency->code) === strtolower($providerCurrency);
+
+        if ($amountMatches && $currencyMatches) {
+            return null;
+        }
+
+        $failure = new PaymentAuthorize(
+            success: false,
+            message: 'Payment amount does not match order total',
+            orderId: $this->order?->id,
+            paymentType: 'custom',
         );
-        
-        PaymentAttemptEvent::dispatch($response);
 
-        return $response;
+        PaymentAttemptEvent::dispatch($failure);
+
+        return $failure;
     }
 
-    /**
-     * {@inheritDoc}
-     */
-    public function refund(Transaction $transaction, int $amount = 0, $notes = null): PaymentRefund
-    {
-        // ...
-        return new PaymentRefund(true);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function capture(Transaction $transaction, $amount = 0): PaymentCapture
-    {
-        // ...
-        return new PaymentCapture(true);
-    }
+    // ...
 }
 ```
 
-This is the most basic implementation of a driver, extending the `AbstractPayment` class provided by Lunar. This class
-contains useful helpers that can be used in custom drivers.
+`authorize()` should call this check as soon as the provider's response is available, and return the failure immediately if it does not pass.
 
-[See available methods](#abstract-class-methods)
+## Scaling amounts
 
-#### Releasing payments
-
-```php
-public function authorize();
-```
-
-This is where you'd check the payment details which have been passed in, create any transactions for the order and
-return the response.
-
-If payment is not being taken straight away, any transactions should be set to the type of `intent`. When the payment is
-later captured, it is recommended to create another transaction that is related to the intent via
-the `parent_transaction_id`.
-
-#### Capturing payments
+Lunar stores prices as integers scaled by `Currency::decimal_places`, which a merchant can set independently of what a payment provider expects. Never assume two decimal places: convert through `decimal_places` explicitly when talking to a provider, and convert back the same way when reading an amount from it.
 
 ```php
-public function capture(Transaction $transaction, $amount = 0): PaymentCapture
+use Lunar\Core\Models\Currency;
+
+protected function toProviderAmount(int $value, Currency $currency): int
+{
+    $majorUnits = $value / (10 ** max($currency->decimal_places, 0));
+
+    // Rescale $majorUnits to whatever sub-unit the provider expects for
+    // this currency before returning an integer amount.
+    return (int) round($majorUnits * (10 ** $providerDecimalPlaces));
+}
 ```
 
-When you have a transaction that has a type of `intent` the Staff member who is logged into the hub can then decide to
-capture it so the card used gets charged the amount that has been authorised.
+`lunarphp/stripe`'s `Lunar\Stripe\Managers\StripeManager::toStripeAmount()` and `fromStripeAmount()` are a complete worked example of this conversion, including handling zero-decimal and three-decimal provider currencies.
 
-You can pass an optional amount, but be cautious as you generally cannot capture an amount that exceeds the original
-amount on the `intent` transaction. If you capture an amount less, services like Stripe will treat that as a partial
-refund and no further captures can take place on that order.
+## Recording transactions
 
-Here you should create an additional transaction against the order to show how much has been captured.
+Every authorization, capture, and refund a driver performs should be recorded as a `Lunar\Core\Models\Transaction` against the order.
 
-#### Refunding payments
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `id` | `bigIncrements` | Primary key |
+| `public_id` | `ulid` | |
+| `order_id` | `foreignId` | The associated order |
+| `success` | `boolean` | Whether the transaction succeeded |
+| `driver` | `string` | The payment driver, e.g. `stripe` |
+| `amount` | `integer` | Amount in the currency's smallest unit, e.g. `10000` |
+| `reference` | `string` | Provider reference, e.g. `pi_123456` |
+| `status` | `string` | Provider-specific status |
+| `notes` | `string` `nullable` | Any additional notes for the transaction |
+| `card_type` | `string` `nullable` | Card brand, e.g. `visa` |
+| `last_four` | `string` `nullable` | Last four digits of the card |
+| `meta` | `jsonb` `nullable` | Additional provider data |
+| `created_at` | `timestamp` `nullable` | |
+| `updated_at` | `timestamp` `nullable` | |
+| `parent_transaction_id` | `foreignId` `nullable` | The ID of the preceding transaction |
+| `captured_at` | `dateTime` `nullable` | When the payment was captured |
+| `type` | `enum` `nullable` | One of `intent`, `capture`, or `refund`; defaults to `capture` |
+
+### Authorizing
+
+If a payment is not captured immediately, its transaction should use the type `intent`. When it is later captured, create a second transaction related to the intent through `parent_transaction_id`:
 
 ```php
-public function refund(Transaction $transaction, int $amount = 0, $notes = null): PaymentRefund
-```
-
-When refunding a transaction, you can only do so to one that's been captured. If you need to refund an order that hasn't
-been captured you should instead capture an amount less to what's been authorised.
-
-You should only refund transactions with the type `capture`.
-
-<a name="abstract-class-methods"></a>
-
-## The AbstractPayment class
-
-### Available methods
-
-- [`cart`](#cart)
-- [`order`](#order)
-- [`withData`](#withData)
-- [`setConfig`](#setconfig)
-
-#### `cart`
-
-```php
-public function cart(Cart $cart): self
-```
-
-Sets the `$cart` property on the payment driver. When using the `authorize` method, it is recommended to expect a `$cart`
-instance and check for the existence of an order.
-
-#### `order`
-
-```php
-public function order(Order $order): self
-```
-
-Sets the `$order` property on the payment driver.
-
-#### `withData`
-
-```php
-public function withData(array $data): self
-```
-
-This method allows you to add any additional data to the payment driver, this can be anything that the payment driver
-needs to function, for example.
-
-```php
-Payments::driver('stripe')->withData([
-    'payment_intent' => $paymentIntentId
-])->authorize();
-```
-
-#### `setConfig`
-
-```php
-public function setConfig(array $config): self
-```
-
-Here you can set up any additional config for this payment driver. By default, this will be called when you register
-your payment driver and will take any values which are set in `config/lunar/payments.php` for that type.
-
-## Creating transactions
-
-Depending on how your driver works, you're likely going to need to create some transactions depending on different
-scenarios.
-
-### Database Schema
-
-```
-Lunar\Models\Transaction
-```
-
-| Field                   | Type                   | Description                                                  |
-| :---------------------- | :--------------------- | :----------------------------------------------------------- |
-| `id`                    | `bigint`               | Primary key                                                  |
-| `parent_transaction_id` | `foreignId` `nullable` | The ID of the preceding transaction                          |
-| `order_id`              | `foreignId`            | The associated order                                         |
-| `success`               | `boolean`              | Whether the transaction succeeded                            |
-| `type`                  | `enum`                 | One of `intent`, `capture`, or `refund`                      |
-| `driver`                | `string`               | The payment driver, e.g. `stripe`                            |
-| `amount`                | `integer`              | Amount in the currency's smallest unit, e.g. `10000`         |
-| `reference`             | `string`               | Provider reference, e.g. `STRIPE_123456`                     |
-| `status`                | `string`               | Provider-specific status                                     |
-| `notes`                 | `string` `nullable`    | Any additional notes for the transaction                     |
-| `card_type`             | `string` `nullable`    | Card brand, e.g. `visa`                                      |
-| `last_four`             | `string` `nullable`    | Last four digits of the card                                 |
-| `meta`                  | `json` `nullable`      | Additional provider data                                     |
-| `captured_at`           | `dateTime` `nullable`  | When the payment was captured                                |
-| `created_at`            | `timestamp` `nullable` |                                                              |
-| `updated_at`            | `timestamp` `nullable` |                                                              |
-
-### Best Practices
-
-#### Releasing
-
-When releasing a payment, if you're not charging the card straight away, you should create a transaction with
-type `intent`. This tells Lunar you intend to charge the card at a later date.
-
-```php
-Transaction::create([
-    //...
+$order->transactions()->create([
+    'success' => true,
+    'driver' => 'custom',
+    'amount' => $amount,
+    'reference' => $reference,
+    'status' => 'pending',
     'type' => 'intent',
 ]);
 ```
 
-If you are charging the card straight away, set the type to `capture`.
+If the payment is captured straight away, record it directly with type `capture` instead.
 
-```php
-Transaction::create([
-    //...
-    'type' => 'capture',
-]);
-```
-
-#### Capturing
+### Capturing
 
 <Tip>
-If the card is already being charged, this step can be skipped as payment has already been received.
+If the provider already charged the card at authorization time, capturing can be skipped entirely, as with `OfflinePayment`.
 </Tip>
-
-When capturing a transaction, you should create an additional transaction with the amount that's been captured. Even if
-this is the same amount as the `intent` transaction.
 
 ```php
 $intent = Transaction::whereType('intent')->first();
 
-Transaction::create([
-    //...
+$intent->order->transactions()->create([
     'parent_transaction_id' => $intent->id,
+    'success' => true,
+    'driver' => 'custom',
+    'amount' => $amount,
+    'reference' => $reference,
+    'status' => 'captured',
     'type' => 'capture',
-    'amount' => 2000,
+    'captured_at' => now(),
 ]);
 ```
 
-#### Refunding
+Do not capture an amount greater than the original `intent` amount. Capturing less than the intent amount is treated by most providers as a partial refund, after which no further capture can take place against that intent.
+
+### Refunding
+
+Only a `capture` transaction can be refunded. To refund a payment that has not yet been captured, capture a smaller amount instead.
 
 ```php
 $capture = Transaction::whereType('capture')->first();
 
-Transaction::create([
-    //...
+$capture->order->transactions()->create([
     'parent_transaction_id' => $capture->id,
+    'success' => true,
+    'driver' => 'custom',
+    'amount' => $amount,
+    'reference' => $reference,
+    'status' => 'refunded',
     'type' => 'refund',
 ]);
 ```
+
+`Transaction` exposes `refund(int $amount, $notes = null)` and `capture(int $amount = 0)` convenience methods that delegate to the transaction's own driver, resolved through `Payments::driver($transaction->driver)`.
