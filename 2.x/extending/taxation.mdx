@@ -255,4 +255,3 @@ class AcmeTaxDriver implements TaxDriver
 `Lunar\Core\Drivers\SystemTaxDriver` is the shipped default driver and the best reference for how a driver fits together, including how it resolves a `TaxZone` when `setTaxZone()` has not been called, and how it distributes rounding remainders across multiple tax rates. Its constructor collaborators are resolved through the container and are not part of the public contract, so a custom driver is free to depend on whatever it needs.
 
 For configuring tax zones, tax classes, and tax rates that `SystemTaxDriver` uses out of the box, see the [Taxation reference](/2.x/reference/taxation).
-</content>
