@@ -24,9 +24,9 @@ Route::get('/products/{slug}', [ProductController::class, 'show'])->name('produc
 ### Resolve the Product
 
 ```php
-use Lunar\Facades\StorefrontSession;
-use Lunar\Models\Product;
-use Lunar\Models\Url;
+use Lunar\Core\Facades\StorefrontSession;
+use Lunar\Core\Models\Product;
+use Lunar\Core\Models\Url;
 
 class ProductController extends Controller
 {
@@ -40,7 +40,7 @@ class ProductController extends Controller
         $customerGroups = StorefrontSession::getCustomerGroups();
 
         $product = Product::where('id', $url->element_id)
-            ->where('status', 'published')
+            ->whereVisible()
             ->channel($channel)
             ->customerGroup($customerGroups)
             ->with([
@@ -62,24 +62,24 @@ class ProductController extends Controller
 Eager loading relationships in a single query avoids N+1 performance issues. The `with()` call above loads everything needed to render the full PDP.
 </Tip>
 
-The `channel()` and `customerGroup()` scopes ensure that a product not published to the current channel or customer group returns a 404 rather than rendering. See the [Storefront Session reference](/1.x/storefront-utils/storefront-session) for how to manage these values.
+The `whereVisible()` scope restricts the query to products in the published state, and the `channel()`/`customerGroup()` scopes ensure that a product not scheduled for the current channel or customer group returns a 404 rather than rendering. See the [Storefront Session reference](/2.x/storefront-utils/storefront-session) for how to manage these values.
 
 ## Displaying Product Information
 
 ### Product Name and Description
 
-Product names and descriptions are stored as attribute data. Use the `attr()` method to retrieve translated values.
+A product's `name`, `description`, and `short_description` are real, translatable database columns. Use the `translate()` method to retrieve them for the current locale.
 
 ```php
-$product->attr('name');        // Returns the name for the current locale
-$product->attr('description'); // Returns the description for the current locale
+$product->translate('name');        // Returns the name for the current locale
+$product->translate('description'); // Returns the description for the current locale
 ```
 
 In a Blade template:
 
 ```blade
-<h1>{{ $product->attr('name') }}</h1>
-<div>{!! $product->attr('description') !!}</div>
+<h1>{{ $product->translate('name') }}</h1>
+<div>{!! $product->translate('description') !!}</div>
 
 @if($product->brand)
     <p>{{ $product->brand->name }}</p>
@@ -88,7 +88,7 @@ In a Blade template:
 
 ### Custom Attributes
 
-Any custom attributes defined on the product type are accessible in the same way. For example, if the product type includes a "Material" attribute:
+Any custom attributes defined on the product type are accessible with the `attr()` method. For example, if the product type includes a "Material" attribute:
 
 ```php
 $product->attr('material'); // e.g. "Premium Leather"
@@ -96,24 +96,24 @@ $product->attr('material'); // e.g. "Premium Leather"
 
 ## Product Images
 
-Lunar uses [Spatie MediaLibrary](https://spatie.be/docs/laravel-medialibrary) for image management. Products store images in the `images` media collection.
+Lunar uses [Spatie MediaLibrary](https://spatie.be/docs/laravel-medialibrary) for image management. Products store images in the `images` media collection, with `zoom`, `large`, and `medium` conversions registered by default.
 
 ```blade
 {{-- Primary / thumbnail image --}}
-<img src="{{ $product->getFirstMediaUrl('images', 'large') }}" alt="{{ $product->attr('name') }}">
+<img src="{{ $product->getFirstMediaUrl('images', 'large') }}" alt="{{ $product->translate('name') }}">
 
 {{-- All product images --}}
 <div class="gallery">
     @foreach($product->getMedia('images') as $image)
         <img
             src="{{ $image->getUrl('medium') }}"
-            alt="{{ $image->getCustomProperty('alt', $product->attr('name')) }}"
+            alt="{{ $image->getCustomProperty('alt', $product->translate('name')) }}"
         >
     @endforeach
 </div>
 ```
 
-The available conversion sizes (`large`, `medium`, `zoom`, etc.) depend on the media definitions configured in `config/lunar/media.php`. See the [Media reference](/1.x/reference/media) for details on customizing conversions.
+The available conversion sizes depend on the media definitions configured in `config/lunar/media.php`. See the [Media reference](/2.x/reference/media) for details on customizing conversions.
 
 ## Variant Selection
 
@@ -128,6 +128,8 @@ Each variant is associated with one or more `ProductOptionValue` records. For ex
 - **Variants:** Blue/S, Blue/M, Blue/L, Red/S, Red/M, Red/L
 
 ### Building an Option Selector
+
+Option and value names are plain translatable fields (not attribute data), so they are read with `translate()`.
 
 ```blade
 @foreach($product->productOptions as $option)
@@ -155,8 +157,9 @@ $variantOptionMap = $product->variants->map(function ($variant) {
         'id' => $variant->id,
         'option_value_ids' => $variant->values->pluck('id')->sort()->values()->all(),
         'sku' => $variant->sku,
-        'stock' => $variant->stock,
-        'purchasable' => $variant->purchasable,
+        'enabled' => $variant->enabled,
+        'selling_policy' => $variant->selling_policy->value,
+        'stock_available' => $variant->stock_available,
     ];
 });
 ```
@@ -195,61 +198,63 @@ Pricing in Lunar is resolved through the `Pricing` facade, which accounts for th
 
 ### Displaying the Price
 
-The `Pricing` facade accepts an optional currency and customer group. Pass these from `StorefrontSession` so the returned price matches the browsing context.
+The `Pricing` facade accepts a resolved `StorefrontContext`, which carries the currency and customer groups for the current browsing session, so the returned price matches the browsing context. `StorefrontSession::context()` builds that context from the active session.
 
 ```php
-use Lunar\Facades\Pricing;
-use Lunar\Facades\StorefrontSession;
+use Lunar\Core\Facades\Pricing;
+use Lunar\Core\Facades\StorefrontSession;
 
 $variant = $product->variants->first();
 
 $pricing = Pricing::for($variant)
-    ->currency(StorefrontSession::getCurrency())
-    ->customerGroups(StorefrontSession::getCustomerGroups())
+    ->using(StorefrontSession::context())
     ->get();
 ```
 
-The `get()` method returns a `PricingResponse` with the following properties:
+The `get()` method returns a `Lunar\Core\DataObjects\PricingResponse` with the following properties:
 
 | Property | Type | Description |
 |:---|:---|:---|
-| `matched` | `Lunar\Models\Price` | The best matching price for the given context |
-| `base` | `Lunar\Models\Price` | The base price (min quantity of 1, no customer group) |
+| `matched` | `Lunar\Core\Models\Price` | The best matching price for the given context |
+| `base` | `Lunar\Core\Models\Price` | The base price (min quantity of 1, no customer group) |
 | `priceBreaks` | `Collection` | All available quantity break prices |
 | `customerGroupPrices` | `Collection` | Prices specific to customer groups |
+
+Each of `matched`/`base`/an entry in `priceBreaks` is a `Price` model. Its `price` and `list_price` columns are plain integers in the currency's lowest denomination; format them with the model's own `format()` method, or resolve tax-aware values with `priceIncTax()`, `priceExTax()`, and `listPriceIncTax()`.
 
 ### Formatting Prices in Blade
 
 ```blade
 @php
-    $pricing = \Lunar\Facades\Pricing::for($product->variants->first())
-        ->currency(\Lunar\Facades\StorefrontSession::getCurrency())
-        ->customerGroups(\Lunar\Facades\StorefrontSession::getCustomerGroups())
+    $pricing = \Lunar\Core\Facades\Pricing::for($product->variants->first())
+        ->using(\Lunar\Core\Facades\StorefrontSession::context())
         ->get();
     $price = $pricing->matched;
 @endphp
 
 <p class="price">
-    {{ $price->price->formatted() }}
+    {{ $price->format('price') }}
 </p>
 
-@if($price->compare_price?->value)
+@if($price->list_price)
     <p class="compare-price">
-        <s>{{ $price->compare_price->formatted() }}</s>
+        <s>{{ $price->format('list_price') }}</s>
     </p>
 @endif
 ```
 
+`list_price` is the list price (RRP) shown for comparison — show it struck through when it is set.
+
 ### Tax-Inclusive and Tax-Exclusive Prices
 
-If prices are stored inclusive of tax, use the helper methods on the `Price` model to show both:
+If prices need to be shown both inclusive and exclusive of tax, use the helper methods on the `Price` model, which each return a `PriceValue`:
 
 ```blade
-<p>{{ $price->priceIncTax()->formatted() }} inc. tax</p>
-<p>{{ $price->priceExTax()->formatted() }} ex. tax</p>
+<p>{{ $price->priceIncTax()->format() }} inc. tax</p>
+<p>{{ $price->priceExTax()->format() }} ex. tax</p>
 ```
 
-See the [Pricing reference](/1.x/reference/pricing) for more on configuring whether prices are stored inclusive or exclusive of tax.
+See the [Pricing reference](/2.x/reference/pricing) for more on configuring whether prices are stored inclusive or exclusive of tax.
 
 ### Price Breaks
 
@@ -268,7 +273,7 @@ If the product offers quantity-based pricing, display the available tiers:
             @foreach($pricing->priceBreaks as $break)
                 <tr>
                     <td>{{ $break->min_quantity }}+</td>
-                    <td>{{ $break->price->formatted() }}</td>
+                    <td>{{ $break->format('price') }}</td>
                 </tr>
             @endforeach
         </tbody>
@@ -278,38 +283,40 @@ If the product offers quantity-based pricing, display the available tiers:
 
 ## Stock and Availability
 
-Each variant tracks its own inventory. Display stock status to help customers make purchasing decisions.
+Each variant tracks its own inventory through a set of stock rollup columns (`stock_on_hand`, `stock_available`, `stock_reserved`, and so on), and an `enabled` flag gates whether it can be sold at all.
 
 ```blade
 @php
     $variant = $product->variants->first();
 @endphp
 
-@if($variant->purchasable === 'always')
-    <span class="in-stock">Available</span>
-@elseif($variant->stock > 0)
+@if(! $variant->enabled)
+    <span class="out-of-stock">Unavailable</span>
+@elseif($variant->canBeFulfilledAtQuantity(1))
     <span class="in-stock">In Stock</span>
 @else
     <span class="out-of-stock">Out of Stock</span>
 @endif
 ```
 
-The `purchasable` field on a variant controls its availability:
+The `selling_policy` field on a variant is a `Lunar\Core\Enums\SellingPolicy` case that controls how it may be sold relative to its stock:
 
-| Value | Behavior |
-|:---|:---|
-| `always` | Can always be purchased, even when stock reaches zero (backorders allowed) |
-| `in_stock` | Can only be purchased when `stock` is greater than zero |
+| Case | Value | Behavior |
+|:---|:---|:---|
+| `SellingPolicy::Always` | `always` | Can always be purchased, even when stock reaches zero (backorders allowed) |
+| `SellingPolicy::InStock` | `in_stock` | Can only be purchased up to `stock_available` |
+| `SellingPolicy::InStockOrOnBackorder` | `in_stock_or_on_backorder` | Can be purchased up to `stock_available` plus the `backorder` allowance |
 
-Use `canBeFulfilledAtQuantity()` to verify a specific quantity can be fulfilled before adding to cart:
+Use `canBeFulfilledAtQuantity()` to verify a specific quantity can be fulfilled before adding to cart, and `getTotalInventory()` to read the effective sellable quantity under the current policy:
 
 ```php
 $variant->canBeFulfilledAtQuantity(3); // Returns true or false
+$variant->getTotalInventory();         // Effective sellable quantity for the current policy
 ```
 
 ## Adding to Cart
 
-Lunar provides a `CartSession` facade for managing the active cart. Use it to add variants to the cart from the PDP.
+Lunar provides a `CartSession` facade for managing the active cart. The `Cart` model exposes an `add()` verb that the storefront calls directly.
 
 ### The Add-to-Cart Form
 
@@ -328,8 +335,8 @@ Lunar provides a `CartSession` facade for managing the active cart. Use it to ad
 ### The Controller
 
 ```php
-use Lunar\Facades\CartSession;
-use Lunar\Models\ProductVariant;
+use Lunar\Core\Facades\CartSession;
+use Lunar\Core\Models\ProductVariant;
 
 class CartController extends Controller
 {
@@ -362,7 +369,7 @@ Route::post('/cart/add', [CartController::class, 'add'])->name('cart.add');
 Lunar supports product associations for cross-sells, upsells, and alternate products. Display these on the PDP to encourage additional purchases.
 
 ```php
-use Lunar\Models\ProductAssociation;
+use Lunar\Core\Models\ProductAssociation;
 
 $crossSells = $product->associations()
     ->crossSell()
@@ -383,15 +390,15 @@ $upSells = $product->associations()
     <div class="product-grid">
         @foreach($crossSells as $related)
             <a href="{{ route('products.show', $related->defaultUrl?->slug) }}">
-                <img src="{{ $related->getFirstMediaUrl('images', 'medium') }}" alt="{{ $related->attr('name') }}">
-                <p>{{ $related->attr('name') }}</p>
+                <img src="{{ $related->getFirstMediaUrl('images', 'medium') }}" alt="{{ $related->translate('name') }}">
+                <p>{{ $related->translate('name') }}</p>
             </a>
         @endforeach
     </div>
 @endif
 ```
 
-See the [Products reference](/1.x/reference/products#product-associations) for more on association types.
+See the [Associations reference](/2.x/reference/associations) for more on association types.
 
 ## Variant-Specific Images
 
@@ -432,11 +439,10 @@ Here is a complete controller that prepares all the data a PDP needs:
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use Lunar\Facades\Pricing;
-use Lunar\Facades\StorefrontSession;
-use Lunar\Models\Product;
-use Lunar\Models\Url;
+use Lunar\Core\Facades\Pricing;
+use Lunar\Core\Facades\StorefrontSession;
+use Lunar\Core\Models\Product;
+use Lunar\Core\Models\Url;
 
 class ProductController extends Controller
 {
@@ -446,14 +452,12 @@ class ProductController extends Controller
             ->where('element_type', (new Product)->getMorphClass())
             ->firstOrFail();
 
-        $channel = StorefrontSession::getChannel();
-        $customerGroups = StorefrontSession::getCustomerGroups();
-        $currency = StorefrontSession::getCurrency();
+        $context = StorefrontSession::context();
 
         $product = Product::where('id', $url->element_id)
-            ->where('status', 'published')
-            ->channel($channel)
-            ->customerGroup($customerGroups)
+            ->whereVisible()
+            ->channel($context->channel)
+            ->customerGroup($context->customerGroups)
             ->with([
                 'variants.prices.currency',
                 'variants.values.option',
@@ -469,23 +473,21 @@ class ProductController extends Controller
         $defaultVariant = $product->variants->first();
 
         $pricing = Pricing::for($defaultVariant)
-            ->currency($currency)
-            ->customerGroups($customerGroups)
+            ->using($context)
             ->get();
 
-        $variantOptionMap = $product->variants->map(function ($variant) use ($currency, $customerGroups) {
+        $variantOptionMap = $product->variants->map(function ($variant) use ($context) {
             $variantPricing = Pricing::for($variant)
-                ->currency($currency)
-                ->customerGroups($customerGroups)
+                ->using($context)
                 ->get();
 
             return [
                 'id' => $variant->id,
                 'sku' => $variant->sku,
                 'option_value_ids' => $variant->values->pluck('id')->sort()->values()->all(),
-                'stock' => $variant->stock,
-                'purchasable' => $variant->purchasable,
-                'price' => $variantPricing->matched->price->formatted(),
+                'enabled' => $variant->enabled,
+                'stock_available' => $variant->stock_available,
+                'price' => $variantPricing->matched->format('price'),
                 'image' => $variant->getThumbnailImage(),
             ];
         });
@@ -507,7 +509,7 @@ class ProductController extends Controller
 
 ## Next Steps
 
-- Review the [Products reference](/1.x/reference/products) for the full list of model fields, relationships, and scopes.
-- Review the [Pricing reference](/1.x/reference/pricing) for custom price formatters and additional formatting options.
-- Review the [Media reference](/1.x/reference/media) for image conversion configuration.
-- Review the [Storefront Session reference](/1.x/storefront-utils/storefront-session) to manage channel, currency, and customer group context.
+- Review the [Products reference](/2.x/reference/products) for the full list of model fields, relationships, and scopes.
+- Review the [Pricing reference](/2.x/reference/pricing) for custom price formatters and additional formatting options.
+- Review the [Media reference](/2.x/reference/media) for image conversion configuration.
+- Review the [Storefront Session reference](/2.x/storefront-utils/storefront-session) to manage channel, currency, and customer group context.

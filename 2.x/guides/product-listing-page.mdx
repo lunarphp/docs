@@ -24,8 +24,8 @@ Route::get('/collections/{slug}', [CollectionController::class, 'show'])->name('
 ### Resolve the Collection
 
 ```php
-use Lunar\Models\Collection;
-use Lunar\Models\Url;
+use Lunar\Core\Models\Collection;
+use Lunar\Core\Models\Url;
 
 class CollectionController extends Controller
 {
@@ -46,25 +46,27 @@ class CollectionController extends Controller
 
 ## Displaying Collection Information
 
-Collection names and descriptions are stored as attribute data, accessed with the `attr()` method.
+A collection's `name`, `description`, and `short_description` are real, translatable database columns. Read them with the `translate()` method.
 
 ```blade
-<h1>{{ $collection->attr('name') }}</h1>
+<h1>{{ $collection->translate('name') }}</h1>
 
-@if($collection->attr('description'))
-    <div>{!! $collection->attr('description') !!}</div>
+@if($collection->translate('description'))
+    <div>{!! $collection->translate('description') !!}</div>
 @endif
 ```
 
+Any custom attributes defined for collections (via the attribute system) are still accessed with `attr()`, for example `$collection->attr('featured_note')`.
+
 ### Collection Image
 
-Collections support media through Spatie MediaLibrary, just like products.
+Collections support media through Spatie MediaLibrary, just like products. The default media collection is `images`.
 
 ```blade
 @if($collection->getFirstMediaUrl('images', 'large'))
     <img
         src="{{ $collection->getFirstMediaUrl('images', 'large') }}"
-        alt="{{ $collection->attr('name') }}"
+        alt="{{ $collection->translate('name') }}"
     >
 @endif
 ```
@@ -80,7 +82,7 @@ Collections form a nested hierarchy. The `breadcrumb` attribute returns the tran
             <li>{{ $name }}</li>
         @endforeach
 
-        <li aria-current="page">{{ $collection->attr('name') }}</li>
+        <li aria-current="page">{{ $collection->translate('name') }}</li>
     </ol>
 </nav>
 ```
@@ -97,7 +99,7 @@ The `products()` relationship on a Collection returns products ordered by the co
 
 ```php
 $products = $collection->products()
-    ->where('status', 'published')
+    ->whereVisible()
     ->with([
         'variants.prices.currency',
         'media',
@@ -106,17 +108,19 @@ $products = $collection->products()
     ->paginate(24);
 ```
 
+`whereVisible()` restricts the query to products in the published state.
+
 ### Filtering by Channel
 
 Products can be scheduled against channels. Use the `channel` scope to return only products that are active on the current channel.
 
 ```php
-use Lunar\Facades\StorefrontSession;
+use Lunar\Core\Facades\StorefrontSession;
 
 $channel = StorefrontSession::getChannel();
 
 $products = $collection->products()
-    ->where('status', 'published')
+    ->whereVisible()
     ->channel($channel)
     ->with([
         'variants.prices.currency',
@@ -134,7 +138,7 @@ Similarly, use the `customerGroup` scope to return only products visible to the 
 $customerGroups = StorefrontSession::getCustomerGroups();
 
 $products = $collection->products()
-    ->where('status', 'published')
+    ->whereVisible()
     ->channel($channel)
     ->customerGroup($customerGroups)
     ->with([
@@ -147,21 +151,7 @@ $products = $collection->products()
 
 ## Sorting
 
-Products in a collection have a default sort order determined by the collection's `sort` field. The `products()` relationship already orders by the `position` pivot column, which reflects this configured sort.
-
-The available sort options built into Lunar are:
-
-| Sort Value | Description |
-|:---|:---|
-| `custom` | Manual ordering via the `position` pivot column (default) |
-| `min_price:asc` | Lowest base price first |
-| `min_price:desc` | Highest base price first |
-| `sku:asc` | SKU ascending (alphabetical) |
-| `sku:desc` | SKU descending |
-
-<Info>
-The `position` values on the pivot table are automatically recalculated when the collection's `sort` field is changed. For example, setting `sort` to `min_price:asc` triggers a background job that reorders the position values by price.
-</Info>
+Products in a collection have a default sort order determined by the `position` pivot column, which the `products()` relationship already orders by. Merchants control this order (drag-and-drop, or bulk actions) in the admin panel.
 
 ### Custom Sort on the Query
 
@@ -177,7 +167,7 @@ $sortOptions = [
 $sort = $request->get('sort', 'default');
 
 $query = $collection->products()
-    ->where('status', 'published')
+    ->whereVisible()
     ->channel($channel)
     ->customerGroup($customerGroups)
     ->with([
@@ -201,7 +191,7 @@ $query = match ($sort) {
             '=',
             'lunar_product_variants.id'
         )
-        ->where('lunar_prices.priceable_type', (new \Lunar\Models\ProductVariant)->getMorphClass())
+        ->where('lunar_prices.priceable_type', (new \Lunar\Core\Models\ProductVariant)->getMorphClass())
         ->where('lunar_prices.min_quantity', 1)
         ->whereNull('lunar_prices.customer_group_id')
         ->orderBy('lunar_prices.price', 'asc'),
@@ -218,7 +208,7 @@ $query = match ($sort) {
             '=',
             'lunar_product_variants.id'
         )
-        ->where('lunar_prices.priceable_type', (new \Lunar\Models\ProductVariant)->getMorphClass())
+        ->where('lunar_prices.priceable_type', (new \Lunar\Core\Models\ProductVariant)->getMorphClass())
         ->where('lunar_prices.min_quantity', 1)
         ->whereNull('lunar_prices.customer_group_id')
         ->orderBy('lunar_prices.price', 'desc'),
@@ -229,7 +219,7 @@ $products = $query->paginate(24);
 ```
 
 <Tip>
-For simpler sorting needs, the default `position` ordering is often sufficient. The collection's `sort` field can be changed in the admin panel to reorder products by price or SKU without requiring custom query logic.
+For simpler sorting needs, the default `position` ordering is often sufficient — reorder products for a collection from the admin panel rather than building custom query logic.
 </Tip>
 
 ## Filtering
@@ -247,10 +237,10 @@ if ($brandId = $request->get('brand')) {
 To build a brand filter list from the products in the collection:
 
 ```php
-use Lunar\Models\Brand;
+use Lunar\Core\Models\Brand;
 
 $brandIds = $collection->products()
-    ->where('status', 'published')
+    ->whereVisible()
     ->pluck('brand_id')
     ->unique()
     ->filter();
@@ -280,12 +270,16 @@ Prices are stored as integers in the lowest denomination (e.g., cents). Multiply
 
 ### Filtering by Product Availability
 
+A variant's availability is governed by its `enabled` flag and its `selling_policy` (an `Lunar\Core\Enums\SellingPolicy` case: `Always`, `InStock`, or `InStockOrOnBackorder`), checked against the `stock_available` rollup.
+
 ```php
+use Lunar\Core\Enums\SellingPolicy;
+
 if ($request->boolean('in_stock')) {
     $query->whereHas('variants', function ($variantQuery) {
-        $variantQuery->where(function ($q) {
-            $q->where('purchasable', 'always')
-                ->orWhere('stock', '>', 0);
+        $variantQuery->where('enabled', true)->where(function ($q) {
+            $q->where('selling_policy', SellingPolicy::Always->value)
+                ->orWhere('stock_available', '>', 0);
         });
     });
 }
@@ -295,14 +289,15 @@ if ($request->boolean('in_stock')) {
 
 ### Product Grid
 
+Fetch a display price for each product through the `Pricing` facade. Passing the resolved `StorefrontContext` keeps the currency and customer groups consistent with the rest of the storefront.
+
 ```blade
 <div class="product-grid">
     @foreach($products as $product)
         @php
             $variant = $product->variants->first();
-            $pricing = \Lunar\Facades\Pricing::for($variant)
-                ->currency(\Lunar\Facades\StorefrontSession::getCurrency())
-                ->customerGroups(\Lunar\Facades\StorefrontSession::getCustomerGroups())
+            $pricing = \Lunar\Core\Facades\Pricing::for($variant)
+                ->using(\Lunar\Core\Facades\StorefrontSession::context())
                 ->get();
             $price = $pricing->matched;
         @endphp
@@ -310,24 +305,26 @@ if ($request->boolean('in_stock')) {
         <a href="{{ route('products.show', $product->defaultUrl?->slug) }}" class="product-card">
             <img
                 src="{{ $product->getFirstMediaUrl('images', 'medium') }}"
-                alt="{{ $product->attr('name') }}"
+                alt="{{ $product->translate('name') }}"
             >
 
-            <h3>{{ $product->attr('name') }}</h3>
+            <h3>{{ $product->translate('name') }}</h3>
 
             @if($product->brand)
                 <p>{{ $product->brand->name }}</p>
             @endif
 
-            <p>{{ $price->price->formatted() }}</p>
+            <p>{{ $price->format('price') }}</p>
 
-            @if($price->compare_price?->value)
-                <p><s>{{ $price->compare_price->formatted() }}</s></p>
+            @if($price->list_price)
+                <p><s>{{ $price->format('list_price') }}</s></p>
             @endif
         </a>
     @endforeach
 </div>
 ```
+
+`Price::format()` formats a stored money column (`price` or `list_price`) for the price row's own currency. `list_price` is the list price (RRP) shown for comparison — display it struck through when it is set and higher than `price`.
 
 ### Pagination
 
@@ -357,11 +354,11 @@ $children = $collection->children()
                 @if($child->getFirstMediaUrl('images', 'medium'))
                     <img
                         src="{{ $child->getFirstMediaUrl('images', 'medium') }}"
-                        alt="{{ $child->attr('name') }}"
+                        alt="{{ $child->translate('name') }}"
                     >
                 @endif
 
-                <span>{{ $child->attr('name') }}</span>
+                <span>{{ $child->translate('name') }}</span>
             </a>
         @endforeach
     </div>
@@ -378,11 +375,10 @@ Here is a complete controller that prepares all the data a PLP needs:
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Lunar\Facades\Pricing;
-use Lunar\Facades\StorefrontSession;
-use Lunar\Models\Brand;
-use Lunar\Models\Collection;
-use Lunar\Models\Url;
+use Lunar\Core\Facades\StorefrontSession;
+use Lunar\Core\Models\Brand;
+use Lunar\Core\Models\Collection;
+use Lunar\Core\Models\Url;
 
 class CollectionController extends Controller
 {
@@ -400,7 +396,7 @@ class CollectionController extends Controller
         $customerGroups = StorefrontSession::getCustomerGroups();
 
         $query = $collection->products()
-            ->where('status', 'published')
+            ->whereVisible()
             ->channel($channel)
             ->customerGroup($customerGroups)
             ->with([
@@ -417,9 +413,9 @@ class CollectionController extends Controller
 
         if ($request->boolean('in_stock')) {
             $query->whereHas('variants', function ($q) {
-                $q->where(function ($q) {
-                    $q->where('purchasable', 'always')
-                        ->orWhere('stock', '>', 0);
+                $q->where('enabled', true)->where(function ($q) {
+                    $q->where('selling_policy', \Lunar\Core\Enums\SellingPolicy::Always->value)
+                        ->orWhere('stock_available', '>', 0);
                 });
             });
         }
@@ -436,7 +432,7 @@ class CollectionController extends Controller
 
         // Build filter options from the collection's products
         $brandIds = $collection->products()
-            ->where('status', 'published')
+            ->whereVisible()
             ->pluck('brand_id')
             ->unique()
             ->filter();
@@ -460,7 +456,8 @@ class CollectionController extends Controller
 
 ## Next Steps
 
-- Review the [Collections reference](/1.x/reference/collections) for the full list of model fields, relationships, and sort options.
-- Review the [Products reference](/1.x/reference/products) for product scopes and variant details.
-- Review the [Storefront Session reference](/1.x/storefront-utils/storefront-session) to manage channel, currency, and customer group context.
-- Review the [Product Display Page guide](/1.x/guides/product-display-page) for displaying individual products after a customer clicks through from the listing.
+- Review the [Collections reference](/2.x/reference/collections) for the full list of model fields, relationships, and sort options.
+- Review the [Products reference](/2.x/reference/products) for product scopes and variant details.
+- Review the [Pricing reference](/2.x/reference/pricing) for the full pricing API.
+- Review the [Storefront Session reference](/2.x/storefront-utils/storefront-session) to manage channel, currency, and customer group context.
+- Review the [Product Display Page guide](/2.x/guides/product-display-page) for displaying individual products after a customer clicks through from the listing.

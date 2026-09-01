@@ -45,7 +45,7 @@ Lunar organizes collections into a two-level structure:
 Retrieve a collection group by its handle. The handle is set when creating the group in the admin panel or via code.
 
 ```php
-use Lunar\Models\CollectionGroup;
+use Lunar\Core\Models\CollectionGroup;
 
 $menuGroup = CollectionGroup::where('handle', 'main-menu')->first();
 ```
@@ -55,7 +55,7 @@ $menuGroup = CollectionGroup::where('handle', 'main-menu')->first();
 Root collections are those with no parent. Use the nested set's `whereIsRoot()` scope to retrieve them.
 
 ```php
-use Lunar\Models\Collection;
+use Lunar\Core\Models\Collection;
 
 $rootCollections = Collection::where('collection_group_id', $menuGroup->id)
     ->whereIsRoot()
@@ -90,9 +90,9 @@ This loads three levels of the menu hierarchy. Add additional `children` levels 
 Eager loading children with constrained queries (using the closure syntax) ensures each level is ordered correctly by its nested set position.
 </Tip>
 
-### Using `descendantsOf` for the Full Tree
+### Using `toTree()` for the Full Tree
 
-For menus that need the entire tree regardless of depth, the nested set provides a `descendantsOf` method. However, for navigation menus it is generally better to eager load a fixed number of levels to keep queries predictable and avoid loading unnecessary data.
+For menus that need the entire tree regardless of depth, query every collection in the group and restructure the flat list.
 
 ```php
 // Load the entire subtree (all depths) for a collection group
@@ -103,7 +103,7 @@ $allCollections = Collection::where('collection_group_id', $menuGroup->id)
     ->toTree();
 ```
 
-The `toTree()` method on the resulting collection restructures the flat list into a nested tree, with each node's `children` relation populated.
+The `toTree()` method on the resulting collection restructures the flat list into a nested tree, with each node's `children` relation populated. For navigation menus it is generally better to eager load a fixed number of levels instead, to keep queries predictable and avoid loading unnecessary data.
 
 ## Building a Menu Service
 
@@ -115,8 +115,8 @@ Encapsulate the menu query in a dedicated service class to keep controllers clea
 namespace App\Services;
 
 use Illuminate\Support\Collection as LaravelCollection;
-use Lunar\Models\Collection;
-use Lunar\Models\CollectionGroup;
+use Lunar\Core\Models\Collection;
+use Lunar\Core\Models\CollectionGroup;
 
 class CatalogMenuService
 {
@@ -195,13 +195,15 @@ When using a view composer with `'*'`, the menu query runs on every request. Pai
 
 ### Basic Menu Template
 
+A collection's `name` is a real, translatable database column. Use the `translate()` method to read it in the current locale.
+
 ```blade
 <nav aria-label="Catalog navigation">
     <ul>
         @foreach($catalogMenu as $collection)
             <li>
                 <a href="{{ route('collections.show', $collection->defaultUrl?->slug) }}">
-                    {{ $collection->attr('name') }}
+                    {{ $collection->translate('name') }}
                 </a>
 
                 @if($collection->children->isNotEmpty())
@@ -209,7 +211,7 @@ When using a view composer with `'*'`, the menu query runs on every request. Pai
                         @foreach($collection->children as $child)
                             <li>
                                 <a href="{{ route('collections.show', $child->defaultUrl?->slug) }}">
-                                    {{ $child->attr('name') }}
+                                    {{ $child->translate('name') }}
                                 </a>
                             </li>
                         @endforeach
@@ -235,7 +237,7 @@ Create a partial at `resources/views/partials/menu-item.blade.php`:
             aria-current="true"
         @endif
     >
-        {{ $collection->attr('name') }}
+        {{ $collection->translate('name') }}
     </a>
 
     @if($collection->children->isNotEmpty())
@@ -269,8 +271,8 @@ Highlighting the active collection (and its ancestors) helps customers understan
 In the collection controller, pass the current collection and its ancestor IDs to the view:
 
 ```php
-use Lunar\Models\Collection;
-use Lunar\Models\Url;
+use Lunar\Core\Models\Collection;
+use Lunar\Core\Models\Url;
 
 class CollectionController extends Controller
 {
@@ -310,7 +312,7 @@ Share the active IDs with the layout so the menu partial can use them:
         'active' => isset($activeCollectionIds) && in_array($collection->id, $activeCollectionIds),
     ])
 >
-    {{ $collection->attr('name') }}
+    {{ $collection->translate('name') }}
 </a>
 ```
 
@@ -331,8 +333,8 @@ namespace App\Services;
 
 use Illuminate\Support\Collection as LaravelCollection;
 use Illuminate\Support\Facades\Cache;
-use Lunar\Models\Collection;
-use Lunar\Models\CollectionGroup;
+use Lunar\Core\Models\Collection;
+use Lunar\Core\Models\CollectionGroup;
 
 class CatalogMenuService
 {
@@ -391,7 +393,7 @@ Clear the cache whenever collections are updated. A model observer is a clean wa
 namespace App\Observers;
 
 use App\Services\CatalogMenuService;
-use Lunar\Models\Collection;
+use Lunar\Core\Models\Collection;
 
 class CollectionObserver
 {
@@ -415,7 +417,7 @@ Register the observer in a service provider:
 
 ```php
 use App\Observers\CollectionObserver;
-use Lunar\Models\Collection;
+use Lunar\Core\Models\Collection;
 
 public function boot(): void
 {
@@ -453,7 +455,7 @@ Each menu is cached independently under its own key.
 Collections support channel scheduling and customer group visibility. To display only collections available to the current browsing context, apply these scopes when building the menu.
 
 ```php
-use Lunar\Facades\StorefrontSession;
+use Lunar\Core\Facades\StorefrontSession;
 
 $channel = StorefrontSession::getChannel();
 $customerGroups = StorefrontSession::getCustomerGroups();
@@ -461,11 +463,14 @@ $customerGroups = StorefrontSession::getCustomerGroups();
 $rootCollections = Collection::where('collection_group_id', $group->id)
     ->whereIsRoot()
     ->defaultOrder()
+    ->whereVisible()
     ->channel($channel)
     ->customerGroup($customerGroups)
     ->with(['defaultUrl'])
     ->get();
 ```
+
+The `whereVisible()` scope restricts the query to collections in the published state, and `channel()`/`customerGroup()` restrict it to collections scheduled for the current channel and customer group.
 
 <Warning>
 When filtering by channel or customer group, the cache key should include the channel and customer group IDs to prevent one customer group from seeing another group's cached menu.
@@ -493,8 +498,8 @@ namespace App\Services;
 
 use Illuminate\Support\Collection as LaravelCollection;
 use Illuminate\Support\Facades\Cache;
-use Lunar\Models\Collection;
-use Lunar\Models\CollectionGroup;
+use Lunar\Core\Models\Collection;
+use Lunar\Core\Models\CollectionGroup;
 
 class CatalogMenuService
 {
@@ -583,7 +588,7 @@ class ViewServiceProvider extends ServiceProvider
                         'active' => isset($activeCollectionIds) && in_array($rootCollection->id, $activeCollectionIds),
                     ])
                 >
-                    {{ $rootCollection->attr('name') }}
+                    {{ $rootCollection->translate('name') }}
                 </a>
 
                 @if($rootCollection->children->isNotEmpty())
@@ -597,7 +602,7 @@ class ViewServiceProvider extends ServiceProvider
                                         'active' => isset($activeCollectionIds) && in_array($child->id, $activeCollectionIds),
                                     ])
                                 >
-                                    {{ $child->attr('name') }}
+                                    {{ $child->translate('name') }}
                                 </a>
 
                                 @if($child->children->isNotEmpty())
@@ -611,7 +616,7 @@ class ViewServiceProvider extends ServiceProvider
                                                         'active' => isset($activeCollectionIds) && in_array($grandchild->id, $activeCollectionIds),
                                                     ])
                                                 >
-                                                    {{ $grandchild->attr('name') }}
+                                                    {{ $grandchild->translate('name') }}
                                                 </a>
                                             </li>
                                         @endforeach
@@ -629,7 +634,7 @@ class ViewServiceProvider extends ServiceProvider
 
 ## Next Steps
 
-- Review the [Collections reference](/1.x/reference/collections) for the full list of model fields, relationships, and sort options.
-- Review the [Product Listing Page guide](/1.x/guides/product-listing-page) for displaying products when a customer clicks a collection in the menu.
-- Review the [URLs reference](/1.x/reference/urls) for URL generation and slug management.
-- Review the [Channels reference](/1.x/reference/channels) for multi-channel configuration.
+- Review the [Collections reference](/2.x/reference/collections) for the full list of model fields, relationships, and sort options.
+- Review the [Product Listing Page guide](/2.x/guides/product-listing-page) for displaying products when a customer clicks a collection in the menu.
+- Review the [URLs reference](/2.x/reference/urls) for URL generation and slug management.
+- Review the [Channels reference](/2.x/reference/channels) for multi-channel configuration.

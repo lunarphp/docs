@@ -1,28 +1,26 @@
 ---
 title: "Order History"
-description: "Build an order history page with Lunar, covering customer authentication, order listing, pagination, and order detail views."
+description: "Build an order history page with Lunar, covering the customer's orders, payment and fulfilment status, and order line display."
 ---
 
-## Overview
-
-The order history page allows authenticated customers to view their past orders, check order statuses, and review the details of individual orders. This guide walks through resolving the current customer, querying their orders, displaying a paginated order list, and building an order detail page.
+The order history page lets an authenticated customer view their past orders, check payment and fulfilment status, and review the details of an individual order. This guide walks through resolving the current customer, querying their orders, displaying a paginated order list, and building an order detail page.
 
 The examples below use standard Laravel controllers and Blade templates. The same concepts apply whether the storefront is built with Livewire, Inertia, or a headless API.
 
 ## Resolving the Current Customer
 
-Lunar separates the concept of a `Customer` from Laravel's `User` model. An authenticated user can be linked to one or more customers through the `LunarUser` trait. The `StorefrontSession` facade provides the current customer for the session.
+Lunar separates the concept of a `Lunar\Core\Models\Customer` from Laravel's `User` model. An authenticated user is linked to one or more customers through the `Lunar\Core\Models\Concerns\IsLunarUser` trait (see the [Customer Authentication guide](/2.x/guides/customer-authentication)). `Lunar\Core\Facades\StorefrontSession` provides the current customer for the request.
 
 ```php
-use Lunar\Facades\StorefrontSession;
+use Lunar\Core\Facades\StorefrontSession;
 
 $customer = StorefrontSession::getCustomer();
 ```
 
-If no customer is associated with the current session, `getCustomer()` returns `null`. Protect account pages with middleware that checks for an authenticated user and a valid customer:
+If no customer is resolved for the current session, `getCustomer()` returns `null`. Protect account pages with a check for a resolved customer:
 
 ```php
-use Lunar\Facades\StorefrontSession;
+use Lunar\Core\Facades\StorefrontSession;
 
 class AccountController extends Controller
 {
@@ -40,15 +38,15 @@ class AccountController extends Controller
 ```
 
 <Info>
-The `StorefrontSession` automatically resolves the customer from the authenticated user when the `LunarUser` trait is applied to the `User` model. See the [Storefront Session reference](/1.x/storefront-utils/storefront-session) for details on how customer resolution works.
+`StorefrontSession` automatically resolves the customer from the authenticated user's `latestCustomer()` when no customer is already stored in the session. See the [Storefront Session reference](/2.x/storefront-utils/storefront-session) for details on how resolution works.
 </Info>
 
 ## Listing Orders
 
-Query the customer's orders using the `orders` relationship. Only orders with a `placed_at` value should be shown, as draft orders (where `placed_at` is `null`) have not been completed.
+Query the customer's orders using the `orders` relationship. Only orders with a `placed_at` value should be shown, since a draft order (where `placed_at` is `null`) has not been completed and only exists as a checkout-in-progress record.
 
 ```php
-use Lunar\Facades\StorefrontSession;
+use Lunar\Core\Facades\StorefrontSession;
 
 class AccountController extends Controller
 {
@@ -70,9 +68,13 @@ class AccountController extends Controller
 }
 ```
 
+<Tip>
+`isDraft()` and `isPlaced()` are also available directly on the `Lunar\Core\Models\Order` model as a shorthand for checking `placed_at`.
+</Tip>
+
 ### Displaying the Order List
 
-Each order has its financial totals cast to `Lunar\DataTypes\Price` objects, so `formatted()` can be called directly.
+Order monetary fields (`sub_total`, `discount_total`, `shipping_total`, `tax_total`, `total`) are stored as integers in the currency's minor unit. Call `format($field)` (from `Lunar\Core\Models\Concerns\FormatsPrices`) to get a formatted currency string, or `decimal($field)` for a float.
 
 ```blade
 <h1>Order History</h1>
@@ -85,7 +87,8 @@ Each order has its financial totals cast to `Lunar\DataTypes\Price` objects, so 
             <tr>
                 <th>Order</th>
                 <th>Date</th>
-                <th>Status</th>
+                <th>Payment</th>
+                <th>Fulfilment</th>
                 <th>Total</th>
                 <th></th>
             </tr>
@@ -95,8 +98,9 @@ Each order has its financial totals cast to `Lunar\DataTypes\Price` objects, so 
                 <tr>
                     <td>{{ $order->reference }}</td>
                     <td>{{ $order->placed_at->format('M d, Y') }}</td>
-                    <td>{{ $order->status }}</td>
-                    <td>{{ $order->total->formatted() }}</td>
+                    <td>{{ $order->payment_status->label() }}</td>
+                    <td>{{ $order->fulfilment_status->label() }}</td>
+                    <td>{{ $order->format('total') }}</td>
                     <td>
                         <a href="{{ route('account.orders.show', $order) }}">
                             View
@@ -111,27 +115,46 @@ Each order has its financial totals cast to `Lunar\DataTypes\Price` objects, so 
 @endif
 ```
 
-### Order Financial Properties
+### Order Status
 
-After retrieval, each `Lunar\Models\Order` has the following price properties:
+An order does not have a single "status" column. Its lifecycle is read from two independently derived rollups, plus an open/closed archive flag:
 
-| Property | Type | Description |
+| Signal | Type | Meaning |
 |:---|:---|:---|
-| `sub_total` | `Lunar\DataTypes\Price` | Subtotal before discounts and tax |
-| `discount_total` | `Lunar\DataTypes\Price` | Total discounts applied |
-| `shipping_total` | `Lunar\DataTypes\Price` | Shipping cost including tax |
-| `tax_total` | `Lunar\DataTypes\Price` | Total tax amount |
-| `total` | `Lunar\DataTypes\Price` | Final order total |
+| `payment_status` | `Lunar\Core\States\Order\Payment\PaymentStatus` | Rolled up from the order's `transactions` |
+| `fulfilment_status` | `Lunar\Core\States\Order\Fulfilment\FulfilmentStatus` | Rolled up from the order's fulfillable lines and its `fulfilments` |
 
-All values are `Lunar\DataTypes\Price` objects with access to `value` (integer in minor units), `decimal()` (float), and `formatted()` (currency string).
+Both are recomputed automatically whenever the underlying transactions or fulfilments change, so neither is set by hand from the storefront. `payment_status->label()` and `fulfilment_status->label()` return a translated, human-readable string for display.
+
+| Payment status | `$name` | Meaning |
+|:---|:---|:---|
+| `Pending` | `pending` | No transactions recorded |
+| `Voided` | `voided` | Transactions exist but none succeeded |
+| `Authorized` | `authorized` | A successful payment intent exists, nothing captured yet |
+| `PartiallyPaid` | `partially-paid` | Some, but not all, of the order total has been captured |
+| `Paid` | `paid` | The full order total has been captured |
+| `PartiallyRefunded` | `partially-refunded` | Paid in full, part of it has since been refunded |
+| `Refunded` | `refunded` | Everything captured has been refunded |
+
+| Fulfilment status | `$name` | Meaning |
+|:---|:---|:---|
+| `Unfulfilled` | `unfulfilled` | None of the fulfillable quantity has been dispatched |
+| `PartiallyFulfilled` | `partially-fulfilled` | Some, but not all, of the fulfillable quantity has been dispatched |
+| `Fulfilled` | `fulfilled` | All fulfillable quantity has been dispatched |
+| `PartiallyReturned` | `partially-returned` | Some dispatched quantity has been returned |
+| `Returned` | `returned` | All dispatched quantity has been returned |
+
+<Info>
+See the [Orders reference](/2.x/reference/orders#order-lifecycle) for the full detail on how these rollups are derived, plus the order's open/closed and cancelled state.
+</Info>
 
 ## Order Detail Page
 
 The order detail page shows the full breakdown of a specific order, including line items, addresses, and totals.
 
 ```php
-use Lunar\Facades\StorefrontSession;
-use Lunar\Models\Order;
+use Lunar\Core\Facades\StorefrontSession;
+use Lunar\Core\Models\Order;
 
 class AccountController extends Controller
 {
@@ -165,12 +188,13 @@ Always verify that the order belongs to the current customer. Without this check
 
 ### Displaying Order Lines
 
-Order lines hold a snapshot of each purchased item. The `description` field contains the product name at the time of purchase, and `option` holds any variant options.
+Order lines hold a snapshot of each purchased item, taken at the time the order was created. The `description` field contains the product name at that time, and `option` holds any variant options.
 
 ```blade
 <h1>Order {{ $order->reference }}</h1>
 <p>Placed on {{ $order->placed_at->format('M d, Y \a\t g:i A') }}</p>
-<p>Status: {{ $order->status }}</p>
+<p>Payment: {{ $order->payment_status->label() }}</p>
+<p>Fulfilment: {{ $order->fulfilment_status->label() }}</p>
 
 <h2>Items</h2>
 <table>
@@ -192,18 +216,22 @@ Order lines hold a snapshot of each purchased item. The `description` field cont
                     @endif
                     <p>{{ $line->identifier }}</p>
                 </td>
-                <td>{{ $line->unit_price->formatted() }}</td>
+                <td>{{ $line->format('unit_price') }}</td>
                 <td>{{ $line->quantity }}</td>
-                <td>{{ $line->total->formatted() }}</td>
+                <td>{{ $line->format('total') }}</td>
             </tr>
         @endforeach
     </tbody>
 </table>
 ```
 
+<Info>
+`productLines` excludes the shipping line (`$order->shippingLines`) — see [Order lines](/2.x/reference/orders#order-lines) for the full field list, including `requires_shipping` and `requires_fulfilment`.
+</Info>
+
 ### Displaying Addresses
 
-Each order stores a billing address and (for shippable orders) a shipping address. These are snapshots taken at the time of order creation and are separate from the customer's saved addresses.
+Each placed order stores a billing address and (for shippable orders) a shipping address as `Lunar\Core\Models\OrderAddress` records. These are snapshots taken when the order was created, separate from the customer's saved addresses.
 
 ```blade
 <div>
@@ -245,33 +273,33 @@ Each order stores a billing address and (for shippable orders) a shipping addres
 <h2>Order Summary</h2>
 <dl>
     <dt>Subtotal</dt>
-    <dd>{{ $order->sub_total->formatted() }}</dd>
+    <dd>{{ $order->format('sub_total') }}</dd>
 
-    @if($order->discount_total->value > 0)
+    @if($order->discount_total > 0)
         <dt>Discount</dt>
-        <dd>-{{ $order->discount_total->formatted() }}</dd>
+        <dd>-{{ $order->format('discount_total') }}</dd>
     @endif
 
     @if($order->shippingLines->isNotEmpty())
         <dt>Shipping</dt>
-        <dd>{{ $order->shipping_total->formatted() }}</dd>
+        <dd>{{ $order->format('shipping_total') }}</dd>
     @endif
 
     <dt>Tax</dt>
-    <dd>{{ $order->tax_total->formatted() }}</dd>
+    <dd>{{ $order->format('tax_total') }}</dd>
 
     <dt>Total</dt>
-    <dd>{{ $order->total->formatted() }}</dd>
+    <dd>{{ $order->format('total') }}</dd>
 </dl>
 ```
 
 ### Tax Breakdown
 
-To display a detailed tax breakdown:
+`tax_breakdown` is cast to a value object with an `amounts` collection of `Lunar\Core\ValueObjects\Cart\TaxBreakdownAmount`, each carrying a `Lunar\Core\DataObjects\PriceValue` that also exposes `format()`:
 
 ```blade
 @foreach($order->tax_breakdown->amounts as $tax)
-    <p>{{ $tax->description }} ({{ $tax->percentage }}%): {{ $tax->price->formatted() }}</p>
+    <p>{{ $tax->description }} ({{ $tax->percentage }}%): {{ $tax->price->format() }}</p>
 @endforeach
 ```
 
@@ -318,8 +346,8 @@ Here is a complete controller for the order history pages:
 
 namespace App\Http\Controllers;
 
-use Lunar\Facades\StorefrontSession;
-use Lunar\Models\Order;
+use Lunar\Core\Facades\StorefrontSession;
+use Lunar\Core\Models\Order;
 
 class AccountController extends Controller
 {
@@ -365,7 +393,7 @@ class AccountController extends Controller
 
 ## Next Steps
 
-- Review the [Orders reference](/1.x/reference/orders) for the full list of order fields, relationships, and status configuration.
-- Review the [Customers reference](/1.x/reference/customers) for customer model details and the user-customer relationship.
-- Review the [Storefront Session reference](/1.x/storefront-utils/storefront-session) for how customer resolution works.
-- Review the [Customer Addresses guide](/1.x/guides/customer-addresses) for building an address management page.
+- Review the [Orders reference](/2.x/reference/orders) for the full list of order fields, relationships, the payment/fulfilment rollups, transactions, and refunds.
+- Review the [Customers reference](/2.x/reference/customers) for customer model details and the user-customer relationship.
+- Review the [Storefront Session reference](/2.x/storefront-utils/storefront-session) for how customer resolution works.
+- Review the [Customer Addresses guide](/2.x/guides/customer-addresses) for building an address management page.

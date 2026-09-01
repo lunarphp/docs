@@ -9,9 +9,13 @@ Product search lets customers find products by typing keywords, browsing faceted
 
 The examples below use standard Laravel controllers and Blade templates. The same concepts apply whether the storefront is built with Livewire, Inertia, or a headless API.
 
+<Info>
+Lunar core already indexes its models through Laravel Scout out of the box — no add-on required. This guide covers the `lunarphp/search` add-on, which adds a fluent query API, faceted filtering, and structured results on top of those indexes. For the underlying indexing setup (searchable models, indexers, engine mapping, the `lunar:search:index` command), see the [Search reference](/2.x/reference/search).
+</Info>
+
 ## Search Setup
 
-Lunar's search system is provided by the `lunarphp/search` add-on package. It is built on top of [Laravel Scout](https://laravel.com/docs/scout) with a driver-based architecture that supports Meilisearch, Typesense, and a database fallback. The `Search` facade provides a consistent API regardless of which driver is active.
+The `Search` facade and its faceted query API are provided by the `lunarphp/search` add-on package. It is built on top of [Laravel Scout](https://laravel.com/docs/scout) with a driver-based architecture that supports Meilisearch, Typesense, and a database fallback. The `Search` facade provides a consistent API regardless of which driver is active.
 
 ### Installing the Search Package
 
@@ -19,7 +23,7 @@ Lunar's search system is provided by the `lunarphp/search` add-on package. It is
 composer require lunarphp/search
 ```
 
-This installs the `Search` facade, search indexers, and data classes used throughout this guide.
+This installs the `Search` facade and the search engine drivers used throughout this guide.
 
 ### Installing a Search Driver
 
@@ -43,26 +47,26 @@ MEILISEARCH_KEY=your-master-key
 
 ### Indexing Products
 
-After configuring the driver, import existing products into the search index:
+After configuring the driver, import existing records into the search index using Lunar's own indexing command:
 
 ```bash
-php artisan scout:import "Lunar\Models\Product"
+php artisan lunar:search:index
 ```
 
-Lunar automatically keeps the index in sync as products are created, updated, or deleted.
+This imports every model listed in the `models` configuration key (see the [Search reference](/2.x/reference/search) for the full list of options, including per-model refresh and flush flags). Lunar automatically keeps the index in sync as records are created, updated, or deleted.
 
 ### Searchable Models
 
-The following models are searchable by default:
+Lunar core registers the following models as searchable by default:
 
 | Model | Description |
 |:---|:---|
-| `Lunar\Models\Product` | Products with attributes, SKUs, brand, and product type |
-| `Lunar\Models\Collection` | Collections with their attribute data |
-| `Lunar\Models\Brand` | Brands |
-| `Lunar\Models\Customer` | Customers (typically for admin use) |
-| `Lunar\Models\Order` | Orders (typically for admin use) |
-| `Lunar\Models\ProductOption` | Product options |
+| `Lunar\Core\Models\Product` | Products with attributes, SKUs, brand, and product type |
+| `Lunar\Core\Models\Collection` | Collections with their name, description, and attribute data |
+| `Lunar\Core\Models\Brand` | Brands |
+| `Lunar\Core\Models\Customer` | Customers (typically for admin use) |
+| `Lunar\Core\Models\Order` | Orders (typically for admin use) |
+| `Lunar\Core\Models\ProductOption` | Product options and their values |
 
 ## Searching Products
 
@@ -77,7 +81,7 @@ $results = Search::query('running shoes')->get();
 To search a different model, use `model()` to specify it:
 
 ```php
-use Lunar\Models\Collection;
+use Lunar\Core\Models\Collection;
 use Lunar\Search\Facades\Search;
 
 $results = Search::model(Collection::class)->query('hoodies')->get();
@@ -97,6 +101,8 @@ The `SearchResults` object contains everything needed to render a results page:
 | `hits` | `SearchHit[]` | Array of search result hits |
 | `facets` | `SearchFacet[]` | Array of available facets with counts |
 | `links` | `View` | Pagination links |
+| `sortField` | `?string` | The field the results are sorted by, if a sort was requested |
+| `sortDirection` | `?string` | `asc` or `desc`, if a sort was requested |
 
 Each `SearchHit` contains:
 
@@ -174,7 +180,7 @@ class SearchController extends Controller
 ```
 
 <Info>
-Search hits contain the indexed document data, not Eloquent models. The indexed fields for products include `id`, `status`, `product_type`, `brand`, `thumbnail`, `skus`, and any attributes marked as searchable. To load full Eloquent models from search results, collect the IDs and query the database.
+Search hits contain the indexed document data, not Eloquent models. The default product indexer indexes fields like `id`, `public_id`, `status`, `product_type`, `brand`, `thumbnail`, `skus`, translatable `name`/`description`/`short_description` columns (exploded per locale), and any custom attributes marked as searchable — see the [Search reference](/2.x/reference/search#product-indexer) for the full field list. To load full Eloquent models from search results, collect the IDs and query the database.
 </Info>
 
 ### Loading Eloquent Models from Results
@@ -182,6 +188,8 @@ Search hits contain the indexed document data, not Eloquent models. The indexed 
 When full model data is needed (for example, to use the `Pricing` facade or access relationships), load the models from the hit IDs:
 
 ```php
+use Lunar\Core\Models\Product;
+
 $productIds = collect($results->hits)->pluck('document.id');
 
 $products = Product::whereIn('id', $productIds)
@@ -205,9 +213,9 @@ $products = Product::whereIn('id', $productIds)
         <a href="{{ route('products.show', $product->defaultUrl?->slug) }}">
             <img
                 src="{{ $product->getFirstMediaUrl('images', 'medium') }}"
-                alt="{{ $product->attr('name') }}"
+                alt="{{ $product->translate('name') }}"
             >
-            <h3>{{ $product->attr('name') }}</h3>
+            <h3>{{ $product->translate('name') }}</h3>
         </a>
     @endif
 @endforeach
@@ -215,15 +223,13 @@ $products = Product::whereIn('id', $productIds)
 
 ## Sorting Results
 
-Use the `sort()` method with a `field:direction` string to control result ordering.
+Use the `sort()` method with a `field:direction` string to control result ordering. The default product indexer's sortable fields are `created_at`, `updated_at`, `skus`, and `status`; additional sortable fields can be configured in a custom indexer.
 
 ```php
 $results = Search::query('shoes')
     ->sort('created_at:desc')
     ->get();
 ```
-
-The sortable fields for products are `created_at`, `updated_at`, `skus`, and `status`. Additional sortable fields can be configured in a custom indexer.
 
 ### Letting Customers Choose a Sort Order
 
@@ -241,24 +247,28 @@ $results = $engine->get();
 
 ## Faceted Filtering
 
-Facets allow customers to narrow results by attributes like brand, size, or color. Facets are configured per model in the search configuration and are only available when using Meilisearch or Typesense.
+Facets allow customers to narrow results by attributes like brand, size, or color. Facets are configured per model and are only available when using Meilisearch or Typesense.
 
 ### Configuring Facets
 
-Publish the search configuration and define facets for the `Product` model:
+The `lunarphp/search` add-on merges its own `facets` key into the same `config/lunar/search.php` file that Lunar core uses for indexing configuration. Publish the config file (if not already published) and add a `facets` entry for the `Product` model:
 
 ```php
 // config/lunar/search.php
+use Lunar\Core\Models\Product;
+
 return [
+    // ...existing 'models', 'engine_map', and 'indexers' keys from core...
+
     'facets' => [
-        \Lunar\Models\Product::class => [
+        Product::class => [
             'brand' => [],
         ],
     ],
 ];
 ```
 
-Each key in the facets array corresponds to a field in the product's search index. Additional facets can be added for any indexed field.
+Each key under a model corresponds to a field in that model's search index. Additional facets can be added for any indexed, filterable field.
 
 ### Displaying Facets
 
@@ -291,6 +301,7 @@ Each `SearchFacet` has:
 | `label` | `string` | Display label for the facet group |
 | `field` | `string` | The indexed field name |
 | `values` | `SearchFacetValue[]` | Available values with counts |
+| `hierarchy` | `bool` | Whether the facet values are hierarchical |
 
 Each `SearchFacetValue` has:
 
@@ -300,6 +311,7 @@ Each `SearchFacetValue` has:
 | `value` | `string` | The value to filter by |
 | `count` | `int` | Number of matching results |
 | `active` | `bool` | Whether this filter is currently applied |
+| `children` | `SearchFacetValue[]` | Nested values, for hierarchical facets |
 
 ### Applying Facet Filters
 
@@ -324,7 +336,7 @@ $engine->addFilter('status', 'published');
 
 ## URL-Based Product Resolution
 
-Lunar stores SEO-friendly slugs in the `Lunar\Models\Url` model. Products, collections, and brands all support URL resolution through the `HasUrls` trait.
+Lunar stores SEO-friendly slugs in the `Lunar\Core\Models\Url` model. Products, collections, and brands all support URL resolution through the `HasUrls` trait.
 
 ### Defining a Catch-All Route
 
@@ -344,10 +356,10 @@ Route::get('/{slug}', [ResolverController::class, 'show'])->where('slug', '.*');
 
 namespace App\Http\Controllers;
 
-use Lunar\Models\Brand;
-use Lunar\Models\Collection;
-use Lunar\Models\Product;
-use Lunar\Models\Url;
+use Lunar\Core\Models\Brand;
+use Lunar\Core\Models\Collection;
+use Lunar\Core\Models\Product;
+use Lunar\Core\Models\Url;
 
 class ResolverController extends Controller
 {
@@ -357,10 +369,10 @@ class ResolverController extends Controller
 
         $element = $url->element;
 
-        return match ($element::class) {
-            Product::class, Product::modelClass() => $this->showProduct($element),
-            Collection::class, Collection::modelClass() => $this->showCollection($element),
-            Brand::class, Brand::modelClass() => $this->showBrand($element),
+        return match (true) {
+            $element instanceof Product => $this->showProduct($element),
+            $element instanceof Collection => $this->showCollection($element),
+            $element instanceof Brand => $this->showBrand($element),
             default => abort(404),
         };
     }
@@ -391,7 +403,7 @@ class ResolverController extends Controller
 ### Working with URLs on Models
 
 ```php
-use Lunar\Models\Product;
+use Lunar\Core\Models\Product;
 
 $product = Product::find(1);
 
@@ -408,24 +420,13 @@ $href = '/' . $product->defaultUrl?->slug;
 
 ## Searchable Attributes
 
-Product attributes marked as `searchable` in the admin panel are automatically included in the search index. This means customers can search by any attribute value, such as material, color, or specifications.
-
-The search index for a product includes:
-
-| Field | Source |
-|:---|:---|
-| `id` | Product ID |
-| `status` | Product status (published, draft) |
-| `product_type` | Product type name |
-| `brand` | Brand name |
-| `skus` | Array of variant SKUs |
-| `thumbnail` | Thumbnail URL |
-| `created_at` | Unix timestamp |
-| Attribute handles | Values from searchable attributes |
+Custom product attributes marked as searchable in the admin panel are automatically included in the search index alongside the product's `name`, `description`, and `short_description` columns. This means customers can search by any attribute value, such as material, color, or specifications.
 
 <Tip>
-To make an attribute searchable, edit the attribute in the Lunar admin panel and enable the "Searchable" option. After changing searchable attributes, reimport the search index with `php artisan scout:import "Lunar\Models\Product"`.
+After changing which attributes are searchable, reimport the search index with `php artisan lunar:search:index "Lunar\Core\Models\Product" --refresh`.
 </Tip>
+
+See the [Search reference](/2.x/reference/search#product-indexer) for the complete list of fields the default product indexer sends to the search engine.
 
 ## Routes
 
@@ -447,7 +448,7 @@ Here is a complete search controller with faceted filtering and sorting:
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Lunar\Models\Product;
+use Lunar\Core\Models\Product;
 use Lunar\Search\Facades\Search;
 
 class SearchController extends Controller
@@ -504,7 +505,5 @@ class SearchController extends Controller
 
 ## Next Steps
 
-- Review the [Search reference](/1.x/reference/search) for the full list of searchable models and configuration options.
-- Review the [Search add-on](/1.x/addons/search) for advanced search engine configuration.
-- Review the [Extending Search](/1.x/extending/search) guide for customizing indexers and adding custom fields to the search index.
-- Review the [Product Listing Page guide](/1.x/guides/product-listing-page) for collection-based product browsing as an alternative to search.
+- Review the [Search reference](/2.x/reference/search) for the full list of searchable models, indexers, and the `lunar:search:index` Artisan command.
+- Review the [Product Listing Page guide](/2.x/guides/product-listing-page) for collection-based product browsing as an alternative to search.
