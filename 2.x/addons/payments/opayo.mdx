@@ -1,0 +1,18 @@
+---
+title: "Opayo"
+description: "Opayo is not yet available as a payment driver for Lunar v2."
+---
+
+`lunarphp/opayo` has not been updated for Lunar v2. It remains a v1-only package, built against the v1 payment driver contract, and is not part of the v2 monorepo.
+
+<Warning>
+Do not follow v1 Opayo instructions against a v2 store — the package targets v1's `Lunar\Models\...` namespace and payment driver contract, neither of which v2 uses.
+</Warning>
+
+## Options
+
+- Use [Stripe](/2.x/addons/payments/stripe) or [PayPal](/2.x/addons/payments/paypal), Lunar's two first-party v2 payment drivers.
+- Refer to the [v1 Opayo documentation](/1.x/addons/payments/opayo) if evaluating Opayo support on a v1 store.
+- Check the [community add-ons](/2.x/addons/community/overview) page for a third-party gateway that has already been ported to v2.
+
+A v2-compatible Opayo driver would need a v2 testsuite, a `lunar.opayo` config namespace, and the amount/currency verification guard the v2 first-party drivers implement, in line with the requirements for any first-party payment driver.
