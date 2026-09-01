@@ -26,6 +26,8 @@ This wraps two `vendor:publish` calls:
 - `--tag=panel-config` publishes the panel's config to `config/lunar/panel.php` (merged under the `lunar.panel` key).
 - `--tag=panel-all-assets --force` copies the panel's compiled build to `public/vendor/lunar-panel/build`, its favicons to `public/vendor/lunar-panel/favicons`, and the compiled build of every registered add-on module to `public/vendor/lunar-panel/{key}`.
 
+On an interactive first run, the installer also offers to create the first admin staff account when none exists. Non-interactive runs (`--no-interaction`, or a deploy pipeline without a terminal) never prompt, so the command stays safe to re-run on every deploy.
+
 <Tip>
 Re-run `php artisan lunar:panel:install` after every package update. The host application serves pre-compiled assets, so a stale build is the most common cause of a change not appearing in the browser.
 </Tip>
@@ -43,20 +45,23 @@ The panel ships two migrations, run as part of the standard `php artisan migrate
 
 The panel authenticates against Lunar's staff guard, backed by `Lunar\Core\Models\Staff`. Only staff with `admin` set to `true`, or an explicit permission, can sign in and act inside the panel — see [Access control](/2.x/admin/access-control).
 
-If `lunarphp/admin` (the Filament panel) is also installed, its `lunar:create-admin` Artisan command creates a staff account with `admin` set to `true` and prompts for a name, email, and password. Otherwise, create one directly:
+The `lunar:create-admin` command, shipped with Lunar core, creates a staff account with `admin` set to `true`. Run interactively, it prompts for a name, email, and password:
 
-```php
-use Illuminate\Support\Facades\Hash;
-use Lunar\Core\Models\Staff;
-
-Staff::create([
-    'first_name' => 'Ada',
-    'last_name' => 'Lovelace',
-    'email' => 'ada@example.com',
-    'password' => Hash::make('password'),
-    'admin' => true,
-]);
+```bash
+php artisan lunar:create-admin
 ```
+
+For scripted setups, pass the details as options instead:
+
+```bash
+php artisan lunar:create-admin \
+    --firstname=Ada \
+    --lastname=Lovelace \
+    --email=ada@example.com \
+    --password=secret-password
+```
+
+`lunar:panel:install` offers to run this command on an interactive first run, so a fresh install usually already has its first account by this point.
 
 <Warning>
 Every staff login requires a second factor — an authenticator app or an emailed code. There is no password-only login path. See [Access control](/2.x/admin/access-control) for the enrollment flow.

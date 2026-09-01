@@ -75,14 +75,13 @@ The installer:
 
 - Publishes configuration files (skips existing ones unless told to overwrite)
 - Prompts to run database migrations
-- Creates a staff admin user (via `lunar:create-admin`, if a Filament-based panel such as `lunarphp/admin` or `lunarphp/filament` is installed)
+- Creates the first admin staff account (via `lunar:create-admin`, when none exists)
 - Imports country and state reference data
 - Seeds initial data: a default channel, location, language, currency (USD), customer group, collection group, tax class, tax zone, product type, and a default region tying these together
-- Publishes Filament assets (if Filament is installed)
+- Publishes Filament assets (when Filament is installed)
+- Offers to run `lunar:panel:install` (when the Inertia panel is installed)
 
-<Warning>
-The admin-user and Filament-asset steps assume a Filament-based panel is installed. If installing only `lunarphp/panel` (Inertia), follow [Admin Panel Installation](/2.x/admin/installation) for creating the first staff account.
-</Warning>
+The panel-specific steps only run for whichever panel package is present, so the installer works the same for a Filament, Inertia, or panel-free application.
 
 ## 5. Access the admin panel
 
