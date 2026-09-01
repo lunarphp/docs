@@ -369,8 +369,7 @@
                   "2.x/admin/introduction",
                   "2.x/admin/installation",
                   "2.x/admin/configuration",
-                  "2.x/admin/access-control",
-                  "2.x/admin/filament"
+                  "2.x/admin/access-control"
                 ]
               },
               {
@@ -397,6 +396,14 @@
           {
             "tab": "Add-ons",
             "groups": [
+              {
+                "group": "Filament Admin",
+                "pages": [
+                  "2.x/addons/filament/overview",
+                  "2.x/addons/filament/installation",
+                  "2.x/addons/filament/extending"
+                ]
+              },
               {
                 "group": "General",
                 "pages": ["2.x/addons/table-rate-shipping", "2.x/addons/search"]
