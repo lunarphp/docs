@@ -367,21 +367,31 @@
             "groups": [
               {
                 "group": "Getting Started",
-                "pages": ["2.x/admin/introduction"]
+                "pages": [
+                  "2.x/admin/introduction",
+                  "2.x/admin/installation",
+                  "2.x/admin/configuration",
+                  "2.x/admin/access-control",
+                  "2.x/admin/filament"
+                ]
               },
               {
                 "group": "Extending",
                 "pages": [
                   "2.x/admin/extending/overview",
-                  "2.x/admin/extending/access-control",
                   "2.x/admin/extending/addons",
-                  "2.x/admin/extending/attributes",
-                  "2.x/admin/extending/configuration",
-                  "2.x/admin/extending/panel",
                   "2.x/admin/extending/pages",
-                  "2.x/admin/extending/resources",
-                  "2.x/admin/extending/relation-managers",
-                  "2.x/admin/extending/order-management"
+                  "2.x/admin/extending/slots",
+                  "2.x/admin/extending/tables",
+                  "2.x/admin/extending/page-actions",
+                  "2.x/admin/extending/widgets",
+                  "2.x/admin/extending/search",
+                  "2.x/admin/extending/edit-drafts",
+                  "2.x/admin/extending/discount-forms",
+                  "2.x/admin/extending/ordering",
+                  "2.x/admin/extending/translations",
+                  "2.x/admin/extending/testing",
+                  "2.x/admin/extending/troubleshooting"
                 ]
               }
             ]

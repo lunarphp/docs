@@ -1,0 +1,59 @@
+---
+title: "The Filament-Based Admin"
+description: "Lunar's v1-era Filament admin panel and Filament bridge package, and how they relate to the new Inertia and Vue panel."
+---
+
+Lunar's Inertia and Vue panel ([`lunarphp/panel`](/2.x/admin/introduction)) is the recommended admin panel going forward, but the Filament-based admin from v1 remains fully available in v2. Nothing about it changes to accommodate the new panel, and the two packages coexist in the same application.
+
+## `lunarphp/admin`
+
+`lunarphp/admin` is Lunar's turnkey Filament v5 panel: navigation, branding, authentication, and a dashboard, wired to the resources and pages that manage a Lunar store. Despite the package name, its service provider class is `Lunar\Admin\LunarPanelProvider` — a naming collision with the new `lunarphp/panel` worth noting explicitly, since the two are otherwise unrelated packages.
+
+Install it into an application that already has core installed:
+
+```bash
+composer require lunarphp/admin
+```
+
+Register the panel in a service provider:
+
+```php
+use Lunar\Admin\Support\Facades\LunarPanel;
+
+class AppServiceProvider extends ServiceProvider
+{
+    public function register(): void
+    {
+        LunarPanel::register();
+    }
+}
+```
+
+By default the panel is served at `/lunar`.
+
+## `lunarphp/filament`
+
+`lunarphp/filament` is not a panel on its own. It is a bridge library of reusable Filament v5 building blocks — entity selectors, schemas, tables, actions (refund, capture, fulfilment status, stock adjustment, bulk publish, and more), and global-search descriptors — that plug into any Filament v5 panel, not only `lunarphp/admin`. `lunarphp/admin` is itself built on top of this bridge.
+
+Register it with a Filament panel through its plugin class:
+
+```php
+use Lunar\Filament\LunarPlugin;
+
+public function panel(Panel $panel): Panel
+{
+    return $panel
+        // ...
+        ->plugin(LunarPlugin::make()->fullPreset());
+}
+```
+
+`LunarPlugin` exposes each feature group (`widgets()`, `globalSearch()`, `actions()`, `livewireComponents()`) individually, or all at once via `fullPreset()`, so a downstream Filament panel can opt into only the pieces it needs.
+
+## Which one to use
+
+<Info>
+For a new v2 project, start with `lunarphp/panel` — see [Installation](/2.x/admin/installation). Reach for `lunarphp/admin` or `lunarphp/filament` when a project already has Filament-based customizations from v1, or when building a bespoke Filament panel that needs Lunar's building blocks.
+</Info>
+
+Detailed Filament extension patterns — extending pages, resources, relation managers, and order management inside the Filament admin — are covered in the 1.x documentation, which still applies to `lunarphp/admin` in v2: see [Admin Panel: Extending](/1.x/admin/extending/overview).
