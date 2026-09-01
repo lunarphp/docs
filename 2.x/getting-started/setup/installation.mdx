@@ -3,57 +3,65 @@ title: "Installation"
 description: "Add Lunar to a Laravel application with Composer."
 ---
 
-Lunar integrates into an existing Laravel application as a Composer package. This guide walks through the full setup process.
+Lunar integrates into an existing Laravel application as a set of Composer packages. This guide walks through installing the headless core and an admin panel.
+
+<Warning>
+Lunar v2 is in alpha. The version constraints below may need an explicit alpha flag (for example `@alpha`, or a `minimum-stability: dev` / `prefer-stable: false` entry in `composer.json`) until a stable v2 tag is published. APIs and config keys can still change before release.
+</Warning>
 
 ## Requirements
 
-- PHP >= 8.3 (Lunar 1.5+) — PHP 8.2 is supported on Lunar 1.4 and earlier
-- Laravel 12, 13 (Lunar 1.5+) — Laravel 11 is supported on Lunar 1.4 and earlier
-- Filament 4 (Lunar 1.5+) — Filament 3 is supported on Lunar 1.4 and earlier
-- MySQL 8.0+ / PostgreSQL 9.4+
+- PHP >= 8.4
+- Laravel 12 or 13
 - `bcmath` PHP extension
 - `exif` PHP extension
 - `intl` PHP extension
+- MySQL or PostgreSQL
 
 <Info>
-Lunar 1.5 builds the admin panel on Filament v4. Projects that need to stay on Filament v3 should install the 1.4 release line, which is the final Lunar version to support it: `composer require lunarphp/lunar:"^1.4"`. See the [upgrade guide](/1.x/getting-started/overview/upgrade-guide#15) for the differences between the two.
+Lunar v2 splits what was previously a single `lunarphp/lunar` package into a headless core plus a choice of admin panel. `lunarphp/core` has no Filament dependency and works standalone for a custom storefront, a custom admin, or an API-only deployment.
 </Info>
 
-## 1. Install the package
+## 1. Install the core package
 
 ```sh
-composer require lunarphp/lunar:"^1.0" -W
+composer require lunarphp/core
 ```
 
-## 2. Add the LunarUser trait
+This is the headless commerce core: models, actions, carts, orders, pricing, tax, and the rest of the domain. It has no admin UI.
 
-Parts of the Lunar core rely on the `User` model having certain e-commerce relationships (carts, orders, customers). Add the bundled trait and interface to any model that represents users in the application.
+## 2. Choose an admin panel
+
+Install one panel package alongside the core. Each is an equal, explicit choice — none is bundled by default.
+
+| Package | Description |
+|:--------|:-------------|
+| `lunarphp/panel` | The Inertia.js admin panel. |
+| `lunarphp/admin` | A turnkey Filament v5 admin panel. |
+| `lunarphp/filament` | Filament components, widgets, and schemas for building a custom Filament v5 panel. |
+
+```sh
+composer require lunarphp/panel
+```
+
+<Info>
+It is possible to run Lunar with no panel at all — for example, an API-only storefront that manages products and orders through custom tooling.
+</Info>
+
+See [Admin Panel Installation](/2.x/admin/installation) for panel-specific setup steps, including `php artisan lunar:panel:install`.
+
+## 3. Add the LunarUser contract
+
+Parts of Lunar core rely on the `User` model exposing certain e-commerce relationships (carts, orders, customers). Add the bundled trait and interface to any model that represents users in the application.
 
 ```php
-use Lunar\Base\Traits\LunarUser;
-use Lunar\Base\LunarUser as LunarUserInterface;
-// ...
+use Lunar\Core\Contracts\LunarUser;
+use Lunar\Core\Models\Concerns\IsLunarUser;
 
-class User extends Authenticatable implements LunarUserInterface
+class User extends Authenticatable implements LunarUser
 {
-    use LunarUser;
+    use IsLunarUser;
     // ...
-}
-```
-
-## 3. Register the admin panel
-
-Register the Lunar admin panel in the application's `AppServiceProvider`:
-
-```php
-use Lunar\Admin\Support\Facades\LunarPanel;
-
-class AppServiceProvider extends ServiceProvider
-{
-    public function register(): void
-    {
-        LunarPanel::register();
-    }
 }
 ```
 
@@ -63,17 +71,22 @@ class AppServiceProvider extends ServiceProvider
 php artisan lunar:install
 ```
 
-The installer will guide through a series of prompts and perform the following:
+The installer:
 
-- Publish configuration files
-- Run database migrations
-- Create a default admin user
-- Seed initial data: a default channel, language, currency (USD), customer group, collection group, tax class, tax zone, and product/collection attributes
-- Publish Filament assets
+- Publishes configuration files (skips existing ones unless told to overwrite)
+- Prompts to run database migrations
+- Creates a staff admin user (via `lunar:create-admin`, if a Filament-based panel such as `lunarphp/admin` or `lunarphp/filament` is installed)
+- Imports country and state reference data
+- Seeds initial data: a default channel, location, language, currency (USD), customer group, collection group, tax class, tax zone, product type, and a default region tying these together
+- Publishes Filament assets (if Filament is installed)
+
+<Warning>
+The admin-user and Filament-asset steps assume a Filament-based panel is installed. If installing only `lunarphp/panel` (Inertia), follow [Admin Panel Installation](/2.x/admin/installation) for creating the first staff account.
+</Warning>
 
 ## 5. Access the admin panel
 
-Once the installer completes, the admin panel is available at `https://<yoursite>/lunar`.
+Once installed, visit the admin panel at the path configured by the chosen panel package. See [Admin Panel Installation](/2.x/admin/installation) for the default path and how to change it.
 
 ## Telemetry
 
@@ -82,7 +95,7 @@ Lunar sends anonymous usage data once per day to help the maintainers understand
 To opt out, add the following to a service provider's `boot` method:
 
 ```php
-\Lunar\Facades\Telemetry::optOut();
+\Lunar\Core\Facades\Telemetry::optOut();
 ```
 
 ## Advanced installation options
@@ -95,7 +108,7 @@ The installer publishes configuration files automatically, but to customize sett
 php artisan vendor:publish --tag=lunar
 ```
 
-The installer will detect the existing configuration and skip overwriting it.
+The installer detects the existing configuration and skips overwriting it.
 
 ### Table prefix
 
@@ -103,6 +116,15 @@ Lunar prefixes all of its database tables to avoid conflicts. The default prefix
 
 ```php
 'table_prefix' => 'lunar_',
+```
+
+### Database connection and morph prefix
+
+`config/lunar/database.php` also controls which database connection Lunar's models use, and an optional prefix for Lunar's morph map aliases:
+
+```php
+'connection' => null,   // null uses the application's default connection
+'morph_prefix' => null, // e.g. 'lunar_product' instead of 'product'
 ```
 
 ### User ID field type
@@ -127,12 +149,16 @@ To take full control of Lunar's database migrations, disable the bundled migrati
 php artisan vendor:publish --tag=lunar.migrations
 ```
 
+### Search
+
+`lunarphp/core` depends on Laravel Scout, and defaults to Scout's `collection` driver, which needs no external service and is suitable for local development. For production search (faceted search, filtering, and dedicated engines like Meilisearch or Typesense), install the [Storefront Search add-on](/2.x/addons/search).
+
 ## What's next?
 
 <Card
   title="Starter Kits"
   icon="rocket"
-  href="/1.x/getting-started/starter-kits/livewire"
+  href="/2.x/getting-started/starter-kits/livewire"
   horizontal
 >
   Get a head start with a pre-built Livewire or Inertia storefront.
@@ -141,7 +167,7 @@ php artisan vendor:publish --tag=lunar.migrations
 <Card
   title="Storefront Guides"
   icon="store"
-  href="/1.x/guides/catalog-menu"
+  href="/2.x/guides/catalog-menu"
   horizontal
 >
   Learn how to build a storefront from scratch with step-by-step guides.
@@ -150,8 +176,8 @@ php artisan vendor:publish --tag=lunar.migrations
 <Card
   title="System Settings"
   icon="gear"
-  href="/1.x/getting-started/setup/system-settings"
+  href="/2.x/getting-started/setup/system-settings"
   horizontal
 >
-  Configure channels, languages, currencies, and more.
+  Configure regions, channels, languages, currencies, and more.
 </Card>

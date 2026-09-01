@@ -5,21 +5,11 @@ description: "Use Lunar documentation with AI tools like Claude, ChatGPT, Cursor
 
 Lunar's documentation is designed to work seamlessly with AI-powered development tools. Whether using an AI assistant to generate storefront code or querying the docs from an IDE, several built-in features make this possible.
 
-## Laravel Boost Skill <Badge color="green" icon="sparkles" size="sm">Added in 1.5</Badge>
+## Laravel Boost Skill
 
-Lunar ships a skill for [Laravel Boost](https://github.com/laravel/boost), giving an AI assistant a working orientation in a Lunar project: where the models and facades live, which config files matter, and which documentation page covers each task.
-
-Install it into the project with the Boost Artisan command:
-
-```sh
-php artisan boost:add-skill lunarphp/lunar
-```
-
-The skill activates when the assistant is working with Lunar concepts such as products, variants, carts, checkout, orders, discounts, payments, pricing, collections, attributes, or tax. It also instructs the assistant to fetch current documentation rather than answering from memory, since the API changes between minor versions.
-
-<Info>
-Boost's own `search-docs` tool does not index Lunar. The skill points the assistant at the MCP server and `llms.txt` described below instead.
-</Info>
+<Warning>
+A Laravel Boost skill for Lunar v2 has not been published yet. The rest of this page (llms.txt, the MCP server, and Markdown export) applies to v2 already.
+</Warning>
 
 ## llms.txt
 
@@ -48,7 +38,7 @@ https://docs.lunarphp.com/mcp
 
 ### Connecting from AI Tools
 
-<Info>The MCP server supports filtering by documentation version using a `version` parameter (e.g., `v1.x` or `v0.x`).</Info>
+<Info>The MCP server supports filtering by documentation version using a `version` parameter (e.g., `v2.x`, `v1.x`, or `v0.x`).</Info>
 
 #### Claude Code
 
@@ -94,7 +84,7 @@ Navigate to **Settings > Connectors > Add custom connector**, then enter a name 
 Any documentation page can be viewed as plain Markdown by appending `.md` to its URL. For example:
 
 ```
-https://docs.lunarphp.com/1.x/reference/carts.md
+https://docs.lunarphp.com/2.x/reference/carts.md
 ```
 
 This is useful for feeding specific pages into AI tools as context. Markdown is more token-efficient than HTML, resulting in faster processing and better response quality.
