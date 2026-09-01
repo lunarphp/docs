@@ -5,6 +5,12 @@ description: "Use Lunar documentation with AI tools like Claude, ChatGPT, Cursor
 
 Lunar's documentation is designed to work seamlessly with AI-powered development tools. Whether using an AI assistant to generate storefront code or querying the docs from an IDE, several built-in features make this possible.
 
+## Laravel Boost Skill
+
+<Warning>
+A Laravel Boost skill for Lunar v2 has not been published yet. The rest of this page (llms.txt, the MCP server, and Markdown export) applies to v2 already.
+</Warning>
+
 ## llms.txt
 
 The Lunar documentation site automatically provides an `llms.txt` file at the root of the docs domain. Similar to how `sitemap.xml` helps search engines index a website, `llms.txt` helps large language models discover and understand documentation content.
@@ -32,7 +38,7 @@ https://docs.lunarphp.com/mcp
 
 ### Connecting from AI Tools
 
-<Info>The MCP server supports filtering by documentation version using a `version` parameter (e.g., `v1.x` or `v0.x`).</Info>
+<Info>The MCP server supports filtering by documentation version using a `version` parameter (e.g., `v2.x`, `v1.x`, or `v0.x`).</Info>
 
 #### Claude Code
 
@@ -78,7 +84,7 @@ Navigate to **Settings > Connectors > Add custom connector**, then enter a name 
 Any documentation page can be viewed as plain Markdown by appending `.md` to its URL. For example:
 
 ```
-https://docs.lunarphp.com/1.x/reference/carts.md
+https://docs.lunarphp.com/2.x/reference/carts.md
 ```
 
 This is useful for feeding specific pages into AI tools as context. Markdown is more token-efficient than HTML, resulting in faster processing and better response quality.

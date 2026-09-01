@@ -17,10 +17,16 @@ The Lunar community has built a growing collection of third-party packages that 
 
 ## Payments
 
+Stripe and PayPal are Lunar's two first-party payment drivers — see [Stripe](/2.x/addons/payments/stripe) and [PayPal](/2.x/addons/payments/paypal). Every other gateway is community-maintained: a package built against the `Lunar\Core\Contracts\PaymentType` contract and registered with `Payments::extend()`, as described in [Extending Payments](/2.x/extending/payments).
+
 | Package | Description |
 |---|---|
 | [webcraft/lunar-mollie](https://github.com/webcraft/lunar-mollie) | Mollie payment driver supporting credit cards, iDEAL, PayPal, Apple Pay, Bancontact, and more. Includes a Livewire checkout component. |
 | [wychoong/lunarphp-mpgs](https://github.com/wychoong/lunarphp-mpgs) | Mastercard Payment Gateway Services (MPGS) Hosted Checkout integration with Livewire support. |
+
+<Info>
+Verify a package's v2 compatibility before use — some community drivers still target Lunar v1's `Lunar\Models\...` namespace and contract.
+</Info>
 
 ## Products
 

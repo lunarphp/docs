@@ -5,7 +5,7 @@ description: "Build a checkout flow with Lunar, covering address collection, shi
 
 ## Overview
 
-The checkout flow takes a customer from their cart through to a placed order. This typically involves collecting billing and shipping addresses, selecting a shipping method, reviewing the order, and processing payment. This guide walks through building a checkout using Lunar's `Cart` model, `CartSession` facade, and `Payments` facade.
+The checkout flow takes a customer from their cart through to a placed order. This typically involves collecting billing and shipping addresses, selecting a shipping method, reviewing the order, and processing payment. This guide walks through building a checkout using Lunar's `Lunar\Core\Models\Cart` model, `Lunar\Core\Facades\CartSession` facade, and `Lunar\Core\Facades\Payments` facade.
 
 The examples below use standard Laravel controllers and Blade templates. The same concepts apply whether the storefront is built with Livewire, Inertia, or a headless API.
 
@@ -27,7 +27,7 @@ Before an order can be created, the cart needs at least a billing address. If th
 ### Setting the Billing Address
 
 ```php
-use Lunar\Facades\CartSession;
+use Lunar\Core\Facades\CartSession;
 
 $cart = CartSession::current();
 
@@ -67,7 +67,11 @@ $cart->setShippingAddress([
 ]);
 ```
 
-Both methods accept either an associative array or an object implementing the `Lunar\Base\Addressable` interface. When called, any existing address of that type on the cart is replaced.
+Both methods accept either an associative array or an object implementing the `Lunar\Core\Contracts\Addressable` interface. When called, any existing address of that type on the cart is replaced.
+
+<Info>
+Setting a new shipping address clears any tax zone override on the cart by default, so tax recalculates against the new address. Pass `setShippingAddress($address, clearTaxZone: false)` to keep an existing override.
+</Info>
 
 ### Required Address Fields
 
@@ -100,7 +104,7 @@ if ($request->boolean('ship_to_billing')) {
 Lunar ships with a `Country` model that can be used to populate a country dropdown:
 
 ```php
-use Lunar\Models\Country;
+use Lunar\Core\Models\Country;
 
 $countries = Country::orderBy('name')->get();
 ```
@@ -115,26 +119,26 @@ $countries = Country::orderBy('name')->get();
 
 ## Shipping Options
 
-Once a shipping address is set, the available shipping methods can be retrieved using the `ShippingManifest` facade. Shipping options are configured by extending Lunar's shipping system (see [Extending Shipping](/1.x/extending/shipping)).
+Once a shipping address is set, the available shipping methods can be retrieved using the `ShippingManifest` facade. Shipping options are configured by extending Lunar's shipping system (see [Extending Shipping](/2.x/extending/shipping)).
 
 ### Fetching Available Options
 
 ```php
-use Lunar\Facades\ShippingManifest;
+use Lunar\Core\Facades\ShippingManifest;
 
 $cart = CartSession::current();
 
 $shippingOptions = ShippingManifest::getOptions($cart);
 ```
 
-This returns a collection of `Lunar\DataTypes\ShippingOption` objects. Each option has the following properties:
+This returns a collection of `Lunar\Core\DataTypes\ShippingOption` objects. Each option has the following properties:
 
 | Property | Type | Description |
 |:---|:---|:---|
 | `name` | `string` | Display name for the option (e.g., "Standard Delivery") |
-| `description` | `string` | A longer description of the option |
+| `description` | `?string` | A longer description of the option |
 | `identifier` | `string` | Unique identifier used to select this option |
-| `price` | `Lunar\DataTypes\Price` | The cost of this shipping method |
+| `price` | `Lunar\Core\DataObjects\PriceValue` | The cost of this shipping method |
 | `collect` | `bool` | Whether this is a collection/pickup option rather than a delivery |
 
 ```blade
@@ -146,7 +150,7 @@ This returns a collection of `Lunar\DataTypes\ShippingOption` objects. Each opti
             value="{{ $option->identifier }}"
             @checked($cart->getShippingOption()?->identifier === $option->identifier)
         >
-        {{ $option->name }} — {{ $option->price->formatted() }}
+        {{ $option->name }} — {{ $option->price->format() }}
         @if($option->description)
             <span>{{ $option->description }}</span>
         @endif
@@ -159,8 +163,8 @@ This returns a collection of `Lunar\DataTypes\ShippingOption` objects. Each opti
 After the customer selects a shipping method, apply it to the cart. Use the `ShippingManifest` facade to retrieve the full `ShippingOption` object by its identifier:
 
 ```php
-use Lunar\DataTypes\ShippingOption;
-use Lunar\Facades\ShippingManifest;
+use Lunar\Core\DataTypes\ShippingOption;
+use Lunar\Core\Facades\ShippingManifest;
 
 $cart = CartSession::current();
 
@@ -170,7 +174,7 @@ $cart->setShippingOption($shippingOption);
 ```
 
 <Info>
-`setShippingOption()` automatically recalculates the cart. After it completes, the `shippingSubTotal`, `shippingTaxTotal`, and `shippingTotal` properties on the cart reflect the selected shipping option.
+`setShippingOption()` recalculates the cart by default. After it completes, the `shippingSubTotal`, `shippingTaxTotal`, and `shippingTotal` properties on the cart reflect the selected shipping option.
 </Info>
 
 ## Order Review
@@ -189,7 +193,7 @@ $cart = CartSession::current();
     <div>
         <p>{{ $line->purchasable->product->attr('name') }}</p>
         <p>Qty: {{ $line->quantity }}</p>
-        <p>{{ $line->total->formatted() }}</p>
+        <p>{{ $line->total->format() }}</p>
     </div>
 @endforeach
 
@@ -210,33 +214,35 @@ $cart = CartSession::current();
 <h3>Totals</h3>
 <dl>
     <dt>Subtotal</dt>
-    <dd>{{ $cart->subTotal->formatted() }}</dd>
+    <dd>{{ $cart->subTotal->format() }}</dd>
 
     @if($cart->discountTotal?->value > 0)
         <dt>Discount</dt>
-        <dd>-{{ $cart->discountTotal->formatted() }}</dd>
+        <dd>-{{ $cart->discountTotal->format() }}</dd>
     @endif
 
     @if($cart->shippingTotal?->value > 0)
         <dt>Shipping</dt>
-        <dd>{{ $cart->shippingTotal->formatted() }}</dd>
+        <dd>{{ $cart->shippingTotal->format() }}</dd>
     @endif
 
     <dt>Tax</dt>
-    <dd>{{ $cart->taxTotal->formatted() }}</dd>
+    <dd>{{ $cart->taxTotal->format() }}</dd>
 
     <dt>Total</dt>
-    <dd>{{ $cart->total->formatted() }}</dd>
+    <dd>{{ $cart->total->format() }}</dd>
 </dl>
 ```
 
+See the [Cart guide](/2.x/guides/cart) for the full list of computed properties available on the cart and its lines.
+
 ## Creating the Order
 
-Once the customer is ready to proceed, create the order from the cart. This validates the cart, copies all data (lines, addresses, totals) to a new `Lunar\Models\Order`, and returns it as a draft (with `placed_at` set to `null`).
+Once the customer is ready to proceed, create the order from the cart. This validates the cart and runs it through the configured creation pipeline, which copies the cart's data (lines, addresses, totals) onto a new `Lunar\Core\Models\Order` and returns it as a draft (with `placed_at` set to `null`).
 
 ```php
-use Lunar\Exceptions\Carts\CartException;
-use Lunar\Facades\CartSession;
+use Lunar\Core\Exceptions\Carts\CartException;
+use Lunar\Core\Facades\CartSession;
 
 try {
     $order = CartSession::createOrder();
@@ -254,19 +260,17 @@ try {
 When `createOrder()` is called, Lunar runs through the following steps:
 
 1. Recalculates the cart to ensure totals are up to date
-2. Validates the cart (billing address, shipping address, and shipping option)
-3. Creates the order with financial data, currency, and channel from the cart
-4. Copies cart lines to order lines
-5. Copies cart addresses to order addresses
-6. Creates a shipping line on the order (if a shipping option is set)
-7. Maps any discount breakdowns to the order
+2. Validates the cart (billing address, shipping address, and shipping option, among other checks)
+3. Runs the order through the `lunar.orders.pipelines.creation` pipeline, which by default: fills the order with the cart's financial data, currency, and channel; creates the order lines; creates the order addresses; creates a shipping line (if a shipping option is set); and maps the cart's discount breakdown onto the order
+
+The pipeline is configurable, so a store can insert or replace steps in `config/lunar/orders.php`.
 
 ### Handling Validation Errors
 
-If validation fails, a `Lunar\Exceptions\Carts\CartException` is thrown. The exception contains a `MessageBag` accessible via the `errors()` method, and its `getMessage()` returns a human-readable summary.
+If validation fails, a `Lunar\Core\Exceptions\Carts\CartException` is thrown. The exception contains a `MessageBag` accessible via the `errors()` method, and its `getMessage()` returns a human-readable summary.
 
 ```php
-use Lunar\Exceptions\Carts\CartException;
+use Lunar\Core\Exceptions\Carts\CartException;
 
 try {
     $order = CartSession::createOrder();
@@ -302,12 +306,10 @@ if (! $cart->canCreateOrder()) {
 
 ## Processing Payment
 
-After the order is created, process the payment using the `Payments` facade. Lunar uses a driver-based approach, so the same API works regardless of the payment provider.
-
-### Basic Payment Flow
+After the order is created, process the payment using the `Payments` facade. Lunar uses a driver-based approach built on the `Lunar\Core\Contracts\PaymentType` contract, so the same API works regardless of the payment provider.
 
 ```php
-use Lunar\Facades\Payments;
+use Lunar\Core\Facades\Payments;
 
 $payment = Payments::driver('card')
     ->cart($cart)
@@ -327,7 +329,7 @@ return redirect()->back()->withErrors([
 ]);
 ```
 
-The `authorize()` method returns a `Lunar\Base\DataTransferObjects\PaymentAuthorize` object with the following properties:
+The `authorize()` method returns a `Lunar\Core\DataObjects\PaymentAuthorize` object with the following properties:
 
 | Property | Type | Description |
 |:---|:---|:---|
@@ -340,47 +342,16 @@ The `authorize()` method returns a `Lunar\Base\DataTransferObjects\PaymentAuthor
 An order is only considered "placed" when its `placed_at` column has a datetime value. The payment driver is responsible for setting this. A draft order (where `placed_at` is `null`) has not been placed, even if an order record exists.
 </Warning>
 
-### Offline Payments
-
-For manual or offline payments (cash on delivery, bank transfer, etc.), use the built-in `offline` driver:
-
-```php
-$payment = Payments::driver('cash-in-hand')
-    ->cart($cart)
-    ->authorize();
-```
-
-The offline driver automatically creates a draft order (if one does not exist), sets `placed_at`, and updates the order status to the configured "authorized" status.
-
-### Configuring Payment Types
-
-Payment types are configured in `config/lunar/payments.php`:
-
-```php
-return [
-    'default' => env('PAYMENTS_TYPE', 'offline'),
-
-    'types' => [
-        'cash-in-hand' => [
-            'driver' => 'offline',
-            'authorized' => 'payment-offline',
-        ],
-        'card' => [
-            'driver' => 'stripe',
-            'released' => 'payment-received',
-        ],
-    ],
-];
-```
-
-See the [Payments reference](/1.x/reference/payments) for details on configuring drivers, and the [Extending Payments](/1.x/extending/payments) guide for building custom payment drivers.
+For a full walkthrough of driver selection, the offline driver, and the first-party Stripe and PayPal drivers, see the [Payment Integration guide](/2.x/guides/payment-integration).
 
 ## Order Confirmation
 
 After a successful payment, redirect the customer to a confirmation page. The order is now placed and contains all the data needed for a receipt.
 
+Order money fields (`sub_total`, `discount_total`, `shipping_total`, `tax_total`, `total`) are stored as plain integers in the currency's minor unit. Format them with the model's `format()` method rather than treating them as objects.
+
 ```php
-use Lunar\Models\Order;
+use Lunar\Core\Models\Order;
 
 class CheckoutController extends Controller
 {
@@ -411,37 +382,37 @@ class CheckoutController extends Controller
     <div>
         <p>{{ $line->description }}</p>
         <p>Qty: {{ $line->quantity }}</p>
-        <p>{{ $line->total->formatted() }}</p>
+        <p>{{ $line->format('total') }}</p>
     </div>
 @endforeach
 
 @if($order->shippingLines->isNotEmpty())
     <h2>Shipping</h2>
     @foreach($order->shippingLines as $line)
-        <p>{{ $line->description }}: {{ $line->total->formatted() }}</p>
+        <p>{{ $line->description }}: {{ $line->format('total') }}</p>
     @endforeach
 @endif
 
 <h2>Totals</h2>
 <dl>
     <dt>Subtotal</dt>
-    <dd>{{ $order->sub_total->formatted() }}</dd>
+    <dd>{{ $order->format('sub_total') }}</dd>
 
-    @if($order->discount_total->value > 0)
+    @if($order->discount_total > 0)
         <dt>Discount</dt>
-        <dd>-{{ $order->discount_total->formatted() }}</dd>
+        <dd>-{{ $order->format('discount_total') }}</dd>
     @endif
 
-    @if($order->shipping_total->value > 0)
+    @if($order->shipping_total > 0)
         <dt>Shipping</dt>
-        <dd>{{ $order->shipping_total->formatted() }}</dd>
+        <dd>{{ $order->format('shipping_total') }}</dd>
     @endif
 
     <dt>Tax</dt>
-    <dd>{{ $order->tax_total->formatted() }}</dd>
+    <dd>{{ $order->format('tax_total') }}</dd>
 
     <dt>Total</dt>
-    <dd>{{ $order->total->formatted() }}</dd>
+    <dd>{{ $order->format('total') }}</dd>
 </dl>
 ```
 
@@ -460,7 +431,7 @@ $fingerprint = $cart->fingerprint();
 
 ```php
 // Verify the fingerprint before processing payment
-use Lunar\Exceptions\FingerprintMismatchException;
+use Lunar\Core\Exceptions\FingerprintMismatchException;
 
 try {
     $cart->checkFingerprint($request->fingerprint);
@@ -492,13 +463,13 @@ Here is a complete controller covering the checkout flow:
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Lunar\Exceptions\Carts\CartException;
-use Lunar\Exceptions\FingerprintMismatchException;
-use Lunar\Facades\CartSession;
-use Lunar\Facades\Payments;
-use Lunar\Facades\ShippingManifest;
-use Lunar\Models\Country;
-use Lunar\Models\Order;
+use Lunar\Core\Exceptions\Carts\CartException;
+use Lunar\Core\Exceptions\FingerprintMismatchException;
+use Lunar\Core\Facades\CartSession;
+use Lunar\Core\Facades\Payments;
+use Lunar\Core\Facades\ShippingManifest;
+use Lunar\Core\Models\Country;
+use Lunar\Core\Models\Order;
 
 class CheckoutController extends Controller
 {
@@ -627,8 +598,8 @@ class CheckoutController extends Controller
 
 ## Next Steps
 
-- Review the [Payments reference](/1.x/reference/payments) for payment driver configuration, transactions, and refunds.
-- Review the [Extending Shipping](/1.x/extending/shipping) guide for adding custom shipping options.
-- Review the [Extending Payments](/1.x/extending/payments) guide for building a custom payment driver.
-- Review the [Extending Orders](/1.x/extending/orders) guide for customizing order creation and adding post-creation behavior.
-- Review the [Cart guide](/1.x/guides/cart) for building the cart page that precedes checkout.
+- Review the [Payment Integration guide](/2.x/guides/payment-integration) for driver selection, the Stripe and PayPal drivers, and post-payment order state.
+- Review the [Extending Shipping](/2.x/extending/shipping) guide for adding custom shipping options.
+- Review the [Extending Payments](/2.x/extending/payments) guide for building a custom payment driver.
+- Review the [Extending Orders](/2.x/extending/orders) guide for customizing the order creation pipeline.
+- Review the [Cart guide](/2.x/guides/cart) for building the cart page that precedes checkout.

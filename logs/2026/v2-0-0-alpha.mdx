@@ -1,0 +1,37 @@
+---
+title: "Lunar 2.0 alpha"
+sidebarTitle: "2.0 alpha"
+date: "2026-09-01"
+description: "The first alpha of Lunar 2.0, with a new Inertia.js admin panel, fulfilments, per-location inventory, regions, and a rebuilt pricing engine."
+---
+
+The first alpha of Lunar 2.0 is available, alongside a new set of [v2.x documentation](/2.x/getting-started/overview/introduction). Lunar 2.0 is the largest release in the project's history: the core has been restructured around a cleaner extension model, and a brand-new admin panel replaces Filament as the recommended way to run a store.
+
+<Warning>
+This is an alpha. APIs may still change between alpha releases, and production use is not recommended yet. Review the [upgrade guide](/2.x/getting-started/overview/upgrade-guide) before trying it against a copy of an existing store, and always work from a database backup.
+</Warning>
+
+## What's new
+
+### A new admin panel
+
+Lunar 2.0 ships a new first-party admin panel built on Inertia.js and Vue, published as `lunarphp/panel`. It covers the full catalog, sales, and settings surface, adds a customizable widget dashboard, global search, autosaved edit drafts with conflict detection, and mandatory two-factor authentication for staff. It is extended through a PHP `Section` API paired with Vue components, so add-ons can register pages, table columns, slots, widgets, and search sources without touching panel source.
+
+The Filament-based admin from v1 remains available as `lunarphp/admin` for projects that prefer it. See the [admin panel introduction](/2.x/admin/introduction) for how the packages relate.
+
+### Core changes
+
+- **Fulfilments** — orders are now fulfilled through dedicated fulfilment records with methods, carriers, and tracking. See [Fulfilments](/2.x/reference/fulfilments).
+- **Inventory** — stock is tracked per variant per location, with movements, reservations, and reconciliation. See [Inventory](/2.x/reference/inventory).
+- **Regions** — a new concept grouping channel, currency, language, and tax behavior for a market. See [Regions](/2.x/reference/regions).
+- **Storefront context** — a single session-backed context feeds pricing and availability. See [Storefront Session](/2.x/storefront-utils/storefront-session).
+- **Pricing engine** — prices flow through a dedicated `PriceValue` type and a fluent pricing API. See [Pricing](/2.x/reference/pricing).
+- **Cleaner extension model** — the `Lunar\Core\...` namespace, verb methods on models backed by swappable action contracts, and container bindings in place of config-based class substitution. See [Extending Lunar](/2.x/extending/models).
+
+## Upgrading from 1.x
+
+The new `lunarphp/upgrade` package automates much of the move: Rector rules rewrite namespaces and renamed APIs, and guided data migrations transform a v1 database. The [upgrade guide](/2.x/getting-started/overview/upgrade-guide) walks through the full process and the manual checklist.
+
+## Feedback
+
+Alpha feedback is welcome through [GitHub Discussions](https://github.com/lunarphp/lunar/discussions) or the [Discord](https://lunarphp.com/discord) community.

@@ -21,7 +21,7 @@ The basic process for contributing code to Lunar is:
 6. Submit a pull request
 
 <Tip>
-For a step-by-step walkthrough of setting up the monorepo inside a Laravel application, see the [Local Development](/1.x/getting-started/overview/local-development) guide.
+For a step-by-step walkthrough of setting up the monorepo inside a Laravel application, see the [Local Development](/2.x/getting-started/overview/local-development) guide.
 </Tip>
 
 ### Coding Standards
@@ -34,13 +34,13 @@ vendor/bin/pint
 
 ### Running Tests
 
-Lunar uses [Pest](https://pestphp.com/) for its test suite. Tests can be run from the repository root:
+Lunar uses [Pest](https://pestphp.com/) for its test suite. Each package has its own testsuite, and CI runs them one at a time. Run a testsuite from the repository root:
 
 ```bash
-vendor/bin/pest
+vendor/bin/pest --testsuite core --parallel
 ```
 
-All existing tests must continue to pass, and new features or bug fixes should include corresponding test coverage.
+See [Local Development](/2.x/getting-started/overview/local-development) for the full list of testsuites. All existing tests must continue to pass, and new features or bug fixes should include corresponding test coverage.
 
 ## Reporting a Bug
 
@@ -59,7 +59,7 @@ If a bug is discovered, please open a GitHub issue on the [lunarphp/lunar](https
 Providing as much detail as possible gives the issue the best chance of being resolved quickly. Creating an issue does not guarantee immediate activity; maintainers review issues as time allows.
 
 <Warning>
-Security vulnerabilities should not be reported as public issues. See the [Security](/1.x/getting-started/overview/security) page for responsible disclosure instructions.
+Security vulnerabilities should not be reported as public issues. See the [Security](/2.x/getting-started/overview/security) page for responsible disclosure instructions.
 </Warning>
 
 ## Proposing a Feature

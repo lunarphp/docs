@@ -5,12 +5,17 @@ description: "Setting up the Lunar monorepo locally for development and contribu
 
 This guide walks through setting up the Lunar monorepo inside a Laravel application for local development and contribution.
 
+<Info>
+Lunar v2 is built as a monorepo: a single repository containing several Composer packages (`core`, `admin`, `filament`, `panel`, `stripe`, `paypal`, and more) plus the shared test suite that exercises them.
+</Info>
+
 ## Prerequisites
 
-- PHP 8.2 or higher
-- A working [Laravel](https://laravel.com/docs/installation) application
+- PHP 8.4 or higher
+- A working [Laravel](https://laravel.com/docs/installation) application (Laravel 12 or 13)
 - [Composer](https://getcomposer.org/)
 - [Git](https://git-scm.com/)
+- [Node.js](https://nodejs.org/) 22+ (only needed for panel frontend work)
 
 ## Setting Up the Monorepo
 
@@ -30,11 +35,11 @@ Add `packages` to the `.gitignore` file so it is not committed to the applicatio
 
 ### 2. Clone the repository
 
-Fork the [lunarphp/lunar](https://github.com/lunarphp/lunar) repository on GitHub, then clone the fork into the `packages` directory.
+Fork the [lunarphp/lunar](https://github.com/lunarphp/lunar) repository on GitHub, then clone the fork into the `packages` directory on the `2.x` branch.
 
 ```bash
 cd packages
-git clone https://github.com/YOUR-USERNAME/lunar.git
+git clone --branch 2.x https://github.com/YOUR-USERNAME/lunar.git
 ```
 
 This places the monorepo at `packages/lunar/`.
@@ -59,7 +64,7 @@ Back in the Laravel application's `composer.json`, add a path repository and req
 }
 ```
 
-The `lunarphp/lunarmono` package is the monorepo root and includes all Lunar packages: core, admin panel, payment drivers, and add-ons.
+The `lunarphp/lunarmono` package is the monorepo root and includes the packages needed to run a store out of the box: the core engine and the Filament admin panel (via its `lunarphp/filament` bridge).
 
 <Info>
 The `symlink` option ensures that changes made in the `packages/lunar` directory are immediately reflected in the application without needing to run `composer update` after every edit.
@@ -73,33 +78,7 @@ Run Composer from the Laravel application's root directory to install the local 
 composer update
 ```
 
-Once complete, follow the standard [installation](/1.x/getting-started/setup/installation) steps to run migrations and publish assets.
-
-## Running Tests
-
-Lunar uses [Pest](https://pestphp.com/) for testing. Tests can be run from the monorepo root at `packages/lunar/`.
-
-```bash
-cd packages/lunar
-vendor/bin/pest
-```
-
-To run tests for a specific package, use the `--filter` flag or point to a specific test directory.
-
-```bash
-vendor/bin/pest tests/core
-vendor/bin/pest tests/admin
-```
-
-All existing tests must continue to pass before submitting a pull request.
-
-## Code Style
-
-Lunar follows the [Laravel coding style](https://laravel.com/docs/contributions#coding-style) and uses [Laravel Pint](https://laravel.com/docs/pint) for enforcement. Run Pint from the monorepo root before committing changes.
-
-```bash
-vendor/bin/pint
-```
+Once complete, follow the standard [installation](/2.x/getting-started/setup/installation) steps to run migrations and publish assets.
 
 ## Monorepo Structure
 
@@ -107,17 +86,75 @@ The monorepo contains the following packages under `packages/`:
 
 | Directory | Composer Package | Description |
 | --- | --- | --- |
-| `core` | `lunarphp/core` | Core e-commerce functionality |
-| `admin` | `lunarphp/lunar` | Admin panel built with Filament |
+| `core` | `lunarphp/core` | Core e-commerce engine: models, actions, pricing, search |
+| `admin` | `lunarphp/admin` | Admin panel resources, built on `lunarphp/filament` |
+| `filament` | `lunarphp/filament` | Bridge that plugs Lunar into any Filament v5 panel |
+| `panel` | `lunarphp/panel` | First-party Inertia + Vue admin panel |
+| `panel-addon-example` | `lunarphp/panel-addon-example` | Example add-on package for the Inertia + Vue panel |
 | `stripe` | `lunarphp/stripe` | Stripe payment driver |
 | `paypal` | `lunarphp/paypal` | PayPal payment driver |
-| `opayo` | `lunarphp/opayo` | Opayo payment driver |
-| `search` | `lunarphp/search` | Search with Typesense and Meilisearch support |
-| `meilisearch` | `lunarphp/meilisearch` | Meilisearch addon |
-| `table-rate-shipping` | `lunarphp/table-rate-shipping` | Table rate shipping addon |
+| `search` | `lunarphp/search` | Scout-based search: database, Meilisearch, and Typesense engines |
+| `meilisearch` | `lunarphp/meilisearch` | Meilisearch add-on |
+| `table-rate-shipping` | `lunarphp/table-rate-shipping` | Table rate shipping method |
+| `upgrade` | `lunarphp/upgrade` | Rector rules and data migrations for v1 to v2 upgrades |
+| `demo-data` | `lunarphp/demo-data` | Seeds a reproducible demo store |
 
-Tests for each package are located in the top-level `tests/` directory, organized by package name.
+PHP tests for each package live under the top-level `tests/` directory, grouped by package name (`tests/core`, `tests/admin`, and so on).
+
+## Running Tests
+
+Lunar uses [Pest](https://pestphp.com/) for its PHP test suite. Each package has its own Pest testsuite, defined in `phpunit.xml`, and CI runs them one at a time rather than as a single combined pass. Run tests from the monorepo root at `packages/lunar/`, matching CI:
+
+```bash
+cd packages/lunar
+vendor/bin/pest --testsuite core --parallel
+vendor/bin/pest --testsuite admin --parallel
+```
+
+The full list of testsuites in the CI matrix is `core`, `admin`, `panel`, `filament`, `shipping`, `stripe`, `paypal`, `search`, and `upgrade`. A `demo-data` testsuite also exists but is not part of the CI matrix. To run the full local sweep:
+
+```bash
+for s in core admin panel filament shipping stripe paypal search upgrade; do
+  vendor/bin/pest --testsuite "$s" --parallel || break
+done
+```
+
+Cross-database tests run as a group rather than a testsuite, against MySQL and PostgreSQL:
+
+```bash
+vendor/bin/pest --group=cross-db --parallel --do-not-fail-on-empty-test-suite
+```
+
+All existing tests must continue to pass before submitting a pull request.
+
+## Panel Frontend
+
+The Inertia + Vue panel (`packages/panel`) has its own dependency tree, separate from the monorepo's root npm workspace, and needs its own install.
+
+```bash
+cd packages/panel
+npm install
+npm test          # vitest
+npm run type-check
+npm run build
+```
+
+The example add-on package builds through the npm workspace at the monorepo root instead:
+
+```bash
+npm install
+npm run build --workspace @lunarphp/panel-addon-example
+```
+
+## Code Style and Static Analysis
+
+Lunar follows the [Laravel coding style](https://laravel.com/docs/contributions#coding-style) and uses [Laravel Pint](https://laravel.com/docs/pint) for enforcement, and [PHPStan](https://phpstan.org/) (via Larastan) for static analysis. Run both from the monorepo root before committing changes.
+
+```bash
+vendor/bin/pint --dirty
+vendor/bin/phpstan analyse --no-progress
+```
 
 ## Next Steps
 
-With local development set up, see the [Contributing](/1.x/getting-started/overview/contributing) guide for information on coding standards, submitting pull requests, and reporting bugs.
+With local development set up, see the [Contributing](/2.x/getting-started/overview/contributing) guide for information on coding standards, submitting pull requests, and reporting bugs.

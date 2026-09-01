@@ -624,6 +624,22 @@ To retrieve the current draft order (matching the cart's fingerprint and total):
 $draftOrder = $cart->currentDraftOrder();
 ```
 
+### Discount Consumption <Badge color="green" icon="sparkles" size="sm">Added in 1.5</Badge>
+
+Order creation records a use against each applied discount as soon as the draft order exists. A checkout that runs order creation more than once for the same cart, such as a retry after a declined card, would therefore find the cart's own coupon exhausted and re-price the same order without it.
+
+To prevent this, a cart tracks the discounts it has already consumed, read from its draft order's discount breakdown. A cart's own consumption is not counted against it, so one order consumes one use however many times order creation runs for it.
+
+```php
+$cart->consumedDiscountIds(); // Illuminate\Support\Collection of discount IDs
+```
+
+The result is memoized on the cart instance, because it is read once when the applicable discount set is rebuilt and once per discount while conditions are checked. Order creation is the only thing that changes the answer, and it clears the memo itself. Code that writes a discount breakdown outside of order creation should clear it manually:
+
+```php
+$cart->forgetConsumedDiscountIds();
+```
+
 ### Stock Validation
 
 Stock levels can be validated before order creation. This checks each cart line against the available stock for its purchasable item.
@@ -751,6 +767,21 @@ CartSession::remove($cartLineId);
 // Remove all lines
 CartSession::clear();
 ```
+
+### Setting the Currency
+
+A cart holds a single currency. Switching it updates the cart's `currency_id` and resets the loaded `currency` and `lines` relationships, so the next call to `calculate()` prices every line from the new currency's `Price` records:
+
+```php
+use Lunar\Facades\CartSession;
+use Lunar\Models\Currency;
+
+CartSession::setCurrency(Currency::where('code', 'USD')->first());
+```
+
+<Info>
+Lunar stores a price per currency rather than converting between them. A line whose purchasable has no `Price` record for the new currency raises `Lunar\Exceptions\MissingCurrencyPriceException` when the cart is calculated.
+</Info>
 
 ### Using a Specific Cart
 

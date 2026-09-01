@@ -1,64 +1,79 @@
 ---
-title: "Storefront Search"
-sidebarTitle: "Storefront Search"
+title: "Search"
+sidebarTitle: "Search"
+description: "Query Lunar's Scout search indexes with faceted filtering, sorting, and pagination across the database, Meilisearch, and Typesense drivers."
 ---
 
-## Overview
+The Search add-on provides a query layer on top of the search indexes described in the [Search reference](/2.x/reference/search). It wraps Laravel Scout and adds support for faceted search, filtering, sorting, and consistent response formatting using [Spatie Laravel Data](https://spatie-laravel-data.com).
 
-The Storefront Search add-on provides a unified API for performing search operations across multiple search engines. It wraps Laravel Scout and adds support for faceted search, filtering, sorting, and consistent response formatting using [Spatie Laravel Data](https://spatie-laravel-data.com).
+## Supported Engines
 
-### Supported Engines
-
-| Engine | Driver Name | Features |
+| Engine | Driver Name | Notes |
 |---|---|---|
-| Database | `database` | Basic search via Scout's database driver |
-| Meilisearch | `meilisearch` | Faceted search, filtering, sorting |
-| Typesense | `typesense` | Faceted search, filtering, sorting, highlights, vector search |
+| Database | `database` | Uses Scout's database driver directly. No facet support. |
+| Meilisearch | `meilisearch` | Faceted search and filtering, via a Meilisearch multi-search request per active facet. |
+| Typesense | `typesense` | Faceted search and filtering, plus highlights and hybrid/vector search. |
+
+The Meilisearch and Typesense PHP clients ship as dependencies of this add-on, so both drivers are available once the add-on is installed. Meilisearch also has a separate, optional add-on (see [Meilisearch](#meilisearch) below) that configures index settings — it is not required to query Meilisearch through this add-on.
 
 ## Installation
 
-### Require the composer package
+### Require the Composer package
 
 ```sh
 composer require lunarphp/search
 ```
 
-The package auto-discovers its service provider, so no additional registration is needed.
+The package auto-discovers its `Lunar\Search\SearchServiceProvider`, so no additional registration is needed.
 
 ### Configuration
 
-Publish and customize the configuration by creating or editing `config/lunar/search.php`. The add-on configuration controls which facets are available for each model:
+The add-on ships its own `facets` configuration, merged under the same `lunar.search` key used by the core search config:
 
 ```php
-// config/lunar/search.php
+// packages/search/config/search.php
+use Lunar\Core\Models\Product;
+
 return [
     'facets' => [
-        \Lunar\Models\Product::class => [
-            'brand' => [
-                'label' => 'Brand',
-            ],
-            'colour' => [
-                'label' => 'Colour',
-            ],
-            'size' => [
-                'label' => 'Size',
-            ],
+        Product::class => [
+            'brand' => [],
         ],
     ],
 ];
 ```
 
-Each facet key corresponds to a field in the searchable index. The `label` property is optional and defaults to the field name if not provided.
+This config is merged, not published — there is no `vendor:publish` tag for it. To override or extend it, create `config/lunar/search.php` in the host application; any keys not present there fall back to the add-on's defaults. The `engine_map` and `models` keys read by the core search config (see the [Search reference](/2.x/reference/search)) live in the same file.
+
+Each key under a model's `facets` entry corresponds to a field in that model's searchable index. The value is an array of per-facet-value configuration, used to attach extra data (such as a hex color) to a specific value:
+
+```php
+'facets' => [
+    Product::class => [
+        'brand' => [
+            'label' => 'Brand',
+        ],
+        'colour' => [
+            'label' => 'Colour',
+            'Red' => [
+                'hex_value' => '#FF0000',
+            ],
+        ],
+    ],
+],
+```
+
+`label` is optional and defaults to the field name. Additional keys per facet value (like `hex_value` above) are merged into the corresponding `SearchFacetValue` in the response.
 
 <Tip>
-    The `engine_map` configuration, which controls which search driver is used for each model, is defined in the core Lunar search config. See the [Search reference](/1.x/reference/search) for details.
+`engine_map`, which controls which search driver is used for each model, is defined in the core Lunar search config. See the [Search reference](/2.x/reference/search) for details.
 </Tip>
 
 ## Usage
 
 ### Basic Search
 
-Search models using the `Search` facade. By default, searches are performed against `Lunar\Models\Product`:
+Search models using the `Search` facade. By default, searches are performed against `Lunar\Core\Models\Product`:
 
 ```php
 use Lunar\Search\Facades\Search;
@@ -66,17 +81,19 @@ use Lunar\Search\Facades\Search;
 $results = Search::query('Hoodies')->get();
 ```
 
+`Search` resolves to `Lunar\Search\SearchManager`, an `Illuminate\Support\Manager`. Query methods such as `query()`, `filter()`, `sort()`, and `get()` are defined on the underlying engine (`Lunar\Search\Engines\AbstractEngine`), not on the manager itself — calling them on the `Search` facade forwards the call to the resolved driver automatically.
+
 To search a different model, use the `model()` method:
 
 ```php
 use Lunar\Search\Facades\Search;
 
-$results = Search::model(\Lunar\Models\Collection::class)
+$results = Search::model(\Lunar\Core\Models\Collection::class)
     ->query('Hoodies')
     ->get();
 ```
 
-Under the hood, the package detects which Scout driver is mapped for the given model via the `engine_map` configuration and performs the search using that driver. To improve performance, results are not hydrated from the database — instead, the raw indexed data is returned directly from the search provider.
+The package detects which Scout driver is mapped for the given model via the `engine_map` configuration and performs the search using that driver. Results are not hydrated from the database — the raw indexed data is returned directly from the search provider.
 
 ### Specifying a Driver
 
@@ -120,7 +137,7 @@ $results = Search::query('Hoodies')
     ->get();
 ```
 
-The search response includes updated facet counts that reflect the current selections, allowing the storefront to show how many results match each facet value.
+The search response includes updated facet counts that reflect the current selections, so the storefront can show how many results match each facet value.
 
 To remove a specific facet or value:
 
@@ -151,7 +168,7 @@ $results = Search::query('Hoodies')
     ->get();
 ```
 
-The sort format is `field:direction` where direction is either `asc` or `desc`. The field must be configured as sortable in the search engine.
+The sort format is `field:direction`, where direction is `asc` or `desc`. The field must be configured as sortable on the model's indexer (see the [Search reference](/2.x/reference/search)).
 
 For Typesense, a raw sort expression can also be used:
 
@@ -203,6 +220,8 @@ All search engines return a `Lunar\Search\Data\SearchResults` object with a cons
 | `hits` | `SearchHit[]` | Array of search result hits |
 | `facets` | `SearchFacet[]` | Array of available facets with counts |
 | `links` | `View` | Pagination links (Laravel paginator view) |
+| `sortField` | `?string` | The field the results are sorted by, if any |
+| `sortDirection` | `?string` | `asc`, `desc`, or `null` |
 
 ### SearchHit
 
@@ -285,7 +304,7 @@ The `links` property contains a standard Laravel pagination view:
 
 ## TypeScript Integration
 
-If [Spatie TypeScript Transformer](https://spatie.be/docs/typescript-transformer) is being used, add the data path to the `typescript-transformer.php` config to generate TypeScript types for the search response classes:
+Every response class in `Lunar\Search\Data` is annotated with Spatie's `#[TypeScript]` attribute. If [Spatie TypeScript Transformer](https://spatie.be/docs/typescript-transformer) is being used, add the add-on's data path to the `typescript-transformer.php` config to generate TypeScript types for the search response classes:
 
 ```php
 return [
@@ -304,3 +323,27 @@ defineProps<{
     results: Lunar.Search.SearchResults
 }>()
 ```
+
+## Meilisearch
+
+Meilisearch needs to know which indexed fields are filterable and sortable before it can serve faceted queries. This is a one-time (or per-schema-change) setup step, separate from running searches:
+
+```sh
+composer require lunarphp/meilisearch
+```
+
+This add-on has no configuration of its own and provides a single Artisan command:
+
+```sh
+php artisan lunar:meilisearch:setup
+```
+
+It reads `config('lunar.search.models')`, creates any missing Meilisearch indexes, and applies each model's filterable and sortable attributes (as defined by its indexer — see the [Search reference](/2.x/reference/search)) to the corresponding index.
+
+<Info>
+The Meilisearch and Typesense engines used to query results live in the `lunarphp/search` package installed above. The `lunarphp/meilisearch` add-on only configures Meilisearch's index settings; it is not required to run Meilisearch queries through the `Search` facade.
+</Info>
+
+## Typesense
+
+Typesense is available as a driver (`Lunar\Search\Engines\TypesenseEngine`) once `lunarphp/search` is installed, with no separate add-on package required. Configure Typesense's own collection schema and search parameters through Scout's `config/scout.php` (the `typesense.model-settings` key), which controls field types for filtering, highlight and hybrid search settings, and query defaults.

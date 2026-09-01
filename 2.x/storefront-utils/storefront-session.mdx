@@ -1,174 +1,97 @@
 ---
 title: "Storefront Session"
+description: "Track a visitor's region, channel, currency, customer, and customer groups across requests, and resolve them into a passable context."
 ---
 
-The StorefrontSession facade manages session-bound resources like the active channel, currency, and customer.
+`Lunar\Core\Facades\StorefrontSession` tracks the selections that frame a storefront visit — region, channel, currency, customer, and customer groups — in the session, and can produce an immutable `StorefrontContext` snapshot of them for code that should not reach into the session directly.
 
 ## Overview
 
-The `StorefrontSession` facade helps manage session-bound resources that a storefront typically needs, such as the active channel, currency, customer, and customer groups.
-
 ```php
-use Lunar\Facades\StorefrontSession;
+use Lunar\Core\Facades\StorefrontSession;
 ```
 
-When the facade is first resolved, it automatically calls `initChannel()`, `initCustomerGroups()`, `initCurrency()`, and `initCustomer()` to restore any previously set values from the session or fall back to defaults.
-
-## Channels
-
-### Initialize the Channel
-
-This will set the channel based on what has been previously stored in the session, otherwise it will use the default channel.
-
-```php
-StorefrontSession::initChannel();
-```
+`StorefrontSession` is backed by `Lunar\Core\Managers\StorefrontSessionManager`, bound to the `Lunar\Core\Contracts\StorefrontSession` contract. It is resolved once per request (or job): its constructor restores region, channel, customer groups, currency, and customer from the session, falling back to each primitive's configured default when nothing is stored yet.
 
 <Info>
-    This is automatically called when the facade is resolved.
+v1 exposed a `Lunar\Facades\StorefrontSession` with `init*()` methods (`initChannel()`, `initCurrency()`, `initCustomerGroups()`, `initCustomer()`) that had to be called to restore session state. In v2 this restoration runs automatically in the manager's constructor — the `init*()` methods still exist and are safe to call, but they are no-ops once a value is already resolved.
 </Info>
 
-### Set the Channel
+## What it holds
+
+| Selection | Accessor | Type | Notes |
+|:----------|:---------|:-----|:------|
+| Region | `getRegion()` | `?Lunar\Core\Models\Region` | The market this visit belongs to; `null` only when no region is configured |
+| Channel | `getChannel()` | `Lunar\Core\Models\Channel` | Falls back to the region's channel, then the default channel |
+| Currency | `getCurrency()` | `Lunar\Core\Models\Currency` | Falls back to the region's currency, then the default currency |
+| Customer groups | `getCustomerGroups()` | `Illuminate\Support\Collection<Lunar\Core\Models\CustomerGroup>` | Falls back to the default customer group |
+| Customer | `getCustomer()` | `?Lunar\Core\Models\Customer` | `null` until set; falls back to the authenticated user's latest customer |
+
+Setting a region also sets the channel and currency from it (a region belongs to a channel and has a default currency), unless overridden afterwards by an explicit `setChannel()` / `setCurrency()` call.
+
+## Setting values
 
 ```php
-use Lunar\Models\Channel;
+use Lunar\Core\Models\Channel;
+use Lunar\Core\Models\Currency;
+use Lunar\Core\Models\Customer;
+use Lunar\Core\Models\CustomerGroup;
+use Lunar\Core\Models\Region;
 
-$channel = Channel::where('handle', 'webstore')->first();
-
+StorefrontSession::setRegion($region);
 StorefrontSession::setChannel($channel);
-```
-
-The `setChannel` method accepts a `Channel` model instance. The channel's handle is stored in the session so it can be restored on subsequent requests.
-
-### Get the Channel
-
-Returns the currently active `Channel` model.
-
-```php
-StorefrontSession::getChannel();
-```
-
-## Customer Groups
-
-### Initialize the Customer Groups
-
-This will set the customer groups based on what has been previously stored in the session, otherwise it will use the default customer group.
-
-```php
-StorefrontSession::initCustomerGroups();
-```
-
-<Info>
-    This is automatically called when the facade is resolved.
-</Info>
-
-### Set the Customer Groups
-
-```php
-use Lunar\Models\CustomerGroup;
-
-$retail = CustomerGroup::where('handle', 'retail')->first();
-$wholesale = CustomerGroup::where('handle', 'wholesale')->first();
-
-// Set multiple customer groups
+StorefrontSession::setCurrency($currency);
+StorefrontSession::setCustomer($customer);
 StorefrontSession::setCustomerGroups(collect([$retail, $wholesale]));
-
-// Set a single customer group (calls setCustomerGroups under the hood)
-StorefrontSession::setCustomerGroup($retail);
+StorefrontSession::setCustomerGroup($retail);   // shorthand for setCustomerGroups(collect([$retail]))
 ```
 
-### Get the Customer Groups
+Each setter persists its selection to the session (region and customer groups by `handle`, channel by `handle`, currency by `code`, customer by `id`) so it survives to the next request.
 
-Returns a `Collection` of `CustomerGroup` models.
+<Warning>
+`setCustomer()` throws `Lunar\Core\Exceptions\CustomerNotBelongsToUserException` if a user is authenticated and the given customer does not belong to that user.
+</Warning>
 
-```php
-StorefrontSession::getCustomerGroups();
-```
+Setting the currency also pushes it to `Lunar\Core\Facades\CartSession`, so the visitor's cart (if any) is reprised in the new currency — a storefront currency switch has to reach the cart, since the cart carries its own `currency_id` and prices from it.
 
-### Reset the Customer Groups
-
-Clears the customer groups from the session and resets the collection to empty.
+### Resetting customer groups
 
 ```php
 StorefrontSession::resetCustomerGroups();
 ```
 
-## Customer
+Clears the customer groups from the session and resets the collection to empty (the next read re-resolves the default group via `initCustomerGroups()`).
 
-### Initialize the Customer
-
-This will set the customer based on what has been previously stored in the session, otherwise it will retrieve the latest customer associated with the authenticated user.
-
-```php
-StorefrontSession::initCustomer();
-```
-
-<Info>
-    This is automatically called when the facade is resolved.
-</Info>
-
-### Set the Customer
-
-```php
-use Lunar\Models\Customer;
-
-$customer = Customer::find($customerId);
-
-StorefrontSession::setCustomer($customer);
-```
-
-<Warning>
-    If a user is authenticated and the given customer does not belong to that user, a `Lunar\Exceptions\CustomerNotBelongsToUserException` will be thrown.
-</Warning>
-
-### Get the Customer
-
-Returns the currently active `Customer` model, or `null` if no customer has been set.
-
-```php
-StorefrontSession::getCustomer();
-```
-
-## Currencies
-
-### Initialize the Currency
-
-This will set the currency based on what has been previously stored in the session, otherwise it will use the default currency.
-
-```php
-StorefrontSession::initCurrency();
-```
-
-<Info>
-    This is automatically called when the facade is resolved.
-</Info>
-
-### Set the Currency
-
-```php
-use Lunar\Models\Currency;
-
-$currency = Currency::where('code', 'USD')->first();
-
-StorefrontSession::setCurrency($currency);
-```
-
-The `setCurrency` method accepts a `Currency` model instance. The currency code is stored in the session so it can be restored on subsequent requests.
-
-### Get the Currency
-
-Returns the currently active `Currency` model.
-
-```php
-StorefrontSession::getCurrency();
-```
-
-## Clearing the Session
-
-To remove all storefront session data (channel, currency, customer, and customer groups), call the `forget` method.
+### Clearing the session
 
 ```php
 StorefrontSession::forget();
 ```
 
-This clears the stored values from the session but does not delete any database records.
+Removes the stored region, channel, customer groups, currency, and customer from the session. This does not delete any database records.
+
+## Resolving a context
+
+```php
+use Lunar\Core\DataObjects\StorefrontContext;
+
+$context = StorefrontSession::context();
+```
+
+`context(): StorefrontContext` bundles the session's current selections — channel, currency, language, region, customer, and customer groups — into `Lunar\Core\DataObjects\StorefrontContext`, an immutable value object. It exists so business logic that needs "the buyer's selections" can accept an explicit value instead of depending on there being an HTTP session at all: a queued job pricing a catalogue for a market, an API resolving selections from headers, or a test exercising pricing for a given currency and customer group.
+
+`Lunar\Core\Models\Cart` exposes the same shape via `$cart->context()`, built from the cart's own stored `channel`, `currency`, `customer`, and `region` — a cart is already a context, so post-checkout logic and pre-cart browse logic consume the same explicit type.
+
+### Feeding pricing
+
+```php
+use Lunar\Core\Facades\Pricing;
+
+Pricing::using($context)->for($product)->get();
+```
+
+`Pricing::using()` applies a context's currency and customer groups in one call, in place of chaining `Pricing::currency(...)->customerGroups(...)`. This is the seam catalogue and browse-time price display use before a cart exists — cart calculation itself does not read the session; it derives currency and customer groups directly from the `Cart` model.
+
+## Session-scoped, not a singleton
+
+`Lunar\Core\Contracts\StorefrontSession` (like `Lunar\Core\Contracts\CartSession`, which it depends on) is bound `scoped` in the container, not `singleton`. Under Octane or a queue worker a `singleton` binding would persist across requests, leaking one visitor's region, currency, or customer into the next request served by the same worker. `scoped` memoizes the resolved selections for the life of one request or job and is discarded when it ends.

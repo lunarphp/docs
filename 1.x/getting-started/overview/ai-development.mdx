@@ -5,6 +5,22 @@ description: "Use Lunar documentation with AI tools like Claude, ChatGPT, Cursor
 
 Lunar's documentation is designed to work seamlessly with AI-powered development tools. Whether using an AI assistant to generate storefront code or querying the docs from an IDE, several built-in features make this possible.
 
+## Laravel Boost Skill <Badge color="green" icon="sparkles" size="sm">Added in 1.5</Badge>
+
+Lunar ships a skill for [Laravel Boost](https://github.com/laravel/boost), giving an AI assistant a working orientation in a Lunar project: where the models and facades live, which config files matter, and which documentation page covers each task.
+
+Install it into the project with the Boost Artisan command:
+
+```sh
+php artisan boost:add-skill lunarphp/lunar
+```
+
+The skill activates when the assistant is working with Lunar concepts such as products, variants, carts, checkout, orders, discounts, payments, pricing, collections, attributes, or tax. It also instructs the assistant to fetch current documentation rather than answering from memory, since the API changes between minor versions.
+
+<Info>
+Boost's own `search-docs` tool does not index Lunar. The skill points the assistant at the MCP server and `llms.txt` described below instead.
+</Info>
+
 ## llms.txt
 
 The Lunar documentation site automatically provides an `llms.txt` file at the root of the docs domain. Similar to how `sitemap.xml` helps search engines index a website, `llms.txt` helps large language models discover and understand documentation content.

@@ -3,30 +3,28 @@ title: "Customer Addresses"
 description: "Build a customer address management page with Lunar, covering address listing, creation, editing, deletion, and default address selection."
 ---
 
-## Overview
-
-The customer addresses page allows authenticated customers to manage their saved addresses. These addresses can be selected during checkout to speed up the purchasing process. This guide walks through listing, creating, editing, and deleting addresses, as well as setting default shipping and billing addresses.
+The customer addresses page lets an authenticated customer manage their saved addresses. These addresses can be selected during checkout to speed up the purchasing process. This guide walks through listing, creating, editing, and deleting addresses, as well as how default shipping and billing addresses work.
 
 The examples below use standard Laravel controllers and Blade templates. The same concepts apply whether the storefront is built with Livewire, Inertia, or a headless API.
 
 ## How Addresses Work
 
-Each `Lunar\Models\Address` belongs to a `Lunar\Models\Customer`. A customer can have any number of saved addresses, and each address can be flagged as the default for shipping, billing, or both. During checkout, saved addresses can be used to pre-fill the address forms.
+Each `Lunar\Core\Models\Address` belongs to a `Lunar\Core\Models\Customer`. A customer can have any number of saved addresses, and each address can be flagged as the default for shipping, billing, or both. During checkout, saved addresses can be used to pre-fill the address forms.
 
-Addresses stored on a customer are separate from order addresses. When an order is created, the cart's addresses are copied to the order as `Lunar\Models\OrderAddress` records, creating an immutable snapshot.
+Addresses stored on a customer are separate from order addresses. When an order is created, the cart's addresses are copied to the order as `Lunar\Core\Models\OrderAddress` records, creating an immutable snapshot.
 
 ## Resolving the Current Customer
 
-Like all account pages, the addresses page requires an authenticated user with a linked customer. Use the `StorefrontSession` facade to resolve the current customer.
+Like all account pages, the addresses page requires a resolved customer. Use `Lunar\Core\Facades\StorefrontSession` to get the current customer.
 
 ```php
-use Lunar\Facades\StorefrontSession;
+use Lunar\Core\Facades\StorefrontSession;
 
 $customer = StorefrontSession::getCustomer();
 ```
 
 <Info>
-The `StorefrontSession` automatically resolves the customer from the authenticated user when the `LunarUser` trait is applied to the `User` model. See the [Storefront Session reference](/1.x/storefront-utils/storefront-session) for details on how customer resolution works.
+See the [Customer Authentication guide](/2.x/guides/customer-authentication) for how a customer gets linked to the authenticated user, and the [Storefront Session reference](/2.x/storefront-utils/storefront-session) for how resolution works.
 </Info>
 
 ## Listing Addresses
@@ -34,7 +32,7 @@ The `StorefrontSession` automatically resolves the customer from the authenticat
 Query the customer's addresses using the `addresses` relationship. Eager load the `country` relationship to display the country name.
 
 ```php
-use Lunar\Facades\StorefrontSession;
+use Lunar\Core\Facades\StorefrontSession;
 
 class AddressController extends Controller
 {
@@ -106,7 +104,7 @@ class AddressController extends Controller
 ### The Create Form
 
 ```php
-use Lunar\Models\Country;
+use Lunar\Core\Models\Country;
 
 class AddressController extends Controller
 {
@@ -162,7 +160,7 @@ class AddressController extends Controller
 
     <div>
         <label for="postcode">ZIP / Postal Code</label>
-        <input type="text" name="postcode" id="postcode" value="{{ old('postcode') }}" required>
+        <input type="text" name="postcode" id="postcode" value="{{ old('postcode') }}">
     </div>
 
     <div>
@@ -207,11 +205,9 @@ class AddressController extends Controller
 
 ### Storing the Address
 
-When setting a new default address, clear the default flag from all other addresses first to ensure only one address is the default at a time.
-
 ```php
 use Illuminate\Http\Request;
-use Lunar\Facades\StorefrontSession;
+use Lunar\Core\Facades\StorefrontSession;
 
 class AddressController extends Controller
 {
@@ -231,21 +227,13 @@ class AddressController extends Controller
             'line_two' => 'nullable|string|max:255',
             'city' => 'required|string|max:255',
             'state' => 'nullable|string|max:255',
-            'postcode' => 'required|string|max:255',
+            'postcode' => 'nullable|string|max:255',
             'country_id' => 'required|exists:lunar_countries,id',
             'contact_phone' => 'nullable|string|max:255',
             'contact_email' => 'nullable|email|max:255',
             'shipping_default' => 'nullable|boolean',
             'billing_default' => 'nullable|boolean',
         ]);
-
-        if ($request->boolean('shipping_default')) {
-            $customer->addresses()->update(['shipping_default' => false]);
-        }
-
-        if ($request->boolean('billing_default')) {
-            $customer->addresses()->update(['billing_default' => false]);
-        }
 
         $customer->addresses()->create([
             ...$validated,
@@ -259,14 +247,22 @@ class AddressController extends Controller
 }
 ```
 
+<Info>
+`postcode` is nullable on the `Address` model — not every country uses one. Adjust the validation rule if the storefront needs to require it for specific countries.
+</Info>
+
+<Tip>
+Lunar unsets the previous default shipping/billing address for the customer automatically, through `Lunar\Core\Observers\AddressObserver`. Creating or updating an address with `shipping_default` or `billing_default` set to `true` clears the flag from whichever address previously held it — there is no need to clear the flags manually before saving.
+</Tip>
+
 ## Editing an Address
 
 ### The Edit Form
 
 ```php
-use Lunar\Models\Address;
-use Lunar\Models\Country;
-use Lunar\Facades\StorefrontSession;
+use Lunar\Core\Facades\StorefrontSession;
+use Lunar\Core\Models\Address;
+use Lunar\Core\Models\Country;
 
 class AddressController extends Controller
 {
@@ -295,8 +291,8 @@ The edit form is identical in structure to the create form, with fields pre-popu
 
 ```php
 use Illuminate\Http\Request;
-use Lunar\Models\Address;
-use Lunar\Facades\StorefrontSession;
+use Lunar\Core\Facades\StorefrontSession;
+use Lunar\Core\Models\Address;
 
 class AddressController extends Controller
 {
@@ -316,23 +312,13 @@ class AddressController extends Controller
             'line_two' => 'nullable|string|max:255',
             'city' => 'required|string|max:255',
             'state' => 'nullable|string|max:255',
-            'postcode' => 'required|string|max:255',
+            'postcode' => 'nullable|string|max:255',
             'country_id' => 'required|exists:lunar_countries,id',
             'contact_phone' => 'nullable|string|max:255',
             'contact_email' => 'nullable|email|max:255',
             'shipping_default' => 'nullable|boolean',
             'billing_default' => 'nullable|boolean',
         ]);
-
-        if ($request->boolean('shipping_default')) {
-            $customer->addresses()->where('id', '!=', $address->id)
-                ->update(['shipping_default' => false]);
-        }
-
-        if ($request->boolean('billing_default')) {
-            $customer->addresses()->where('id', '!=', $address->id)
-                ->update(['billing_default' => false]);
-        }
 
         $address->update([
             ...$validated,
@@ -353,8 +339,8 @@ Always verify that the address belongs to the current customer before allowing e
 ## Deleting an Address
 
 ```php
-use Lunar\Models\Address;
-use Lunar\Facades\StorefrontSession;
+use Lunar\Core\Facades\StorefrontSession;
+use Lunar\Core\Models\Address;
 
 class AddressController extends Controller
 {
@@ -379,8 +365,7 @@ class AddressController extends Controller
 Saved addresses can be loaded during checkout to let customers select from their existing addresses instead of entering a new one.
 
 ```php
-use Lunar\Facades\CartSession;
-use Lunar\Facades\StorefrontSession;
+use Lunar\Core\Facades\StorefrontSession;
 
 $customer = StorefrontSession::getCustomer();
 
@@ -389,11 +374,11 @@ $addresses = $customer?->addresses()
     ->get();
 ```
 
-When a customer selects a saved address, pass it to the cart. The `Address` model implements the `Addressable` interface, so it can be passed directly to `setBillingAddress()` and `setShippingAddress()`:
+When a customer selects a saved address, pass it to the cart. `Address` implements `Lunar\Core\Contracts\Addressable`, so it can be passed directly to `setBillingAddress()` and `setShippingAddress()`:
 
 ```php
-use Lunar\Facades\CartSession;
-use Lunar\Models\Address;
+use Lunar\Core\Facades\CartSession;
+use Lunar\Core\Models\Address;
 
 $cart = CartSession::current();
 
@@ -404,24 +389,24 @@ $cart->setShippingAddress($address);
 ```
 
 <Tip>
-When using a saved address at checkout, Lunar copies the address data to the cart. Changes to the saved address after checkout do not affect existing orders.
+When using a saved address at checkout, Lunar copies the address data onto a `Lunar\Core\Models\CartAddress` record. Changes to the saved address afterward do not affect the cart, and once the order is placed the cart address is copied again onto an immutable `OrderAddress`. See the [Checkout guide](/2.x/guides/checkout) for the full flow.
 </Tip>
 
 ## Address Fields Reference
 
-The `Lunar\Models\Address` model has the following fields:
+`Lunar\Core\Models\Address` has the following fields:
 
 | Field | Type | Description |
 |:---|:---|:---|
 | `id` | `bigIncrements` | Primary key |
+| `public_id` | `ulid` | Public-facing identifier, generated automatically |
 | `customer_id` | `foreignId` `nullable` | The owning customer |
 | `country_id` | `foreignId` `nullable` | Reference to `lunar_countries` |
-| `title` | `string` `nullable` | Label for the address (e.g., "Home", "Work") |
+| `title` | `string` `nullable` | Salutation, e.g. Mr, Mrs, Dr |
 | `first_name` | `string` | |
 | `last_name` | `string` | |
 | `company_name` | `string` `nullable` | |
-| `tax_identifier` | `string` `nullable` | VAT or tax ID |
-| `line_one` | `string` | |
+| `line_one` | `string` | Primary address line |
 | `line_two` | `string` `nullable` | |
 | `line_three` | `string` `nullable` | |
 | `city` | `string` | |
@@ -430,11 +415,12 @@ The `Lunar\Models\Address` model has the following fields:
 | `delivery_instructions` | `string` `nullable` | |
 | `contact_email` | `string` `nullable` | |
 | `contact_phone` | `string` `nullable` | |
-| `meta` | `json` `nullable` | Flexible metadata |
+| `meta` | `jsonb` `nullable` | Flexible metadata |
 | `shipping_default` | `boolean` | Default shipping address |
 | `billing_default` | `boolean` | Default billing address |
 | `created_at` | `timestamp` | |
 | `updated_at` | `timestamp` | |
+| `tax_identifier` | `string` `nullable` | VAT or tax ID |
 
 ## Routes
 
@@ -461,9 +447,9 @@ Here is a complete controller for address management:
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Lunar\Facades\StorefrontSession;
-use Lunar\Models\Address;
-use Lunar\Models\Country;
+use Lunar\Core\Facades\StorefrontSession;
+use Lunar\Core\Models\Address;
+use Lunar\Core\Models\Country;
 
 class AddressController extends Controller
 {
@@ -507,21 +493,13 @@ class AddressController extends Controller
             'line_two' => 'nullable|string|max:255',
             'city' => 'required|string|max:255',
             'state' => 'nullable|string|max:255',
-            'postcode' => 'required|string|max:255',
+            'postcode' => 'nullable|string|max:255',
             'country_id' => 'required|exists:lunar_countries,id',
             'contact_phone' => 'nullable|string|max:255',
             'contact_email' => 'nullable|email|max:255',
             'shipping_default' => 'nullable|boolean',
             'billing_default' => 'nullable|boolean',
         ]);
-
-        if ($request->boolean('shipping_default')) {
-            $customer->addresses()->update(['shipping_default' => false]);
-        }
-
-        if ($request->boolean('billing_default')) {
-            $customer->addresses()->update(['billing_default' => false]);
-        }
 
         $customer->addresses()->create([
             ...$validated,
@@ -562,23 +540,13 @@ class AddressController extends Controller
             'line_two' => 'nullable|string|max:255',
             'city' => 'required|string|max:255',
             'state' => 'nullable|string|max:255',
-            'postcode' => 'required|string|max:255',
+            'postcode' => 'nullable|string|max:255',
             'country_id' => 'required|exists:lunar_countries,id',
             'contact_phone' => 'nullable|string|max:255',
             'contact_email' => 'nullable|email|max:255',
             'shipping_default' => 'nullable|boolean',
             'billing_default' => 'nullable|boolean',
         ]);
-
-        if ($request->boolean('shipping_default')) {
-            $customer->addresses()->where('id', '!=', $address->id)
-                ->update(['shipping_default' => false]);
-        }
-
-        if ($request->boolean('billing_default')) {
-            $customer->addresses()->where('id', '!=', $address->id)
-                ->update(['billing_default' => false]);
-        }
 
         $address->update([
             ...$validated,
@@ -608,7 +576,7 @@ class AddressController extends Controller
 
 ## Next Steps
 
-- Review the [Addresses reference](/1.x/reference/addresses) for the full list of address fields and the Country model.
-- Review the [Customers reference](/1.x/reference/customers) for customer model details and the user-customer relationship.
-- Review the [Checkout guide](/1.x/guides/checkout) for how addresses are used during the checkout flow.
-- Review the [Order History guide](/1.x/guides/order-history) for building an order history page.
+- Review the [Addresses reference](/2.x/reference/addresses) for the full field list and the `Country` model.
+- Review the [Customers reference](/2.x/reference/customers) for customer model details and the user-customer relationship.
+- Review the [Checkout guide](/2.x/guides/checkout) for how addresses are used during the checkout flow.
+- Review the [Order History guide](/2.x/guides/order-history) for building an order history page.

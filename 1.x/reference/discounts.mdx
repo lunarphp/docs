@@ -250,6 +250,19 @@ $discount = Discount::create([
 | `max_reward_qty` | `integer` | Maximum total reward items (optional) |
 | `automatically_add_rewards` | `boolean` | Whether to automatically add reward items to the cart |
 
+<Info>
+From Lunar 1.5, `BuyXGetY` also enforces the discount's own conditions (minimum spend, customer restrictions, and `max_uses_per_user`) before awarding a reward, in the same way as `Lunar\DiscountTypes\AmountOff`. In earlier versions only `min_qty` gated the discount. See the [upgrade guide](/1.x/getting-started/overview/upgrade-guide#discount-conditions-are-now-honored-by-buyxgety).
+</Info>
+
+#### Automatically adding rewards
+
+When `automatically_add_rewards` is `true`, qualifying carts have the reward added as a cart line rather than requiring the customer to add it themselves.
+
+- Products, product variants, and collections are all supported as the automatically added reward.
+- A reward quantity greater than one produces a single cart line with that quantity, not one line per item.
+- Reward lines are stored using Lunar's morph map, so `purchasable_type` matches any other line holding the same purchasable (for example `product_variant`). Queries that filter cart or order lines by morph type include reward lines.
+- Only rewards that can be fulfilled are selected, so a reward that is out of stock is skipped rather than raising an error when the line is added.
+
 #### Collection conditions and rewards <Badge color="green" icon="sparkles" size="sm">Added in 1.5</Badge>
 
 A `BuyXGetY` discount can match against an entire collection rather than listing every product or variant individually. The match logic walks each cart line's product, checks the collections it belongs to, and compares those against the collections attached as conditions or rewards.

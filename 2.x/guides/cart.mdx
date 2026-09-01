@@ -5,16 +5,16 @@ description: "Build a cart page with Lunar, covering line item display, quantity
 
 ## Overview
 
-The cart page displays the items a customer has added to their cart, lets them adjust quantities or remove items, apply coupon codes, and review totals before proceeding to checkout. This guide walks through building a cart page using Lunar's `Cart` model and `CartSession` facade.
+The cart page displays the items a customer has added to their cart, lets them adjust quantities or remove items, apply coupon codes, and review totals before proceeding to checkout. This guide walks through building a cart page using Lunar's `Lunar\Core\Models\Cart` model and `Lunar\Core\Facades\CartSession` facade.
 
 The examples below use standard Laravel controllers and Blade templates. The same concepts apply whether the storefront is built with Livewire, Inertia, or a headless API.
 
 ## Fetching the Current Cart
 
-The `CartSession` facade retrieves the cart for the current session. Calling `current()` automatically calculates totals (sub total, tax, discounts, etc.) before returning the cart.
+The `CartSession` facade retrieves the cart for the current session. Calling `current()` calculates totals (subtotal, tax, discounts, and so on) before returning the cart.
 
 ```php
-use Lunar\Facades\CartSession;
+use Lunar\Core\Facades\CartSession;
 
 $cart = CartSession::current();
 ```
@@ -22,7 +22,7 @@ $cart = CartSession::current();
 If no cart exists in the session, `current()` returns `null`. Handle this in the controller:
 
 ```php
-use Lunar\Facades\CartSession;
+use Lunar\Core\Facades\CartSession;
 
 class CartController extends Controller
 {
@@ -40,12 +40,12 @@ class CartController extends Controller
 ```
 
 <Info>
-Cart prices are dynamically calculated and are not stored in the database. Calling `current()` triggers the calculation pipeline automatically. To force a recalculation after making changes, call `$cart->recalculate()`.
+Cart prices are calculated on demand and are not stored on the cart lines. `current()` accepts a `calculate` argument (`true` by default) that runs the calculation pipeline before returning the cart. To force a recalculation after making changes, call `$cart->recalculate()`.
 </Info>
 
 ## Displaying Cart Lines
 
-Each cart line holds a reference to a `Purchasable` (typically a `ProductVariant`) along with the quantity and any custom metadata. After calculation, each line has computed properties for unit price, tax, discounts, and total.
+Each cart line holds a reference to a purchasable item (typically a `Lunar\Core\Models\ProductVariant`) along with the quantity and any custom metadata. After calculation, each line has computed properties for unit price, tax, discounts, and total.
 
 ```blade
 <table>
@@ -79,7 +79,7 @@ Each cart line holds a reference to a `Purchasable` (typically a `ProductVariant
                         <p>{{ $variant->sku }}</p>
                     </div>
                 </td>
-                <td>{{ $line->unitPrice->formatted() }}</td>
+                <td>{{ $line->unitPrice->format() }}</td>
                 <td>
                     <form method="POST" action="{{ route('cart.update-line') }}">
                         @csrf
@@ -94,7 +94,7 @@ Each cart line holds a reference to a `Purchasable` (typically a `ProductVariant
                         <button type="submit">Update</button>
                     </form>
                 </td>
-                <td>{{ $line->subTotal->formatted() }}</td>
+                <td>{{ $line->subTotal->format() }}</td>
                 <td>
                     <form method="POST" action="{{ route('cart.remove-line') }}">
                         @csrf
@@ -111,27 +111,27 @@ Each cart line holds a reference to a `Purchasable` (typically a `ProductVariant
 
 ### Computed Properties on Cart Lines
 
-After `calculate()` runs, each `CartLine` has the following properties:
+After calculation, each `Lunar\Core\Models\CartLine` has the following properties:
 
 | Property | Type | Description |
 |:---|:---|:---|
-| `unitPrice` | `Lunar\DataTypes\Price` | Price for a single unit, excluding tax |
-| `unitPriceInclTax` | `Lunar\DataTypes\Price` | Price for a single unit, including tax |
-| `subTotal` | `Lunar\DataTypes\Price` | Line total before discounts and tax (unit price x quantity) |
-| `subTotalDiscounted` | `Lunar\DataTypes\Price` | Line total after discounts, before tax |
-| `discountTotal` | `Lunar\DataTypes\Price` | Total discount applied to this line |
-| `taxAmount` | `Lunar\DataTypes\Price` | Tax amount for this line |
-| `total` | `Lunar\DataTypes\Price` | Final line total including tax and discounts |
+| `unitPrice` | `Lunar\Core\DataObjects\PriceValue` | Price for a single unit, excluding tax |
+| `unitPriceInclTax` | `Lunar\Core\DataObjects\PriceValue` | Price for a single unit, including tax |
+| `subTotal` | `Lunar\Core\DataObjects\PriceValue` | Line total before discounts and tax (unit price times quantity) |
+| `subTotalDiscounted` | `Lunar\Core\DataObjects\PriceValue` | Line total after discounts, before tax |
+| `discountTotal` | `Lunar\Core\DataObjects\PriceValue` | Total discount applied to this line |
+| `taxAmount` | `Lunar\Core\DataObjects\PriceValue` | Tax amount for this line |
+| `total` | `Lunar\Core\DataObjects\PriceValue` | Final line total including tax and discounts |
 
-All values are `Lunar\DataTypes\Price` objects with access to `value` (integer), `decimal()` (float), and `formatted()` (currency string).
+Every `PriceValue` wraps an integer minor-unit `value` and exposes `format()` (a formatted currency string) and `decimal()` (a float). Passing `null` values through Blade should be guarded with `?->format()` where a property might not yet be calculated.
 
 ### Accessing the Product from a Cart Line
 
 The `purchasable` relationship on a cart line is polymorphic. For standard product variants:
 
 ```php
-$variant = $line->purchasable;              // Lunar\Models\ProductVariant
-$product = $line->purchasable->product;     // Lunar\Models\Product
+$variant = $line->purchasable;              // Lunar\Core\Models\ProductVariant
+$product = $line->purchasable->product;     // Lunar\Core\Models\Product
 
 $product->attr('name');                     // Product name
 $variant->getOption();                      // e.g. "Blue, Large"
@@ -144,7 +144,7 @@ The cart's default eager loading (configured in `config/lunar/cart.php`) already
 
 ## Updating Quantities
 
-Use the `updateLine()` method on the cart to change a line's quantity. This triggers validation (e.g., stock checks) and recalculates the cart.
+Use the `updateLine()` method on the cart to change a line's quantity. This runs the configured validators (for example, stock checks) and recalculates the cart.
 
 ```php
 class CartController extends Controller
@@ -168,7 +168,7 @@ class CartController extends Controller
 }
 ```
 
-The full method signature accepts an optional `meta` parameter for updating custom metadata on the line:
+`updateLine()` also accepts an optional `meta` array for updating custom metadata on the line:
 
 ```php
 $cart->updateLine(
@@ -180,10 +180,10 @@ $cart->updateLine(
 
 ### Validation Errors
 
-When updating a line, Lunar runs validators defined in `config/lunar/cart.php`. If validation fails (for example, the requested quantity exceeds available stock), a `Lunar\Exceptions\Carts\CartException` is thrown.
+When updating a line, Lunar runs the validators defined in `config('lunar.cart.validators.update_cart_line')`. If validation fails (for example, the requested quantity exceeds available stock), a `Lunar\Core\Exceptions\Carts\CartException` is thrown.
 
 ```php
-use Lunar\Exceptions\Carts\CartException;
+use Lunar\Core\Exceptions\Carts\CartException;
 
 try {
     $cart->updateLine(cartLineId: $lineId, quantity: 100);
@@ -222,7 +222,7 @@ $cart->clear();
 
 ## Coupon Codes
 
-Coupon codes are stored on the cart's `coupon_code` field. When the cart recalculates, the discount pipeline checks whether the code matches any active discount and applies it.
+Coupon codes are stored on the cart's `coupon_code` field (automatically uppercased). When the cart recalculates, the discount pipeline checks whether the code matches any active discount and applies it.
 
 ### Applying a Coupon
 
@@ -254,6 +254,10 @@ class CartController extends Controller
 }
 ```
 
+<Info>
+Checking `discountTotal` after recalculating is a heuristic, not a dedicated validation result: a code that matches a discount but yields no monetary reduction (for example, a free-item promotion) will look the same as an invalid code. Adjust the check to fit the discount types the store offers.
+</Info>
+
 ### Removing a Coupon
 
 ```php
@@ -267,13 +271,15 @@ After calculation, the cart provides a breakdown of all applied discounts:
 
 ```blade
 @if($cart->discountTotal?->value > 0)
-    <p>Discount: -{{ $cart->discountTotal->formatted() }}</p>
+    <p>Discount: -{{ $cart->discountTotal->format() }}</p>
 
     @foreach($cart->discountBreakdown as $breakdown)
-        <p>{{ $breakdown->discount->name }}: -{{ $breakdown->price->formatted() }}</p>
+        <p>{{ $breakdown->discount->name }}: -{{ $breakdown->price->format() }}</p>
     @endforeach
 @endif
 ```
+
+Each entry in `discountBreakdown` is a `Lunar\Core\ValueObjects\Cart\DiscountBreakdown`, exposing `price` (a `PriceValue`), `lines` (the affected cart lines), and `discount` (the `Lunar\Core\Models\Discount` that was applied).
 
 ## Cart Totals
 
@@ -282,23 +288,23 @@ After calculation, the cart provides all the totals needed to build a summary.
 ```blade
 <dl>
     <dt>Subtotal</dt>
-    <dd>{{ $cart->subTotal->formatted() }}</dd>
+    <dd>{{ $cart->subTotal->format() }}</dd>
 
     @if($cart->discountTotal?->value > 0)
         <dt>Discount</dt>
-        <dd>-{{ $cart->discountTotal->formatted() }}</dd>
+        <dd>-{{ $cart->discountTotal->format() }}</dd>
     @endif
 
     @if($cart->shippingTotal?->value > 0)
         <dt>Shipping</dt>
-        <dd>{{ $cart->shippingTotal->formatted() }}</dd>
+        <dd>{{ $cart->shippingTotal->format() }}</dd>
     @endif
 
     <dt>Tax</dt>
-    <dd>{{ $cart->taxTotal->formatted() }}</dd>
+    <dd>{{ $cart->taxTotal->format() }}</dd>
 
     <dt>Total</dt>
-    <dd>{{ $cart->total->formatted() }}</dd>
+    <dd>{{ $cart->total->format() }}</dd>
 </dl>
 ```
 
@@ -306,16 +312,16 @@ After calculation, the cart provides all the totals needed to build a summary.
 
 | Property | Type | Description |
 |:---|:---|:---|
-| `subTotal` | `Lunar\DataTypes\Price` | Sum of all line subtotals, before tax and discounts |
-| `subTotalDiscounted` | `Lunar\DataTypes\Price` | Subtotal after line-level discounts |
-| `discountTotal` | `Lunar\DataTypes\Price` | Total of all discounts applied |
-| `discountBreakdown` | `Collection` | Breakdown of each discount with affected lines |
-| `taxTotal` | `Lunar\DataTypes\Price` | Total tax across all lines and shipping |
-| `taxBreakdown` | `TaxBreakdown` | Breakdown of taxes by rate |
-| `shippingSubTotal` | `Lunar\DataTypes\Price` | Shipping cost before tax |
-| `shippingTaxTotal` | `Lunar\DataTypes\Price` | Tax on shipping |
-| `shippingTotal` | `Lunar\DataTypes\Price` | Shipping cost including tax |
-| `total` | `Lunar\DataTypes\Price` | Final cart total |
+| `subTotal` | `Lunar\Core\DataObjects\PriceValue` | Sum of all line subtotals, before tax and discounts |
+| `subTotalDiscounted` | `Lunar\Core\DataObjects\PriceValue` | Subtotal after line-level discounts |
+| `discountTotal` | `Lunar\Core\DataObjects\PriceValue` | Total of all discounts applied |
+| `discountBreakdown` | `Illuminate\Support\Collection<Lunar\Core\ValueObjects\Cart\DiscountBreakdown>` | Breakdown of each discount with affected lines |
+| `taxTotal` | `Lunar\Core\DataObjects\PriceValue` | Total tax across all lines and shipping |
+| `taxBreakdown` | `Lunar\Core\ValueObjects\Cart\TaxBreakdown` | Breakdown of taxes by rate |
+| `shippingSubTotal` | `Lunar\Core\DataObjects\PriceValue` | Shipping cost before tax |
+| `shippingTaxTotal` | `Lunar\Core\DataObjects\PriceValue` | Tax on shipping |
+| `shippingTotal` | `Lunar\Core\DataObjects\PriceValue` | Shipping cost including tax |
+| `total` | `Lunar\Core\DataObjects\PriceValue` | Final cart total |
 
 ### Tax Breakdown
 
@@ -323,9 +329,11 @@ To display a detailed tax breakdown (useful for stores with multiple tax rates):
 
 ```blade
 @foreach($cart->taxBreakdown->amounts as $tax)
-    <p>{{ $tax->description }} ({{ $tax->percentage }}%): {{ $tax->price->formatted() }}</p>
+    <p>{{ $tax->description }} ({{ $tax->percentage }}%): {{ $tax->price->format() }}</p>
 @endforeach
 ```
+
+Each entry is a `Lunar\Core\ValueObjects\Cart\TaxBreakdownAmount` with `price`, `identifier`, `description`, and `percentage` properties.
 
 ## Estimated Shipping
 
@@ -340,7 +348,7 @@ $cart->getEstimatedShipping([
 $cart->recalculate();
 ```
 
-Passing `setOverride: true` tells the cart to use the returned shipping option when calculating totals for that request. The `shippingTotal` on the cart will then reflect the estimate.
+Passing `setOverride: true` tells the cart to use the returned shipping option when calculating totals for that request. The `shippingTotal` on the cart then reflects the estimate.
 
 When using `CartSession`, set the estimation parameters once and they persist for the session:
 
@@ -374,8 +382,8 @@ Here is a complete controller for the cart page:
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Lunar\Exceptions\Carts\CartException;
-use Lunar\Facades\CartSession;
+use Lunar\Core\Exceptions\Carts\CartException;
+use Lunar\Core\Facades\CartSession;
 
 class CartController extends Controller
 {
@@ -452,6 +460,6 @@ class CartController extends Controller
 
 ## Next Steps
 
-- Review the [Carts reference](/1.x/reference/carts) for the full list of cart and cart line fields, configuration options, and session management.
-- Review the [Extending Carts](/1.x/extending/carts) for customizing the cart calculation pipeline, adding validators, and overriding actions.
-- Review the [Product Display Page guide](/1.x/guides/product-display-page) for adding items to the cart from a product page.
+- Review the [Carts reference](/2.x/reference/carts) for the full list of cart and cart line fields, configuration options, and session management.
+- Review the [Extending Carts](/2.x/extending/carts) guide for customizing the cart calculation pipeline, adding validators, and overriding actions.
+- Review the [Product Display Page guide](/2.x/guides/product-display-page) for adding items to the cart from a product page.

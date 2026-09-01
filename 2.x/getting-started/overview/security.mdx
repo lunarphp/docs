@@ -43,7 +43,7 @@ When enabled, staff members are prompted to set up 2FA on their next login and a
 
 Lunar uses [Spatie Laravel Permission](https://spatie.be/docs/laravel-permission) for granular access control. Permissions are scoped to the `staff` guard and support hierarchical grouping with dot notation (e.g., `settings:manage-staff`).
 
-For more details on configuring roles and permissions, see the [Access Control](/1.x/admin/extending/access-control) documentation.
+For more details on configuring roles and permissions, see the [Access Control](/2.x/admin/access-control) documentation.
 
 ### Session Protection
 
@@ -57,7 +57,7 @@ The admin panel applies the following middleware to all routes:
 
 ### PCI Compliance
 
-Lunar does not store sensitive card data. All payment processing is delegated to PCI-compliant providers such as Stripe, PayPal, and Opayo. Only non-sensitive reference data is stored locally:
+Lunar does not store sensitive card data. All payment processing is delegated to PCI-compliant providers such as Stripe and PayPal. Only non-sensitive reference data is stored locally:
 
 - Last four digits of the card number
 - Card type/brand
@@ -71,7 +71,7 @@ Payment add-ons such as Stripe automatically verify webhook signatures before pr
 
 ### 3D Secure & Strong Customer Authentication
 
-The Opayo add-on includes built-in support for 3D Secure and Strong Customer Authentication (SCA/PSD2). The Stripe add-on handles SCA through Stripe's Payment Intents API. These protocols add an additional layer of verification during checkout to reduce fraud.
+The Stripe driver handles Strong Customer Authentication (SCA/PSD2) through Stripe's Payment Intents API, adding an additional layer of verification during checkout to reduce fraud.
 
 ## Cart & Session Security
 
@@ -93,7 +93,7 @@ Sensitive fields can be excluded from logging on a per-model basis to prevent un
 
 ## Securing Search
 
-Depending on the search driver in use, additional steps may be needed to protect indexed data in production. To provide a rich search experience in the admin panel, Lunar indexes several models, some of which may contain sensitive information.
+Depending on the search engine in use (database, Meilisearch, or Typesense), additional steps may be needed to protect indexed data in production. To provide a rich search experience in the admin panel, Lunar indexes several models, some of which may contain sensitive information.
 
 ### What Is Sensitive Information?
 
@@ -105,11 +105,11 @@ Index names are relative to the `SCOUT_PREFIX` environment variable.
 
 | Model | Index | Contains Sensitive Information |
 |:--|:--|:--|
-| `Lunar\Models\Product` | `products` | No |
-| `Lunar\Models\Collection` | `collections` | No |
-| `Lunar\Models\ProductOption` | `product_options` | No |
-| `Lunar\Models\Customer` | `customers` | Yes |
-| `Lunar\Models\Order` | `orders` | Yes |
+| `Lunar\Core\Models\Product` | `products` | No |
+| `Lunar\Core\Models\Collection` | `collections` | No |
+| `Lunar\Core\Models\ProductOption` | `product_options` | No |
+| `Lunar\Core\Models\Customer` | `customers` | Yes |
+| `Lunar\Core\Models\Order` | `orders` | Yes |
 
 ### Securing Meilisearch
 
@@ -117,11 +117,11 @@ In a production environment, an API key must be set to control access to Meilise
 
 See: [Run Meilisearch in production](https://docs.meilisearch.com/learn/cookbooks/running_production.html)
 
-### Securing Algolia
+### Securing Typesense
 
-Algolia provides many security features out of the box, along with additional steps to further lock down access.
+In a production environment, restrict the Typesense API key used by the storefront to search-only scopes, and keep the admin API key used for indexing separate and out of client-side reach.
 
-See: [Algolia Security Best Practices](https://www.algolia.com/doc/guides/security/security-best-practices/)
+See: [Typesense API Keys](https://typesense.org/docs/guide/api-keys.html)
 
 ## Production Checklist
 
