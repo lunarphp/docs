@@ -28,6 +28,14 @@
     {
       "source": "/core/installation.html",
       "destination": "/1.x/getting-started/setup/installation"
+    },
+    {
+      "source": "/2.x/addons/payments/opayo",
+      "destination": "/1.x/addons/payments/opayo"
+    },
+    {
+      "source": "/2.x/addons/community/overview",
+      "destination": "/support/community"
     }
   ],
   "navigation": {
@@ -412,13 +420,8 @@
                 "group": "Payments",
                 "pages": [
                   "2.x/addons/payments/stripe",
-                  "2.x/addons/payments/paypal",
-                  "2.x/addons/payments/opayo"
+                  "2.x/addons/payments/paypal"
                 ]
-              },
-              {
-                "group": "Community",
-                "pages": ["2.x/addons/community/overview"]
               }
             ]
           },
