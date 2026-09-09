@@ -28,12 +28,15 @@ public function add(Purchasable $purchasable, int $quantity = 1, array $meta = [
 | `AddsAddress` | `AddAddress` |
 | `AddsOrUpdatesPurchasable` | `AddOrUpdatePurchasable` |
 | `AssociatesUser` | `AssociateUser` |
+| `CalculatesCart` | `CalculateCart` |
 | `CalculatesLine` | `CalculateLine` |
 | `CalculatesLineSubtotal` | `CalculateLineSubtotal` |
 | `CreatesOrder` | `CreateOrder` |
 | `GeneratesFingerprint` | `GenerateFingerprint` |
 | `GetsExistingCartLine` | `GetExistingCartLine` |
+| `HydratesCartTotals` | `HydrateCartTotals` |
 | `MergesCart` | `MergeCart` |
+| `PersistsCartTotals` | `PersistCartTotals` |
 | `RemovesPurchasable` | `RemovePurchasable` |
 | `SetsShippingOption` | `SetShippingOption` |
 | `UpdatesCartLine` | `UpdateCartLine` |
@@ -98,6 +101,61 @@ class CustomCartPipeline
 <Tip>
 Pipes run in the order listed, top to bottom.
 </Tip>
+
+## Totals caching
+
+`Cart::calculate()` delegates to `Lunar\Core\Contracts\Actions\Carts\CalculatesCart`, which chooses between the in-memory totals, the snapshot persisted on the `carts` row, and a pipeline run (see [Persisted totals](/2.x/reference/carts#persisted-totals)). The pipeline itself stays free of persistence: `CalculateCart` writes the snapshot through `PersistsCartTotals` after the pipeline returns and reads it back through `HydratesCartTotals`, so adding, removing, or reordering pipes never switches caching off.
+
+To change the caching policy, rebind `CalculatesCart`. An implementation that always runs the pipeline and never writes the snapshot:
+
+```php
+<?php
+
+namespace App\Actions\Carts;
+
+use Illuminate\Pipeline\Pipeline;
+use Lunar\Core\Contracts\Actions\Carts\CalculatesCart;
+use Lunar\Core\Models\Cart;
+use Lunar\Core\Models\CartLine;
+
+class CalculateCartWithoutSnapshot implements CalculatesCart
+{
+    public function __construct(protected Pipeline $pipeline) {}
+
+    public function execute(Cart $cart, bool $force = false): Cart
+    {
+        if (! $force && $cart->isCalculated()) {
+            return $cart;
+        }
+
+        $cart = $this->pipeline
+            ->send($cart)
+            ->through(config('lunar.cart.pipelines.cart'))
+            ->thenReturn();
+
+        $cart->lines->each(fn (CartLine $line) => $line->cacheProperties());
+        $cart->cacheProperties();
+
+        return $cart;
+    }
+}
+```
+
+```php
+use App\Actions\Carts\CalculateCartWithoutSnapshot;
+use Lunar\Core\Contracts\Actions\Carts\CalculatesCart;
+
+public function register(): void
+{
+    $this->app->bind(CalculatesCart::class, CalculateCartWithoutSnapshot::class);
+}
+```
+
+To keep writing the snapshot but never serve it, set `lunar.cart.totals.ttl` to `0` instead. No rebinding is needed.
+
+<Warning>
+Code that writes `carts`, `cart_lines`, or `cart_addresses` rows without going through the model (a query-builder `update()` or a raw statement) bypasses the observers that mark the snapshot stale. Call `$cart->invalidateTotals()` after such a write, otherwise `calculate()` can serve totals that predate it for up to `lunar.cart.totals.ttl` seconds.
+</Warning>
 
 ## Validators
 
