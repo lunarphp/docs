@@ -35,7 +35,8 @@ The section adds a **Search** group to the sidebar with a **Search relevance** i
 | --- | --- |
 | `panel.search-relevance.index` | [Overview](#overview-page) |
 | `panel.search-relevance.query` | [Query page](#query-page); the normalised query is the route parameter, with an optional `model` query string for installs that rank more than one model |
-| `panel.search-relevance.product` | JSON feed for the [product slot](#product-slot) |
+| `panel.search-relevance.product` | [Product report page](#product-report-and-sidebar-card) |
+| `panel.search-relevance.product.summary` | JSON feed for the product edit sidebar card |
 | `panel.settings.search-relevance.index` | [Settings page](#settings-page) |
 
 ## Overview page
@@ -105,9 +106,11 @@ If uplift is flat, the likely causes are too little traffic for `scoring.min_ses
 
 `Lunar\SearchRelevance\Panel\Widgets\SearchConversionWidget` adds a half-width **Search conversion** widget to the dashboard, showing searches and the search conversion rate for the dashboard's date range, each with its change against the previous range, and a "View report" link to the overview for the same range. Staff can reorder, hide, and re-add it like any first-party widget, and it is hidden from staff without the permission.
 
-## Product slot
+## Product report and sidebar card
 
-On the product edit page, the section injects a **Search performance** card after the content section (the `products.edit:content:after` zone). It loads on demand from `panel.search-relevance.product` and lists up to twenty queries the product has been clicked, added to cart, or purchased from, with the event counts per query and the product's relative score for that query where one has been learned. Each query links to its query page, so a merchandiser editing a product can see which searches it is expected to answer.
+Each product has a report page in the section (`panel.search-relevance.product`) listing the queries it has been clicked, added to cart, or purchased from, with the event counts per query and the product's relative score for that query where one has been learned. Each query links to its query page, and the header links to the product's edit page. Product rows on the query page link here.
+
+On the product edit page, the section adds a compact **Search** card to the sidebar (the `products.edit:sidebar:after` zone), alongside status, type and organization. It loads on demand and shows the product's top three queries with their relative score and a purchases / clicks count, plus a link to the full report. Products with no search activity get no card at all, so the edit page is unchanged for them.
 
 ## Global search
 
