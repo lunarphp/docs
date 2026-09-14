@@ -268,7 +268,7 @@ The results pipeline receives a `Lunar\Search\Pipelines\SearchResponse`:
 
 ### Page and per-page
 
-`AbstractEngine::page(int $page)` sets the page the engine fetches, alongside the existing `perPage()`. Both are readable with `getPage()` and `getPerPage()`. A request stage can fetch a wider window than the caller asked for (set `page(1)` and a larger `perPage()`), then a results stage slices back to `requestedPage` and `requestedPerPage` from the request passable.
+`AbstractEngine::page(int $page)` sets the page the engine fetches, alongside the existing `perPage()`. Until it is called, the page resolves from the request's `page` query parameter as it always has; `getPage()` returns whichever applies, and `getPerPage()` the page size. A request stage can fetch a wider window than the caller asked for (set `page(1)` and a larger `perPage()`), then a results stage slices back to `requestedPage` and `requestedPerPage` from the request passable.
 
 ```php
 use Lunar\Search\Facades\Search;
