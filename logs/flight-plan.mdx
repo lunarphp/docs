@@ -1,92 +1,125 @@
 ---
 title: "Lunar Flight Plan"
 sidebarTitle: "Flight Plan"
+description: "Where Lunar is heading through the v2 cycle: what has shipped, what is next, and what follows."
 ---
+
+The Flight Plan sets out where the Lunar project is heading, how the pieces fit together, and when each part is expected to land.
 
 ## Introduction
 
 Lunar's goal has always been the same: to be the most flexible, modern e-commerce foundation for Laravel developers.
 
-With v2 we're bringing that into sharper focus. What follows is where the project is heading, how the pieces fit together, and what gets built where. It's the result of a lot of community input and conversations with the people actually building stores on Lunar today.
+v2 brings that into sharper focus. What follows is the result of community input and conversations with the people building stores on Lunar today. Plans evolve as work progresses, so this page is updated as milestones ship.
+
+## Where v2 is today
+
+<Badge icon="circle-check" color="green" size="sm">Alpha available now</Badge>
+
+The first alphas of Lunar 2.0 are published. Read the [2.0 alpha announcement](/logs/2026/v2-0-0-alpha) and the [v2.x documentation](/2.x/getting-started/overview/introduction) to try it against a copy of an existing store.
+
+| Milestone | Target |
+| --- | --- |
+| Alpha | Available now |
+| Beta | October 2026 |
+| Stable v2.0.0 | End of 2026 |
+
+The alpha is for evaluation and feedback only. APIs can still change between alpha releases, and production use is not recommended until the stable release.
 
 ## What v2.0.0 brings
 
-Before getting into the bigger picture, it's worth being clear about what lands at v2.0.0 itself.
-
-v2.0.0 is the foundational release. It introduces a number of breaking changes that improve how Lunar works under the hood, alongside new core concepts. A few of the highlights:
+v2.0.0 is the foundational release. It introduces breaking changes that improve how Lunar works under the hood, alongside new core concepts. Most of this is already in the alpha:
 
 - Reworked custom attributes
-- Significant performance improvements to price fields
+- A dedicated pricing engine with significant performance improvements to price fields
 - Cart performance improvements
-- New core concepts including regions, vendors, and storefront context
+- New core concepts including regions and storefront context
+- Fulfilments and per-location inventory in core
+- A cleaner extension model built on native Laravel seams
 
-There's more besides, full release notes will follow closer to the time. Together these changes give us a stronger, more consistent base to build the rest of the v2 cycle on. The new admin panel, expanded core capabilities like inventory and fulfilment, and the open source checkout will all follow in later minor releases.
-
-<Badge icon="calendar" color="surface" size="sm">Alpha coming End May 2026</Badge>
+Full release notes will follow closer to the stable release. Together these changes give Lunar a stronger, more consistent base to build the rest of the v2 cycle on.
 
 ## The new admin panel
 
-The big change in the v2 cycle is a new admin panel, built on Inertia.js and Vue, using the designs we've been previewing.
+<Badge icon="circle-check" color="green" size="sm">In the alpha</Badge>
 
-It's faster, cleaner, and built for the kinds of stores Lunar is increasingly being used to run. But the bigger story isn't really the visual side of things. It's the **proper extension points** underneath. v1's extension surface grew organically and worked, but it wasn't always predictable. v2 draws a firm line between core and extensions, and that line is what makes everything else here possible.
+The big change in the v2 cycle is a new admin panel, built on Inertia.js and Vue, published as `lunarphp/panel`. It ships in the alpha today with the full catalog, sales, and settings surface, a customizable widget dashboard, global search, autosaved edit drafts, and mandatory two-factor authentication for staff.
 
-The new panel will arrive in a later minor release during the v2 cycle, once it's ready to stand on its own. We'd rather get the core right first.
+It is faster, cleaner, and built for the kinds of stores Lunar is increasingly used to run. But the bigger story is the **proper extension points** underneath. v1's extension surface grew organically and worked, but it was not always predictable. v2 draws a firm line between core and extensions, and that line is what makes everything else on this page possible.
 
-<Badge icon="calendar" color="surface" size="sm">Alpha June/July 2026</Badge>
+The panel continues to be refined through the beta. See the [admin panel documentation](/2.x/admin/introduction) for the current state.
 
-## Add-on development and a marketplace
+## Inventory and fulfilment in core
 
-With proper extension points comes a proper path for third-party development. v2 is built from the ground up to support an add-on ecosystem, with a marketplace giving developers somewhere to publish, distribute, and monetise their work.
+<Badge icon="circle-check" color="green" size="sm">In the alpha</Badge>
 
-This is how Lunar grows beyond what any one team can build.
+v2 brings inventory and fulfilment into core at a basic level. Stock is tracked per variant per location with movements and reservations, and orders are fulfilled through dedicated fulfilment records with methods, carriers, and tracking. See [Inventory](/2.x/reference/inventory) and [Fulfilments](/2.x/reference/fulfilments).
 
-## Inventory, fulfilment and returns in core
+These are things almost every store needs in some form, and having them in core gives Lunar a consistent base to build on. The aim is not to ship a full warehouse management system in core. It is to provide the right primitives, in the right place, so simpler stores get what they need out of the box and the more demanding ones have something solid to extend.
 
-v2 brings inventory, fulfilment and returns into core at a basic level.
+## Returns
 
-These are things almost every store needs in some form, and having them in core gives us a consistent base to build on. It also sets up the deeper enhancements and ERP-grade functionality that come through Lunar Eclipse later.
+<Badge icon="calendar" color="surface" size="sm">Later in the v2 cycle</Badge>
 
-The aim isn't to ship a full warehouse management system in core. It's to provide the right primitives, in the right place, so simpler stores get what they need out of the box and the more demanding ones have something solid to extend.
-
-Like the new panel, this arrives in a later minor release during the v2 cycle.
-
-<Badge icon="calendar" color="surface" size="sm">Alpha June/July 2026</Badge>
+Returns and RMA (return merchandise authorization) build on the fulfilment and inventory primitives above, including routing returned goods through an inspection state before they become sellable again. This arrives in a later minor release during the v2 cycle. It also sets up the deeper enhancements and ERP-grade functionality that come through Lunar Eclipse later.
 
 ## A better story for Filament developers
 
-One of the clearest pieces of feedback from the v1 community has been around control. Filament developers want to own the look, feel and behaviour of their admin, and that's been harder to achieve with Lunar than it should be.
+<Badge icon="circle-check" color="green" size="sm">In the alpha</Badge>
 
-v2 changes that.
+One of the clearest pieces of feedback from the v1 community has been around control. Filament developers want to own the look, feel, and behavior of their admin, and that has been harder to achieve with Lunar than it should be.
 
-We're introducing a dedicated Filament package, a bridge that exposes Lunar's components and widgets as building blocks Filament developers can compose freely inside their own panels. Rather than working within a Lunar-shaped Filament admin, you get the pieces and build the UX you want.
+v2 changes that with a dedicated Filament package, `lunarphp/filament`. It is a bridge that exposes Lunar's components and widgets as building blocks Filament developers can compose freely inside their own panels. Rather than working within a Lunar-shaped Filament admin, developers get the pieces and build the UX they want.
 
-The package will support **Filament v5**, and from here on it will be versioned separately to Lunar itself. That lets it follow Filament's own release cycle more closely, so Filament developers aren't waiting on a Lunar release to get support for the latest Filament version.
+The package supports **Filament v5** and is versioned separately from Lunar itself. That lets it follow Filament's own release cycle more closely, so Filament developers are not waiting on a Lunar release to get support for the latest Filament version.
 
-This is the model we want for Lunar going forward. Lunar provides the commerce primitives, and the framework you choose to build your admin in stays under your control.
+This is the model for Lunar going forward. Lunar provides the commerce primitives, and the framework used to build the admin stays under the developer's control.
 
-The existing Filament admin repo carries on through v2, so nobody has to migrate the day v2 lands. From v3, the admin repo is phased out, but the bridge package stays. Filament developers don't lose anything in the move, they gain the control they've been asking for.
+The existing Filament admin, `lunarphp/admin`, carries on through v2, so nobody has to migrate the day v2 lands. From v3, the admin package is phased out, but the bridge package stays. See the [Filament add-on documentation](/2.x/addons/filament/overview).
 
 ## Storefront starter kit
 
-Alongside the panel we're shipping a storefront starter kit, also built on Inertia.js and Vue. The idea is straightforward: get a developer from zero to a working, customisable storefront in minutes, and fully integrated into Lunar's checkout.
+<Badge icon="calendar" color="surface" size="sm">With the stable v2.0.0 release</Badge>
 
-It isn't a locked-in theme. It's a starting point, designed to be owned and shaped by the team building on it.
+Alongside the panel, Lunar is shipping a storefront starter kit, also built on Inertia.js and Vue. The idea is straightforward: get a developer from zero to a working, customizable storefront in minutes, fully integrated with Lunar's checkout.
 
-<Badge icon="calendar" color="surface" size="sm">Alpha July/Aug 2026</Badge>
+It is not a locked-in theme. It is a starting point, designed to be owned and shaped by the team building on it.
+
+The v1 starter kit has not yet been updated for v2. Until the new kit ships, the [storefront guides](/2.x/guides/catalog-menu) walk through building a storefront against v2 from scratch.
 
 ## Checkout
 
-Checkout is a dedicated, open source checkout layer for Lunar. It's a future development, planned to release alongside the storefront starter.
+<Badge icon="calendar" color="surface" size="sm">With the stable v2.0.0 release</Badge>
 
-Building it as its own component keeps it cleanly separated from the storefront and the admin, which means it can move at its own pace and get the kind of focused attention this part of e-commerce really deserves.
+Checkout is a dedicated, open source checkout layer for Lunar, planned to release alongside the storefront starter kit.
+
+Building it as its own component keeps it cleanly separated from the storefront and the admin, which means it can move at its own pace and get the kind of focused attention this part of e-commerce deserves.
 
 The open source checkout will also be the foundation for a future hosted product, with additional capabilities on top for stores that want a managed setup. More on that in due course.
 
-<Badge icon="calendar" color="surface" size="sm">Alpha July/Aug 2026</Badge>
+## Built for developers and AI agents
+
+Lunar is plain Laravel and Eloquent, with no proprietary DSL, which makes it a natural fit for agentic development. The documentation already ships an [MCP server, `llms.txt`, and Markdown export](/2.x/getting-started/overview/ai-development), and the 1.x core package includes a Laravel Boost skill.
+
+Planned for the v2 cycle:
+
+- A Laravel Boost skill for v2, shipped with the core package
+- A first-party storefront REST API
+- MCP servers for the admin panel, the storefront, and developer tooling
+
+## Add-on development and a marketplace
+
+<Badge icon="calendar" color="surface" size="sm">Later in the v2 cycle</Badge>
+
+With proper extension points comes a proper path for third-party development. v2 is built from the ground up to support an add-on ecosystem, with a marketplace giving developers somewhere to publish, distribute, and monetize their work.
+
+This is how Lunar grows beyond what any one team can build.
 
 ## Lunar Eclipse
 
-Lunar Eclipse extends the platform with the features serious operators ask for: B2B, trade and ERP capabilities, built on top of the open core. It's the main commercial route for Lunar, and it's how we fund the long-term development of everything else on this page.
+<Badge icon="calendar" color="surface" size="sm">Following the stable v2.0.0 release</Badge>
+
+Lunar Eclipse extends the platform with the features serious operators ask for: B2B, trade, and ERP capabilities, built on top of the open core. It is the main commercial route for Lunar, and it funds the long-term development of everything else on this page.
 
 More on Eclipse soon.
 
@@ -94,4 +127,4 @@ More on Eclipse soon.
 
 ## Stay Involved
 
-We actively evolve our plans based on community feedback and real-world implementations. Follow progress, contribute ideas, or join discussions on [GitHub Discussions](https://github.com/lunarphp/lunar/discussions) and [Discord](https://lunarphp.com/discord).
+Plans evolve based on community feedback and real-world implementations. Follow progress, contribute ideas, or join discussions on [GitHub Discussions](https://github.com/lunarphp/lunar/discussions) and [Discord](https://lunarphp.com/discord).
