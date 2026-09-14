@@ -1,9 +1,9 @@
 ---
 title: "Search Relevance"
-description: "The admin panel section shipped by the Search Relevance add-on: search KPIs, per-query learned rankings, and the mode switch."
+description: "The admin panel section shipped by the Search Relevance add-on: search KPIs, per-query learned rankings, and staff overrides."
 ---
 
-The [Search Relevance](/2.x/addons/search-relevance) add-on (`lunarphp/search-relevance`) registers a section in the admin panel for reading what shoppers search for, what the ranking has learned, and switching the add-on from shadow mode to live. It is an add-on section, built with the same extension API described under [Extending the panel](/2.x/admin/extending/overview), so it appears only when both `lunarphp/panel` and the add-on are installed.
+The [Search Relevance](/2.x/addons/search-relevance) add-on (`lunarphp/search-relevance`) registers a section in the admin panel for reading what shoppers search for, what the ranking has learned, and correcting it where needed. It is an add-on section, built with the same extension API described under [Extending the panel](/2.x/admin/extending/overview), so it appears only when both `lunarphp/panel` and the add-on are installed.
 
 ## Setup
 
@@ -36,7 +36,7 @@ The section adds a **Search** group to the sidebar with a **Search relevance** i
 | `panel.search-relevance.index` | [Overview](#overview-page) |
 | `panel.search-relevance.query` | [Query page](#query-page); the normalised query is the route parameter, with an optional `model` query string for installs that rank more than one model |
 | `panel.search-relevance.product` | JSON feed for the [product slot](#product-slot) |
-| `panel.settings.search-relevance.index`, `panel.settings.search-relevance.update` | [Settings page](#settings-page) |
+| `panel.settings.search-relevance.index` | [Settings page](#settings-page) |
 
 ## Overview page
 
@@ -89,9 +89,7 @@ Both take effect on the next search; neither touches the logged searches or even
 
 ## Settings page
 
-Under **Settings > Store > Search relevance**. It has one control, the mode switch (`off`, `shadow`, `on`, each with a one-line description), and two read-only panels: the event weights from `scoring.weights`, and the current retrieval version per ranked model, so staff can see that a normaliser or engine change has started a fresh version.
-
-Switching to `on` asks for confirmation, because it changes what every shopper sees. The chosen mode is persisted in the add-on's `search_relevance_settings` table and takes effect immediately; the config value (`lunar.search_relevance.mode`) is only the fallback when nothing has been saved here. See [Modes](/2.x/addons/search-relevance#modes).
+Under **Settings > Store > Search relevance**. The page is read-only: like the rest of Lunar, how the store behaves is configured in code, and this screen exists so staff can see why search behaves as it does. It shows the current mode with the environment variable that sets it (`LUNAR_SEARCH_RELEVANCE_MODE`), the event weights from `scoring.weights`, when scoring last ran and its schedule, and the current retrieval version per ranked model, so staff can see that a normaliser or engine change has started a fresh version. See [Modes](/2.x/addons/search-relevance#modes).
 
 ### When to switch from shadow to on
 
@@ -101,7 +99,7 @@ Leave the add-on in `shadow` until all of the following hold:
 - The scoring job has run and the top queries have learned products with more than a handful of sessions.
 - The Uplift card shows the learned order placing the purchased product higher in clearly more searches than it places it lower, over a range of at least a few weeks.
 
-If uplift is flat, the likely causes are too little traffic for `scoring.min_sessions`, tracking missing from part of the storefront, or a normaliser splitting the same query across variants. Switching to `on` without evidence is safe (bucketed reordering cannot move a weak match above a strong one) but pointless.
+If uplift is flat, the likely causes are too little traffic for `scoring.min_sessions`, tracking missing from part of the storefront, or a normaliser splitting the same query across variants. Switching to `on` without evidence is safe (bucketed reordering cannot move a weak match above a strong one) but pointless. The switch itself is a developer change: set `LUNAR_SEARCH_RELEVANCE_MODE=on` in the environment and deploy.
 
 ## Dashboard widget
 

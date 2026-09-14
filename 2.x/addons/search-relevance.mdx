@@ -42,7 +42,7 @@ Run the migrations:
 php artisan migrate
 ```
 
-This creates four tables, prefixed like every other Lunar table: `search_queries`, `search_events`, `search_query_scores`, and `search_relevance_settings`. It also seeds the `search:manage-relevance` permission used by the panel section.
+This creates four tables, prefixed like every other Lunar table: `search_queries`, `search_events`, `search_query_scores`, and `search_learning_overrides`. It also seeds the `search:manage-relevance` permission used by the panel section.
 
 Make sure a queue worker and the scheduler are running. Logging, event recording, and attribution are dispatched as queued jobs, and scoring runs from the scheduler:
 
@@ -65,7 +65,7 @@ php artisan vendor:publish --tag=panel-all-assets --force
 php artisan lunar:panel:link
 ```
 
-The panel section is documented under [Admin Panel: Search Relevance](/2.x/admin/search-relevance). Without the panel, everything else (logging, scoring, ranking, part-number retrieval) still works; the mode is then read from config only.
+The panel section is documented under [Admin Panel: Search Relevance](/2.x/admin/search-relevance). Without the panel, everything else (logging, scoring, ranking, part-number retrieval) still works.
 
 Optionally publish the config:
 
@@ -190,7 +190,7 @@ The `mode` config key (or the `LUNAR_SEARCH_RELEVANCE_MODE` environment variable
 2. Let the scoring job run for a few weeks. Check the panel's overview or `lunar:search-relevance:replay` for the share of searches where the ranked order placed the purchased product higher.
 3. Switch to `on` when the replay shows a consistent improvement.
 
-The admin panel persists a mode override in the `search_relevance_settings` table. `Lunar\SearchRelevance\Settings::mode()` returns the override when one is set and the config value otherwise; every code path reads the mode through `Settings`, so a panel change takes effect immediately without a deploy.
+The mode is store configuration, set in code or through the `LUNAR_SEARCH_RELEVANCE_MODE` environment variable like every other Lunar setting, so it is versioned and can differ per environment (`shadow` on staging, `on` in production). The admin panel shows the current mode but cannot change it. Before switching a store to `on`, run the [replay command](#replay) or read the uplift card in the panel to confirm the learned order performs better.
 
 ## Storefront tracking
 
@@ -432,7 +432,7 @@ The full config, merged under `lunar.search_relevance`:
 
 | Key | Default | Description |
 |---|---|---|
-| `mode` | `env('LUNAR_SEARCH_RELEVANCE_MODE', 'shadow')` | `off`, `shadow`, or `on`; see [Modes](#modes). Overridden by the panel setting when one is saved. |
+| `mode` | `env('LUNAR_SEARCH_RELEVANCE_MODE', 'shadow')` | `off`, `shadow`, or `on`; see [Modes](#modes). |
 | `models` | `[Lunar\Core\Models\Product::class]` | Searchable models whose results are logged and ranked |
 | `window` | `250` | Candidate window fetched from the engine and reordered. Requests beyond the window (`page * perPage > window`) pass through unranked but are still logged. |
 | `bucket_size` | `10` | Hits are reordered only within buckets of this size |
