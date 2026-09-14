@@ -250,7 +250,7 @@ The [Search Relevance](/2.x/addons/search-relevance) add-on (`lunarphp/search-re
 
 ### Custom query normaliser
 
-The normaliser decides which raw queries count as the same query. The default lowercases, strips punctuation, collapses whitespace, and folds simple plurals, and leaves part numbers unstemmed. A store whose customers use their own vocabulary can fold synonyms into a canonical form so that both spellings learn from each other:
+The normaliser decides which raw queries count as the same query. The default lowercases, replaces punctuation other than `.`, `-`, and `/` with spaces, joins a number to a following unit (`20 mm` becomes `20mm`), collapses whitespace, and folds simple English plurals (`cable ties` and `cable tie` pool their data). A part number is returned as-is, never stemmed. A store whose customers use their own vocabulary can fold synonyms into a canonical form so that both spellings learn from each other:
 
 ```php
 namespace App\Search;
@@ -344,7 +344,7 @@ return [
 
 ### Swapping the ranker
 
-The default `BucketedRanker` reorders hits by combined score within buckets of `bucket_size` engine positions, so a weak keyword match never overtakes a strong one. A ranker receives the `RankingContext` and a `Lunar\SearchRelevance\Data\HitCollection` (an `Illuminate\Support\Collection` of `Lunar\SearchRelevance\Data\Hit` objects with `productId`, `originalPosition`, `score`, `document`, `source`, and a mutable `boost`) and returns the collection in display order:
+The default `BucketedRanker` reorders hits by combined score within buckets of `bucket_size` engine positions, so a weak keyword match never overtakes a strong one. `Lunar\SearchRelevance\Rankers\NullRanker` returns the window untouched, useful for measuring logging overhead without ranking. A ranker receives the `RankingContext` and a `Lunar\SearchRelevance\Data\HitCollection` (an `Illuminate\Support\Collection` of `Lunar\SearchRelevance\Data\Hit` objects with `productId`, `originalPosition`, `score`, `document`, `source`, and a mutable `boost`) and returns the collection in display order:
 
 ```php
 namespace App\Search;
@@ -360,7 +360,7 @@ class TopThreeOnlyRanker implements Ranker
 
     public function rank(RankingContext $context, HitCollection $hits): HitCollection
     {
-        $scores = $this->signals->scores($context, $hits->productIds());
+        $scores = $this->signals->combine($context, $hits->productIds());
 
         // Promote at most three learned products to the top; keep engine order for the rest.
         $promoted = $hits

@@ -85,13 +85,13 @@ For a part number, the `Lunar\SearchRelevance\Pipelines\PartNumberRetrieval` req
 
 | | Typesense | Meilisearch |
 |---|---|---|
-| Restrict to SKU fields | `query_by: skus,skus_normalised` | `attributesToSearchOn: ['skus', 'skus_normalised']` |
-| Partial match | `prefix: true`, `infix: always` | Prefix on the last word is always on; no infix |
-| No typos | `num_typos: 0` | Index setting `typoTolerance.disableOnAttributes`, applied by `lunar:meilisearch:setup` |
+| Restrict to SKU fields | `query_by: skus,skus_normalised` (and `query_by_weights` dropped) | `attributesToSearchOn: ['skus', 'skus_normalised']` |
+| Partial match | `prefix: true`, `infix: always,always` | Prefix on the last word is always on; no infix |
+| No typos | `num_typos: 0,0` | Index setting `typoTolerance.disableOnAttributes`, applied by `lunar:meilisearch:setup` |
 | Keep every token | `drop_tokens_threshold: 0` | `matchingStrategy: all` |
 | No semantic padding | `vector_query` omitted | `hybrid.semanticRatio: 0`, when an embedder is configured |
 
-Part-number searches are still logged, but they are not ranked: per-code queries are too sparse to learn from, and the engine order is already the right one. The normaliser also skips stemming for them.
+Part-number searches are still logged and tracked, but they are not ranked: per-code queries are too sparse to learn from, and the engine order is already the right one. The normaliser also skips stemming for them. The database engine has no per-field request parameters, so the stage leaves it untouched.
 
 The stage applies these parameters through `AbstractEngine::withParams()`, so nothing engine-specific lives in the engine itself.
 
@@ -261,9 +261,9 @@ $line->meta['search_attribution'];
 // ]
 ```
 
-Shopper identity is the Lunar cart session identifier when `session_key` is `cart` (the default). It survives login, and it is what cart and order lines already relate to. Set `session_key` to `session` to use the Laravel session id instead.
+Shopper identity is the Lunar cart session identifier when `session_key` is `cart` (the default), stored as `cart:{id}`. It survives login, and it is what cart and order lines already relate to. Set `session_key` to `session` to use the Laravel session id (`session:{id}`) instead; that is also the fallback when no cart exists yet.
 
-All three writes are queued jobs; nothing runs on the request path beyond the session write.
+Every event is written by the queued `Lunar\SearchRelevance\Events\RecordEvent` job, which re-validates the search id, the product, and the position before inserting, so nothing runs on the request path beyond the session write.
 
 ## Scoring
 
@@ -281,7 +281,7 @@ In plain language, for each normalised query and product:
 - **Sparse data is ignored.** Only events within `window_days` are considered, and a query and product pair needs events from at least `min_sessions` distinct shoppers before it gets a score. Sessions searching faster than `guards.max_searches_per_minute` are excluded as bots.
 - **Scores are relative.** Within a query, each product's score is divided by the best score for that query, giving a `relative` value from 0 to 1. At most `max_products_per_query` products are kept per query.
 
-At search time, `Lunar\SearchRelevance\Signals\QueryAffinitySignal` looks up the `relative` score for each product in the window, `Lunar\SearchRelevance\Signals\SignalCombiner` combines every configured signal by weight and clamps to 0..1, and `Lunar\SearchRelevance\Rankers\BucketedRanker` reorders within each bucket by that score. Learned products the engine did not return (up to `learned_union.max`, each with `relative` of at least `learned_union.min_relative`) are fetched by id and inserted at the head of the second bucket, so they appear early without displacing the strongest keyword matches. The ranked window is cached for `cache_ttl` seconds.
+At search time, `Lunar\SearchRelevance\Signals\QueryAffinitySignal` looks up the `relative` score for each product in the window, `Lunar\SearchRelevance\Signals\SignalCombiner::combine()` sums every configured signal by weight and clamps to 0..1, and `Lunar\SearchRelevance\Rankers\BucketedRanker` sorts within each bucket of `bucket_size` engine positions by that combined score (ties keep the engine order). Learned products the engine did not return (up to `learned_union.max`, each with `relative` of at least `learned_union.min_relative`) are fetched by id through the same engine and inserted at the head of the second bucket, marked `source: learned`, so they can win a first-page slot without displacing the strongest keyword matches. The ranked window is cached for `cache_ttl` seconds, keyed by model, version, mode, normalised query, filters, and customer.
 
 | Key | Default | Description |
 |---|---|---|
@@ -300,7 +300,7 @@ The aggregation is a single SQL query on MySQL 8 and Postgres (`Lunar\SearchRele
 
 ## Versioning
 
-Every logged search and every score carries a retrieval version, `Lunar\SearchRelevance\RetrievalVersion::current()`, built from three parts: the `normaliser_version` config value, the Scout driver, and whether hybrid search is on. `QueryAffinitySignal` only reads scores whose version matches the current one.
+Every logged search and every score carries a retrieval version, `Lunar\SearchRelevance\RetrievalVersion::current($modelType)`, in the form `n{normaliser_version}:{driver}:{hybrid|keyword}`, for example `n1:typesense:hybrid`. The driver comes from `lunar.search.engine_map` for the model (falling back to `scout.driver`); `hybrid` means the Typesense collection schema declares an `embedding` field, or `lunar.search.meilisearch.embedder` is set. `QueryAffinitySignal` only reads scores whose version matches the current one.
 
 This matters because scores are keyed by the **normalised** query. If the normaliser changes (a new synonym, a change to how plurals are folded), `running shoe` and `running shoes` may no longer normalise to the same string, and scores learned under the old rules would apply to the wrong queries. Stale scores measurably make results worse, so a version change relearns from scratch: the scoring job writes rows for the new version, ignores events logged under the old one, and deletes rows for old versions.
 

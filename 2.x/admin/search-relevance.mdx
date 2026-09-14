@@ -29,47 +29,58 @@ Assign it to a role or a staff member like any other handle; see [Access control
 
 ## Navigation
 
-The section adds a **Search relevance** item to the sidebar and a **Search relevance** entry to the Settings sidebar. Both carry the permission handle above, so staff without it see neither.
+The section adds a **Search** group to the sidebar with a **Search relevance** item, and a **Search relevance** entry under the **Store** group of the Settings sidebar. Both carry the permission handle above, so staff without it see neither.
+
+| Route | Page |
+| --- | --- |
+| `panel.search-relevance.index` | [Overview](#overview-page) |
+| `panel.search-relevance.query` | [Query page](#query-page); the normalised query is the route parameter, with an optional `model` query string for installs that rank more than one model |
+| `panel.search-relevance.product` | JSON feed for the [product slot](#product-slot) |
+| `panel.settings.search-relevance.index`, `panel.settings.search-relevance.update` | [Settings page](#settings-page) |
 
 ## Overview page
 
-Route `panel.search-relevance.index`. The page opens with a date range selector and a row of KPI cards for that range:
+The page opens with the same date range selector as the dashboard and a row of KPI cards for that range. Rates are percentages of the searches logged in the range; events are counted against the search that produced them, so a purchase after the range still counts toward a search inside it.
 
 | KPI | Meaning |
 | --- | --- |
 | Searches | Logged searches in the range |
 | Click-through rate | Share of searches with at least one click |
-| Search conversion rate | Share of searches that led to a purchase of a clicked product |
+| Conversion rate | Share of searches that led to a purchase of a clicked product |
 | Zero-result rate | Share of searches the engine returned nothing for |
-| Mean click position | Average position of clicked results; lower is better |
+| Mean click position | Average position of clicked results; lower is better. Shown as "No clicks yet" until the first click. |
 
-Beside the KPIs sits the **Uplift** card, the same figures the [replay command](/2.x/addons/search-relevance#replay) prints: mean reciprocal rank of the purchased product under the engine order and under the learned order, and the share of purchased searches where the learned order placed the product higher. In `shadow` mode this is the evidence for switching on; in `on` mode it keeps reporting on the searches the ranking changed.
+Beside the KPIs sits the **Uplift** card, the same figures the [replay command](/2.x/addons/search-relevance#replay) prints for the range: the number of purchased searches, mean reciprocal rank of the purchased product under the shown order and under the learned order, and the share of purchased searches where the learned order placed the product higher (Improved) and lower (Worsened). In `shadow` mode this is the evidence for switching on; in `on` mode it keeps reporting on the searches the ranking changed.
 
-Below are three tables:
+Below are three tables, each showing the twenty most frequent normalised queries in the range and linking every row to the [query page](#query-page):
 
-- **Top queries**: the most frequent normalised queries with search counts, click-through, and conversion. Each row links to the [query page](#query-page).
-- **Zero-result queries**: queries the engine returned nothing for, ordered by frequency. These are catalog gaps or synonym candidates for a custom normaliser.
-- **Queries with no clicks**: queries that return results nobody chooses. Merchandising opportunities: the results are probably wrong for what shoppers meant.
+- **Top queries**: searches, clicks, conversions (searches with a purchase), and conversion rate per query.
+- **Zero-result queries**: queries the engine returned nothing for. These are catalog gaps, redirect candidates, or synonyms for a custom normaliser.
+- **Queries with no clicks**: queries that returned results nobody opened. Merchandising opportunities: the results are probably wrong for what shoppers meant.
 
 ## Query page
 
-Route `panel.search-relevance.query`, reached from any table row or from the global search palette. It shows one normalised query and what the ranking has learned for it.
+Reached from any table row or from the global search palette, the query page shows one normalised query and what the ranking has learned for it. When more than one model is ranked, a model selector switches between them.
 
-The main table lists the learned products in score order, with the **explainability breakdown** per product:
+The **Learned products** table lists the products scored for this query under the current retrieval version, best first, with the **explainability breakdown** per product:
 
 | Column | How to read it |
 | --- | --- |
-| Relative score | 0 to 1, drawn as a bar. The best product for this query is 1; others are relative to it. This is the value the ranker uses. |
-| Clicks, Baskets, Purchases | Raw event counts in the scoring window, before position and recency weighting |
-| Sessions | Distinct shoppers behind those events. A pair needs at least `scoring.min_sessions` before it is scored, so a product missing from this table may simply not have enough shoppers yet. |
+| Product | The product name, linking to its edit page ("Product #id (deleted)" when it no longer exists) |
+| Relative | 0 to 1, drawn as a bar. The strongest product for this query is 1; others are relative to it. This is the value the ranker uses. |
+| Score | The absolute weighted score the relative value is derived from |
+| Clicks, Baskets, Purchases | Raw event counts for this product and query, across every logged search, before position and recency weighting |
+| Sessions | Distinct shoppers behind the score. A pair needs at least `scoring.min_sessions` before it is scored, so a product missing from this table may simply not have enough shoppers yet. |
 | Last event | When the product was last chosen for this query; the score decays with `scoring.half_life_days` |
-| Engine position | Where the engine typically returns this product for the query. A high relative score at a low engine position is exactly what the ranking corrects; a product at engine position 1 with a low score is one the engine over-ranks. |
+| Engine position | The average position the product sat at when shoppers engaged with it. A high relative score at a low engine position is exactly what the ranking corrects; a product the engine puts first with a low score is one the engine over-ranks. |
 
-A second panel lists the raw query variants that normalise to this query (`running shoe`, `Running Shoes`, `running-shoes`), with counts. If two variants that should be the same query are listed as separate queries, that is a normaliser change; see [custom query normaliser](/2.x/extending/search#custom-query-normaliser).
+The table is empty until the scoring run has produced scores for the query; the page says so rather than showing raw counts.
+
+A second panel, **Raw variants**, lists the raw queries that normalise to this one (`running shoe`, `Running Shoes`, `running-shoes`) with their search counts. If two variants that should be the same query appear as separate queries in the overview tables, that is a normaliser change; see [custom query normaliser](/2.x/extending/search#custom-query-normaliser).
 
 ## Settings page
 
-Route `panel.settings.search-relevance.index`, under **Settings > Search relevance**. It has one control, the mode switch (`off`, `shadow`, `on`), and a read-only summary of the scoring weights, the current retrieval version, and when scoring last ran.
+Under **Settings > Store > Search relevance**. It has one control, the mode switch (`off`, `shadow`, `on`, each with a one-line description), and two read-only panels: the event weights from `scoring.weights`, and the current retrieval version per ranked model, so staff can see that a normaliser or engine change has started a fresh version.
 
 Switching to `on` asks for confirmation, because it changes what every shopper sees. The chosen mode is persisted in the add-on's `search_relevance_settings` table and takes effect immediately; the config value (`lunar.search_relevance.mode`) is only the fallback when nothing has been saved here. See [Modes](/2.x/addons/search-relevance#modes).
 
@@ -78,19 +89,19 @@ Switching to `on` asks for confirmation, because it changes what every shopper s
 Leave the add-on in `shadow` until all of the following hold:
 
 - Storefront tracking is in place and the overview shows a click-through rate, not zero.
-- The scoring job has run (the settings page shows a last run) and the top queries have learned products with more than a handful of sessions.
+- The scoring job has run and the top queries have learned products with more than a handful of sessions.
 - The Uplift card shows the learned order placing the purchased product higher in clearly more searches than it places it lower, over a range of at least a few weeks.
 
 If uplift is flat, the likely causes are too little traffic for `scoring.min_sessions`, tracking missing from part of the storefront, or a normaliser splitting the same query across variants. Switching to `on` without evidence is safe (bucketed reordering cannot move a weak match above a strong one) but pointless.
 
 ## Dashboard widget
 
-`Lunar\SearchRelevance\Panel\Widgets\SearchConversionWidget` adds a half-width **Search conversion** widget to the dashboard, showing searches and the search conversion rate for the dashboard's date range. Staff can reorder, hide, and re-add it like any first-party widget, and it is hidden from staff without the permission.
+`Lunar\SearchRelevance\Panel\Widgets\SearchConversionWidget` adds a half-width **Search conversion** widget to the dashboard, showing searches and the search conversion rate for the dashboard's date range, each with its change against the previous range, and a "View report" link to the overview for the same range. Staff can reorder, hide, and re-add it like any first-party widget, and it is hidden from staff without the permission.
 
 ## Product slot
 
-On the product edit page, the section injects a **Search performance** card after the content section (the `products.edit:content:after` zone). It lists the queries the product wins (has a learned score for), with its clicks and purchases per query, so a merchandiser editing a product can see which searches it is expected to answer.
+On the product edit page, the section injects a **Search performance** card after the content section (the `products.edit:content:after` zone). It loads on demand from `panel.search-relevance.product` and lists up to twenty queries the product has been clicked, added to cart, or purchased from, with the event counts per query and the product's relative score for that query where one has been learned. Each query links to its query page, so a merchandiser editing a product can see which searches it is expected to answer.
 
 ## Global search
 
-Normalised queries are a source in the global search palette (Cmd+K). Typing a shopper query jumps straight to its query page. Results are grouped under the section's own label and gated by the permission.
+Logged queries are a **Search queries** source in the global search palette (Cmd+K), listed after the first-party sources. Typing part of a shopper query matches normalised queries by substring, shows how many times each was searched, and jumps straight to its query page. The source is gated by the permission.
