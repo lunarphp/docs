@@ -218,11 +218,60 @@ On each rendered result, spread the tracking attributes onto the element that wr
 
 `lunar_search_attrs()` renders `data-lunar-search-id`, `data-lunar-product-id`, `data-lunar-position`, and `data-lunar-source`. It returns an empty string when the search was not logged (for example, in `off` mode), so the markup is safe to leave in place. The component renders nothing in that case either.
 
-The script listens for clicks anywhere inside a tracked element and posts the four attributes plus the CSRF token to the events endpoint with `navigator.sendBeacon()` (falling back to a `keepalive` fetch), so a navigation that starts immediately still delivers the event.
+The script is the `@lunarphp/search-relevance` client's self-contained build, inlined into the page. It listens for clicks anywhere inside a tracked element and posts the four attributes plus the CSRF token to the events endpoint with `navigator.sendBeacon()` (falling back to a `keepalive` fetch), so a navigation that starts immediately still delivers the event.
 
 ### Headless and Inertia storefronts
 
-The same data is available in the results payload. `SearchResults->meta` carries `search_id`, `ranking_mode`, and `ranking_version`, and each hit's `meta` carries `position`, `original_position`, `source`, and (when the search was ranked) `boost`. Post to the events endpoint, `POST /lunar/search/events` (route name `lunar.search-relevance.events`), when a shopper clicks a result:
+The same data is available in the results payload. `SearchResults->meta` carries `search_id`, `ranking_mode`, and `ranking_version`, and each hit's `meta` carries `position`, `original_position`, `source`, and (when the search was ranked) `boost`. Both `meta` fields are typed, so a storefront generating types with Spatie's TypeScript transformer (see the [Search add-on](/2.x/addons/search#typescript-integration)) gets `results.meta.search_id` and `hit.meta.position` in the `Lunar.Search` namespace.
+
+Install the storefront client, which is the same code the Blade component inlines:
+
+```bash
+npm install @lunarphp/search-relevance
+```
+
+In a Vue or Inertia storefront, the `useSearchTracking` composable takes the results (a ref, a getter, or a plain object) and returns `track(hit)` to send a click and `attrs(hit)` for the `data-lunar-*` attributes:
+
+```vue
+<script setup lang="ts">
+import { useSearchTracking } from '@lunarphp/search-relevance/vue';
+
+const props = defineProps<{ results: Lunar.Search.SearchResults }>();
+
+const { track, attrs } = useSearchTracking(() => props.results);
+</script>
+
+<template>
+    <Link
+        v-for="hit in results.hits"
+        :key="hit.document.id"
+        v-bind="attrs(hit)"
+        :href="`/products/${hit.document.id}`"
+        @click="track(hit)"
+    >
+        {{ hit.document.name_en }}
+    </Link>
+</template>
+```
+
+Both calls are safe when the search was not logged (for example, in `off` mode): `track()` does nothing and `attrs()` returns an empty object. The `v-lunar-search-hit` directive does both at once for storefronts that prefer it: `v-lunar-search-hit="{ results, hit }"`.
+
+The composable accepts options as its second argument: `endpoint` (defaults to `/lunar/search/events`), `token` (the CSRF token; read from `<meta name="csrf-token">` when omitted), and `sessionId`, sent as `session_id` for clients that carry no cart session cookie.
+
+Any other framework uses the framework-agnostic entry. `attachSearchTracking()` adds delegated click tracking to elements that carry the `data-lunar-*` attributes (rendered with `trackingAttributes(results, hit)`), and `trackHit()` or `sendSearchEvent()` send an event directly:
+
+```js
+import { attachSearchTracking, trackHit } from '@lunarphp/search-relevance';
+
+const detach = attachSearchTracking();
+
+// or, without markup:
+trackHit(results, hit);
+```
+
+Every sender uses `navigator.sendBeacon()` with a `keepalive` fetch fallback, so a click that starts a navigation still delivers the event.
+
+Without the client, post to the events endpoint, `POST /lunar/search/events` (route name `lunar.search-relevance.events`), when a shopper clicks a result:
 
 ```js
 fetch('/lunar/search/events', {
