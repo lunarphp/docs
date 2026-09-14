@@ -298,7 +298,7 @@ The endpoint always answers with an empty `204`, whether or not the event was ac
 A click is the start of a chain the add-on follows through to a purchase:
 
 1. The click stores `attribution.{product_id}` in the shopper's session (`search_id`, `position`, `source`, and an expiry) for `attribution_ttl_minutes` (30 by default).
-2. When a `Lunar\Core\Models\CartLine` is created, `Lunar\SearchRelevance\Listeners\AttributeCartLine` (an Eloquent `created` observer) resolves the line's product from its purchasable (product variants only), looks up the attribution, and if one is present writes it to `meta['search_attribution']` on the line and records a `basket` event.
+2. When a `Lunar\Core\Models\CartLine` is created, `Lunar\SearchRelevance\Observers\CartLineObserver` (an Eloquent `created` observer) resolves the line's product from its purchasable (product variants only), looks up the attribution, and if one is present writes it to `meta['search_attribution']` on the line and records a `basket` event.
 3. When `Lunar\Core\Events\Orders\OrderPlaced` fires, `Lunar\SearchRelevance\Listeners\AttributeOrderLines` records a `purchase` event for every order line whose `meta` carries `search_attribution`. Order creation already copies cart line `meta` to the order line, so no pipeline change is needed.
 
 A cart or order line attributed to a search carries this in `meta`:
@@ -315,7 +315,7 @@ $line->meta['search_attribution'];
 
 Shopper identity is the Lunar cart session identifier when `session_key` is `cart` (the default), stored as `cart:{id}`. It survives login, and it is what cart and order lines already relate to. Set `session_key` to `session` to use the Laravel session id (`session:{id}`) instead; that is also the fallback when no cart exists yet.
 
-Every event is written by the queued `Lunar\SearchRelevance\Events\RecordEvent` job, which re-validates the search id, the product, and the position before inserting, so nothing runs on the request path beyond the session write.
+Every event is written by the queued `Lunar\SearchRelevance\Jobs\RecordEvent` job, which re-validates the search id, the product, and the position before inserting, so nothing runs on the request path beyond the session write.
 
 ## Scoring
 

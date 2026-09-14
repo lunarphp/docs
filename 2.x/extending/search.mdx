@@ -308,7 +308,7 @@ namespace App\Search;
 
 use Lunar\Core\Models\ProductVariant;
 use Lunar\SearchRelevance\Contracts\Signal;
-use Lunar\SearchRelevance\Data\RankingContext;
+use Lunar\SearchRelevance\DataObjects\RankingContext;
 
 class StockLevelSignal implements Signal
 {
@@ -344,14 +344,14 @@ return [
 
 ### Swapping the ranker
 
-The default `BucketedRanker` reorders hits by combined score within buckets of `bucket_size` engine positions, so a weak keyword match never overtakes a strong one. `Lunar\SearchRelevance\Rankers\NullRanker` returns the window untouched, useful for measuring logging overhead without ranking. A ranker receives the `RankingContext` and a `Lunar\SearchRelevance\Data\HitCollection` (an `Illuminate\Support\Collection` of `Lunar\SearchRelevance\Data\Hit` objects with `productId`, `originalPosition`, `score`, `document`, `source`, and a mutable `boost`) and returns the collection in display order:
+The default `BucketedRanker` reorders hits by combined score within buckets of `bucket_size` engine positions, so a weak keyword match never overtakes a strong one. `Lunar\SearchRelevance\Rankers\NullRanker` returns the window untouched, useful for measuring logging overhead without ranking. A ranker receives the `RankingContext` and a `Lunar\SearchRelevance\DataObjects\HitCollection` (an `Illuminate\Support\Collection` of `Lunar\SearchRelevance\DataObjects\Hit` objects with `productId`, `originalPosition`, `score`, `document`, `source`, and a mutable `boost`) and returns the collection in display order:
 
 ```php
 namespace App\Search;
 
 use Lunar\SearchRelevance\Contracts\Ranker;
-use Lunar\SearchRelevance\Data\HitCollection;
-use Lunar\SearchRelevance\Data\RankingContext;
+use Lunar\SearchRelevance\DataObjects\HitCollection;
+use Lunar\SearchRelevance\DataObjects\RankingContext;
 use Lunar\SearchRelevance\Signals\SignalCombiner;
 
 class TopThreeOnlyRanker implements Ranker
