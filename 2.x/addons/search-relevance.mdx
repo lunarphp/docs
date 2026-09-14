@@ -94,74 +94,7 @@ Part-number searches are still logged and tracked, but they are not ranked: per-
 
 The stage applies these parameters through `AbstractEngine::withParams()`, so nothing engine-specific lives in the engine itself.
 
-### The `skus_normalised` field
-
-`Lunar\Core\Search\ProductIndexer` indexes variant SKUs twice: `skus` as printed, and `skus_normalised` uppercased with every non-alphanumeric character stripped. That is what lets `HAGMB` prefix-match `HAG-MB-32A`. Both fields are part of core, so they are indexed whether or not this add-on is installed; the add-on is what makes retrieval use them.
-
-### Typesense setup
-
-Typesense needs both fields declared in the collection schema and listed in `query_by`, together with the position-aligned `infix` and `num_typos` lists. Both live in the host application's `config/scout.php`, under `typesense.model-settings`:
-
-```php
-// config/scout.php
-'typesense' => [
-    // ...
-    'model-settings' => [
-        Lunar\Core\Models\Product::class => [
-            'collection-schema' => [
-                'fields' => [
-                    ['name' => 'id', 'type' => 'string'],
-                    ['name' => 'name_en', 'type' => 'string'],
-                    ['name' => 'description_en', 'type' => 'string', 'optional' => true],
-                    ['name' => 'skus', 'type' => 'string[]', 'infix' => true],
-                    ['name' => 'skus_normalised', 'type' => 'string[]', 'infix' => true],
-                    ['name' => 'brand', 'type' => 'string', 'facet' => true, 'optional' => true],
-                    ['name' => 'status', 'type' => 'string', 'facet' => true],
-                    ['name' => 'created_at', 'type' => 'int64'],
-                    // ...
-                ],
-            ],
-            'search-parameters' => [
-                'query_by' => 'name_en,description_en,skus,skus_normalised',
-                'query_by_weights' => '4,1,3,3',
-                'infix' => 'off,off,always,always',
-                'num_typos' => '2,2,0,0',
-                'prefix' => 'true,true,true,true',
-            ],
-        ],
-    ],
-],
-```
-
-Every entry in `infix`, `num_typos`, `prefix`, and `query_by_weights` is positional and must have exactly as many values as `query_by`, or Typesense rejects the request. Only `infix: true` in the schema enables infix search for a field; `always` in the search parameters then uses it.
-
-Changing the collection schema requires a reindex:
-
-```bash
-php artisan lunar:search:index "Lunar\Core\Models\Product" --refresh
-```
-
-<Tip>
-The `--refresh` flag drops and recreates the collection, which is what a schema change needs. Without it, Typesense keeps the old field list and the new fields are silently ignored.
-</Tip>
-
-### Meilisearch setup
-
-Meilisearch already prefix-matches the last word of a query, so recall of a SKU family is complete out of the box. Typo tolerance is the defect: under default settings an eight-character code returns several unrelated products per page, and none once typos are disabled on the SKU attributes. That is an index setting, not something a request can change, so the [`lunar:meilisearch:setup`](/2.x/addons/search#meilisearch) command applies it:
-
-```bash
-php artisan lunar:meilisearch:setup
-```
-
-Re-run it after upgrading to a version of Lunar with `skus_normalised`. The command reads each indexer's `getExactMatchFields()` (`['skus', 'skus_normalised']` for products) and sets `typoTolerance.disableOnAttributes` on the index. Then reindex so the new field is populated:
-
-```bash
-php artisan lunar:search:index "Lunar\Core\Models\Product" --refresh
-```
-
-#### Meilisearch page padding
-
-Meilisearch's default `last` matching strategy lists every document matching all query terms first, then fills the rest of the page with documents matching fewer terms. For letter-only prefixes such as `HAG-MB`, which the classifier treats as text because they contain no digit, page one is the whole family followed by partial matches. This is not a ranking error, but a storefront that shows a result count will show an inflated total. Part numbers (with a digit) set `matchingStrategy: all` and are not padded.
+The retrieval side of this depends on the `skus` and `skus_normalised` fields that core indexes and on engine settings that belong to `lunarphp/search`: the Typesense schema and `query_by` entries, and the Meilisearch typo-tolerance step. See [Search: Product code search](/2.x/addons/search#product-code-search) for that setup; the add-on only decides when to use it.
 
 ## Modes
 
