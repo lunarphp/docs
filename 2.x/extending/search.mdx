@@ -318,7 +318,7 @@ class StockLevelSignal implements Signal
         $stock = ProductVariant::query()
             ->whereIn('product_id', $productIds)
             ->groupBy('product_id')
-            ->selectRaw('product_id, sum(stock) as stock')
+            ->selectRaw('product_id, sum(stock_on_hand) as stock')
             ->pluck('stock', 'product_id');
 
         return collect($productIds)

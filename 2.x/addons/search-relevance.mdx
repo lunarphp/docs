@@ -216,11 +216,13 @@ On each rendered result, spread the tracking attributes onto the element that wr
 @endforeach
 ```
 
-`lunar_search_attrs()` renders `data-lunar-search-id`, `data-lunar-product-id`, `data-lunar-position`, and `data-lunar-source`. It returns an empty string when the search was not logged (for example, in `off` mode), so the markup is safe to leave in place. The script listens for clicks on any link inside a tracked element and sends the event with `navigator.sendBeacon()`, so a navigation that starts immediately still delivers it.
+`lunar_search_attrs()` renders `data-lunar-search-id`, `data-lunar-product-id`, `data-lunar-position`, and `data-lunar-source`. It returns an empty string when the search was not logged (for example, in `off` mode), so the markup is safe to leave in place. The component renders nothing in that case either.
+
+The script listens for clicks anywhere inside a tracked element and posts the four attributes plus the CSRF token to the events endpoint with `navigator.sendBeacon()` (falling back to a `keepalive` fetch), so a navigation that starts immediately still delivers the event.
 
 ### Headless and Inertia storefronts
 
-The same data is available in the results payload. `SearchResults->meta` carries `search_id`, `ranking_mode`, and `ranking_version`, and each hit's `meta` carries `position`, `original_position`, `boost`, and `source`. Post to the events endpoint when a shopper clicks a result:
+The same data is available in the results payload. `SearchResults->meta` carries `search_id`, `ranking_mode`, and `ranking_version`, and each hit's `meta` carries `position`, `original_position`, `source`, and (when the search was ranked) `boost`. Post to the events endpoint, `POST /lunar/search/events` (route name `lunar.search-relevance.events`), when a shopper clicks a result:
 
 ```js
 fetch('/lunar/search/events', {
@@ -230,24 +232,24 @@ fetch('/lunar/search/events', {
 });
 ```
 
-The endpoint accepts:
+The route runs under the `web` middleware group, so a browser client sends the CSRF token and its session cookie as it would for any other form. The endpoint accepts JSON or form data:
 
 | Field | Required | Description |
 |---|---|---|
-| `search_id` | Yes | `results.meta.search_id` |
+| `search_id` | Yes | `results.meta.search_id`, a 26-character ULID |
 | `product_id` | Yes | The product id, as indexed under `document.id` |
 | `position` | Yes | The 1-based position the product was displayed at (`hit.meta.position`) |
 | `source` | No | `organic`, `learned`, or `explore` (`hit.meta.source`); defaults to `organic` |
 | `session_id` | No | An explicit shopper identifier for API clients that carry no cart session cookie. Omit it from a browser and the server resolves the shopper from the cart session. |
 
-The endpoint validates that `search_id` exists, that `product_id` was in that search's shown list, and that `position` is in range, and it is rate limited per shopper and per IP (`guards.events_rate_limit`). Anything that fails validation is answered with an empty `204`, so a bot learns nothing about what was rejected.
+The endpoint always answers with an empty `204`, whether or not the event was accepted, so a bot learns nothing about which searches or products exist. It is rate limited per shopper and per IP (`guards.events_rate_limit`, whichever trips first). The queued `RecordEvent` job then checks that `search_id` exists, that `product_id` was in that search's shown list (the first `impressions_logged` results), and that `position` is within it, and silently drops anything else.
 
 ## Attribution
 
 A click is the start of a chain the add-on follows through to a purchase:
 
 1. The click stores `attribution.{product_id}` in the shopper's session (`search_id`, `position`, `source`, and an expiry) for `attribution_ttl_minutes` (30 by default).
-2. When a `Lunar\Core\Models\CartLine` is created, `Lunar\SearchRelevance\Listeners\AttributeCartLine` resolves the line's product from its purchasable, looks up the attribution, and if one is present writes it to `meta['search_attribution']` on the line and records a `basket` event.
+2. When a `Lunar\Core\Models\CartLine` is created, `Lunar\SearchRelevance\Listeners\AttributeCartLine` (an Eloquent `created` observer) resolves the line's product from its purchasable (product variants only), looks up the attribution, and if one is present writes it to `meta['search_attribution']` on the line and records a `basket` event.
 3. When `Lunar\Core\Events\Orders\OrderPlaced` fires, `Lunar\SearchRelevance\Listeners\AttributeOrderLines` records a `purchase` event for every order line whose `meta` carries `search_attribution`. Order creation already copies cart line `meta` to the order line, so no pipeline change is needed.
 
 A cart or order line attributed to a search carries this in `meta`:
@@ -258,6 +260,7 @@ $line->meta['search_attribution'];
 //     'search_id' => '01J9X4M2K7Q8R1S3T5V7W9Y0Z2',
 //     'position' => 3,
 //     'source' => 'organic',
+//     'session_id' => 'cart:1842',
 // ]
 ```
 
@@ -271,7 +274,10 @@ Scoring turns raw events into a score per query and product, stored in `search_q
 
 ```bash
 php artisan lunar:search-relevance:score
+# [n1:typesense:hybrid] wrote 3412 query/product rows.
 ```
+
+The command runs the aggregation once per distinct retrieval version across the ranked `models`.
 
 In plain language, for each normalised query and product:
 
@@ -313,7 +319,7 @@ The service provider registers two scheduled commands:
 | Command | Schedule |
 |---|---|
 | `lunar:search-relevance:score` | Daily at `scoring.schedule` (`02:00` by default), without overlapping |
-| `lunar:search-relevance:prune` | Weekly; deletes queries and events older than `retention_days` (400 by default) |
+| `lunar:search-relevance:prune` | Weekly; deletes queries and events older than `retention_days` (400 by default) and prints how many of each it removed |
 
 Both need the Laravel scheduler running (`php artisan schedule:work` locally, or the `schedule:run` cron entry in production).
 
@@ -329,18 +335,21 @@ Replay is the proof that ranking helps, computed from real traffic before any sh
 php artisan lunar:search-relevance:replay --days=30
 ```
 
-For every logged search in the period that led to a purchase, it compares the purchased product's position in the shown order against its position in the ranked order the add-on computed in shadow mode:
+For every logged search in the period that led to a purchase, and whose ranked order differed from the shown order, it compares the purchased product's position in the shown order against its position in the ranked order the add-on computed:
 
 ```
-Replaying 1,284 purchased searches from the last 30 days
-
-  Mean reciprocal rank (engine order)   0.339
-  Mean reciprocal rank (learned order)  0.426
-  Searches where learned order ranked the purchase higher   38.2%
-  Searches where learned order ranked the purchase lower     6.1%
++---------------------------+-------+
+| Metric                    | Value |
++---------------------------+-------+
+| Searches with a purchase  | 1284  |
+| MRR (shown order)         | 0.339 |
+| MRR (reranked order)      | 0.426 |
+| Improved                  | 38.2% |
+| Worsened                  | 6.1%  |
++---------------------------+-------+
 ```
 
-Mean reciprocal rank averages `1 / position` of the purchased product, so it rewards putting the right product first. The same figures drive the "Uplift" card on the panel's overview page.
+Mean reciprocal rank (MRR) averages `1 / position` of the purchased product, so it rewards putting the right product first. "Improved" and "Worsened" are the shares of those searches where the reranked order placed the purchased product higher or lower than the shown order. `--days` defaults to 30. The same figures drive the **Uplift** card on the panel's overview page, computed over the page's date range.
 
 ## Configuration reference
 
