@@ -246,7 +246,7 @@ The [Search Relevance](/2.x/addons/search-relevance) add-on (`lunarphp/search-re
 | `QueryNormaliser` | `Lunar\SearchRelevance\Normalisers\DefaultQueryNormaliser` | Folds raw queries into the key scores are stored under, and classifies part numbers |
 | `Signal` | `Lunar\SearchRelevance\Signals\QueryAffinitySignal` | Scores product ids 0..1 for a query; several can be combined by weight |
 | `Ranker` | `Lunar\SearchRelevance\Rankers\BucketedRanker` | Reorders the candidate window from the combined signal scores |
-| `ScoreAggregator` | Chosen per database driver | Turns logged events into `search_query_scores` rows |
+| `ScoreAggregator` | Chosen per database connection (MySQL, Postgres, or PHP for the rest) | Turns logged events into `search_query_scores` rows |
 
 ### Custom query normaliser
 

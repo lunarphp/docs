@@ -23,7 +23,6 @@ The add-on works on the ordered list of product ids the engine returns. It does 
 |---|---|---|---|
 | Typesense | Yes | Yes, prefix and infix | Full support. Hybrid search is padded by a distance threshold (see [Vector distance threshold](#vector-distance-threshold)). |
 | Meilisearch | Yes | Yes, prefix only | No infix matching: `MB32A` will not match `HAG-MB-32A`. Stores whose customers search for fragments from inside a code need Typesense. Meilisearch also pads a page with partial matches after the full matches (see [Meilisearch page padding](#meilisearch-page-padding)). |
-| Database | Yes | No | The Scout database driver has no per-field parameters, so the part-number stage has nothing to apply. Ranking works as normal. |
 | Custom engines | Opt in | Opt in | A custom `Lunar\Search\Engines\AbstractEngine` subclass gets ranking once its `get()` calls `pipeRequest()` and `pipeResults()`; see [Pipelines](/2.x/addons/search#pipelines). |
 
 ## Installation
@@ -91,7 +90,7 @@ For a part number, the `Lunar\SearchRelevance\Pipelines\PartNumberRetrieval` req
 | Keep every token | `drop_tokens_threshold: 0` | `matchingStrategy: all` |
 | No semantic padding | `vector_query` omitted | `hybrid.semanticRatio: 0`, when an embedder is configured |
 
-Part-number searches are still logged and tracked, but they are not ranked: per-code queries are too sparse to learn from, and the engine order is already the right one. The normaliser also skips stemming for them. The database engine has no per-field request parameters, so the stage leaves it untouched.
+Part-number searches are still logged and tracked, but they are not ranked: per-code queries are too sparse to learn from, and the engine order is already the right one. The normaliser also skips stemming for them.
 
 The stage applies these parameters through `AbstractEngine::withParams()`, so nothing engine-specific lives in the engine itself.
 

@@ -291,13 +291,13 @@ $request->engine->withParams([
 ]);
 ```
 
-`getParams()` returns the merged overrides. `DatabaseEngine` has no request parameters and ignores them.
+`getParams()` returns the merged overrides.
 
 ### Meta fields
 
 Both data objects carry a free-form `meta` array for engines and stages to annotate:
 
-- `SearchHit::$meta` holds the engine's own score under `score` where the engine provides one: Typesense `text_match`, Meilisearch `_rankingScore` (the engine requests it with `showRankingScore`). The database engine leaves it unset. Stages add their own keys.
+- `SearchHit::$meta` holds the engine's own score under `score` where the engine provides one: Typesense `text_match`, Meilisearch `_rankingScore` (the engine requests it with `showRankingScore`). Stages add their own keys.
 - `SearchResults::$meta` is empty by default; results stages annotate it, for example with a search id.
 
 Both default to `[]`, so existing calls to `SearchResults::from()` and `SearchHit::from()` are unaffected.
