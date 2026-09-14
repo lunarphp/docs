@@ -78,6 +78,15 @@ The table is empty until the scoring run has produced scores for the query; the 
 
 A second panel, **Raw variants**, lists the raw queries that normalise to this one (`running shoe`, `Running Shoes`, `running-shoes`) with their search counts. If two variants that should be the same query appear as separate queries in the overview tables, that is a normaliser change; see [custom query normaliser](/2.x/extending/search#custom-query-normaliser).
 
+### Excluding a product and resetting a query
+
+Two controls on the query page handle manipulated or embarrassing results:
+
+- **Exclude from learning**, in each learned row's actions menu. The product's learned score for this query is removed immediately, and scoring ignores its events from then on. Excluded products are listed under the learned table with an **Allow again** button that reverses the exclusion.
+- **Reset learning**, in the page header. Everything learned for the query is discarded and only events after the reset count, so the query relearns from clean traffic. The page shows when learning was last reset.
+
+Both take effect on the next search; neither touches the logged searches or events, so the reporting on the overview page is unchanged.
+
 ## Settings page
 
 Under **Settings > Store > Search relevance**. It has one control, the mode switch (`off`, `shadow`, `on`, each with a one-line description), and two read-only panels: the event weights from `scoring.weights`, and the current retrieval version per ranked model, so staff can see that a normaliser or engine change has started a fresh version.

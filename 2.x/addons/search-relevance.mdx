@@ -291,7 +291,7 @@ The route runs under the `web` middleware group, so a browser client sends the C
 | `source` | No | `organic`, `learned`, or `explore` (`hit.meta.source`); defaults to `organic` |
 | `session_id` | No | An explicit shopper identifier for API clients that carry no cart session cookie. Omit it from a browser and the server resolves the shopper from the cart session. |
 
-The endpoint always answers with an empty `204`, whether or not the event was accepted, so a bot learns nothing about which searches or products exist. It is rate limited per shopper and per IP (`guards.events_rate_limit`, whichever trips first). The queued `RecordEvent` job then checks that `search_id` exists, that `product_id` was in that search's shown list (the first `impressions_logged` results), and that `position` is within it, and silently drops anything else.
+The endpoint always answers with an empty `204`, whether or not the event was accepted, so a bot learns nothing about which searches or products exist. It is rate limited per shopper and per IP (`guards.events_rate_limit`, whichever trips first). The queued `RecordEvent` job then checks that `search_id` exists, that the search is no older than `guards.event_window_minutes`, that `product_id` was in that search's shown list (the first `impressions_logged` results), and that `position` is within it, and silently drops anything else. Each search records at most one event of each type per product, so replaying a click adds nothing.
 
 ## Attribution
 
@@ -334,6 +334,8 @@ In plain language, for each normalised query and product:
 - **Events at low positions count more.** A click on the product at position 8 says more than a click at position 1, because position 1 gets clicked whatever it is. An event at position `p` is multiplied by `p ^ position_eta`, capped at `max_position_weight`. Without this correction the ranking learns position bias, cementing whatever the engine showed first. Events from the `explore` source skip the correction.
 - **Recent events count more.** Each event's weight halves every `half_life_days` (30 by default), so a product that used to convert but no longer does fades out.
 - **Sparse data is ignored.** Only events within `window_days` are considered, and a query and product pair needs events from at least `min_sessions` distinct shoppers before it gets a score. Sessions searching faster than `guards.max_searches_per_minute` are excluded as bots.
+- **One vote per shopper.** Each session contributes at most one event of each type per query and product, however many times it repeats the search. With `guards.trusted_sessions_only` (the default), only sessions that hold a cart or belong to a known customer count at all.
+- **Staff overrides win.** Products excluded from learning for a query, and events before a query's learning was reset, are ignored. See [Abuse and manipulation](#abuse-and-manipulation).
 - **Scores are relative.** Within a query, each product's score is divided by the best score for that query, giving a `relative` value from 0 to 1. At most `max_products_per_query` products are kept per query.
 
 At search time, `Lunar\SearchRelevance\Signals\QueryAffinitySignal` looks up the `relative` score for each product in the window, `Lunar\SearchRelevance\Signals\SignalCombiner::combine()` sums every configured signal by weight and clamps to 0..1, and `Lunar\SearchRelevance\Rankers\BucketedRanker` sorts within each bucket of `bucket_size` engine positions by that combined score (ties keep the engine order). Learned products the engine did not return (up to `learned_union.max`, each with `relative` of at least `learned_union.min_relative`) are fetched by id through the same engine and inserted at the head of the second bucket, marked `source: learned`, so they can win a first-page slot without displacing the strongest keyword matches. The ranked window is cached for `cache_ttl` seconds, keyed by model, version, mode, normalised query, filters, and customer.
@@ -352,6 +354,30 @@ At search time, `Lunar\SearchRelevance\Signals\QueryAffinitySignal` looks up the
 | `scoring.schedule` | `'02:00'` | Daily run time |
 
 The aggregation is a single SQL query on MySQL 8 and Postgres (`Lunar\SearchRelevance\Scoring\MySqlScoreAggregator`, `PostgresScoreAggregator`), chosen from the Lunar database connection's driver. Other drivers, including SQLite, use `PhpScoreAggregator`, which does the same in chunked PHP. The `Lunar\SearchRelevance\Contracts\ScoreAggregator` binding can be swapped like any other; see [Extending search](/2.x/extending/search#search-relevance).
+
+## Abuse and manipulation
+
+Learned ranking is a feedback loop, so bots and bad actors can try to feed it. The add-on limits the damage in layers:
+
+- **Structural.** The ranker only reorders within buckets of `bucket_size` hits, and learned products the engine did not return are inserted at the head of the second bucket. Nothing can be pushed into the first bucket unless the engine already put it there, whatever the event volume.
+- **Event validation.** An event needs a real search id, a product from that search's shown list, a position inside it, and must arrive within `guards.event_window_minutes` of the search. Repeats of an event already recorded for the search, product, and type are dropped, and the endpoint is rate limited per shopper and per IP.
+- **Scoring.** Each session contributes one event of each type per query and product. With `guards.trusted_sessions_only`, only sessions that hold a cart or belong to a known customer count, so a bot minting fresh sessions gains nothing. Sessions searching faster than `guards.max_searches_per_minute` are excluded.
+- **Crawlers.** Searches from user agents matching `guards.ignored_user_agents` are neither logged nor ranked, so reporting stays honest and the tables stay small. Headless API clients without a session are still logged; they identify the shopper explicitly on the events endpoint.
+- **Refunds and cancellations.** `Lunar\SearchRelevance\Listeners\ForgetPurchases` removes the purchase events an order's attributed lines produced when `Lunar\Core\Events\Orders\OrderCancelled` or `OrderRefunded` fires.
+- **Staff overrides.** From the admin panel's query page, staff can exclude a product from learning for a query (its learned score is removed immediately and future events ignored; reversible) or reset learning for a query (everything learned is discarded and only events after the reset count). Both are stored in the `search_learning_overrides` table and applied through `Lunar\SearchRelevance\Learning\Overrides`, which any code can call:
+
+```php
+use Lunar\Core\Models\Product;
+use Lunar\SearchRelevance\Learning\Overrides;
+
+$overrides = app(Overrides::class);
+
+$overrides->exclude(Product::class, 'cable gland', productId: 42);
+$overrides->include(Product::class, 'cable gland', productId: 42);
+$overrides->reset(Product::class, 'cable gland');
+```
+
+The add-on does not store IP addresses for abuse analysis. The per-IP rate limit on the events endpoint covers the crude case without the privacy obligations.
 
 ## Versioning
 
@@ -424,5 +450,8 @@ The full config, merged under `lunar.search_relevance`:
 | `retention_days` | `400` | Raw queries and events older than this are pruned weekly |
 | `guards.events_rate_limit` | `'60,1'` | Events endpoint rate limit as `attempts,minutes`, per shopper and per IP |
 | `guards.max_searches_per_minute` | `30` | Sessions searching faster than this are ignored by scoring |
+| `guards.event_window_minutes` | `120` | Events are only accepted this long after the search they belong to |
+| `guards.trusted_sessions_only` | `true` | Only sessions holding a cart or belonging to a known customer count towards learning |
+| `guards.ignored_user_agents` | bot, crawl, spider, ... | Searches from user agents containing any of these substrings are neither logged nor ranked |
 
 The three pipeline stages (`Lunar\SearchRelevance\Pipelines\PartNumberRetrieval`, `WidenRequest`, and `RankResults`) are appended to `lunar.search.pipelines.request` and `lunar.search.pipelines.results` by the service provider unless they are already listed. A host that sets those keys explicitly in `config/lunar/search.php` controls their order, and can leave one out; `PartNumberRetrieval` and `WidenRequest` must run in that order, and `WidenRequest` must run before any stage that changes the page.
