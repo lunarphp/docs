@@ -21,7 +21,7 @@ The add-on works on the ordered list of product ids the engine returns. It does 
 
 | Engine | Ranking | Part-number retrieval | Notes |
 |---|---|---|---|
-| Typesense | Yes | Yes, prefix and infix | Full support. Hybrid search is padded by a distance threshold (see [Vector distance threshold](#vector-distance-threshold)). |
+| Typesense | Yes | Yes, prefix and infix | Full support, including hybrid search (see [Search: Typesense](/2.x/addons/search#typesense) for the vector distance threshold). |
 | Meilisearch | Yes | Yes, prefix only | No infix matching: `MB32A` will not match `HAG-MB-32A`. Stores whose customers search for fragments from inside a code need Typesense. Meilisearch also pads a page with partial matches after the full matches (see [Meilisearch page padding](#meilisearch-page-padding)). |
 | Custom engines | Opt in | Opt in | A custom `Lunar\Search\Engines\AbstractEngine` subclass gets ranking once its `get()` calls `pipeRequest()` and `pipeResults()`; see [Pipelines](/2.x/addons/search#pipelines). |
 
@@ -162,16 +162,6 @@ php artisan lunar:search:index "Lunar\Core\Models\Product" --refresh
 #### Meilisearch page padding
 
 Meilisearch's default `last` matching strategy lists every document matching all query terms first, then fills the rest of the page with documents matching fewer terms. For letter-only prefixes such as `HAG-MB`, which the classifier treats as text because they contain no digit, page one is the whole family followed by partial matches. This is not a ranking error, but a storefront that shows a result count will show an inflated total. Part numbers (with a digit) set `matchingStrategy: all` and are not padded.
-
-## Vector distance threshold
-
-Typesense hybrid search runs a `k: 200` vector query alongside the keyword query. Without a threshold, that vector query pads every result set with the 200 nearest neighbours of whatever the query was, so a nonsense query returns 200 products. Lunar sets `distance_threshold` on the vector query from `lunar.search.typesense.vector_distance_threshold` (default `0.6`; `0` disables it). This lives in the `lunarphp/search` config, not this add-on's, and applies whether or not the add-on is installed. See [Search: Typesense](/2.x/addons/search#typesense).
-
-Meilisearch's counterpart, when an embedder is configured, is `lunar.search.meilisearch.ranking_score_threshold`.
-
-<Tip>
-A nonsense query with a threshold in place can return zero results. Render a zero-results state in the storefront rather than loosening the threshold to pad the page; see the [search guide](/2.x/guides/search#make-search-learn).
-</Tip>
 
 ## Modes
 

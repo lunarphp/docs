@@ -499,4 +499,8 @@ Typesense is available as a driver (`Lunar\Search\Engines\TypesenseEngine`) once
 
 When the collection schema declares an auto-embedding `embedding` field, the engine adds a hybrid vector query to every search with a term. The query carries `distance_threshold` from `lunar.search.typesense.vector_distance_threshold` (default `0.6`) so that a term with no semantic neighbours cannot pad the result set with its 200 nearest vectors; set it to `0` to send the bare `k: 200` query. A `vector_query` search parameter in `config/scout.php` overrides the generated one entirely.
 
+<Tip>
+With a threshold in place, a nonsense query can return zero results instead of 200 padded ones. Render a zero-results state in the storefront rather than loosening the threshold to fill the page.
+</Tip>
+
 For part-number search, declare `skus` and `skus_normalised` as `string[]` fields with `infix: true` and list both in `query_by`; see [Search Relevance: Typesense setup](/2.x/addons/search-relevance#typesense-setup) for the full entries.
