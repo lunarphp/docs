@@ -1,0 +1,96 @@
+---
+title: "Search Relevance"
+description: "The admin panel section shipped by the Search Relevance add-on: search KPIs, per-query learned rankings, and the mode switch."
+---
+
+The [Search Relevance](/2.x/addons/search-relevance) add-on (`lunarphp/search-relevance`) registers a section in the admin panel for reading what shoppers search for, what the ranking has learned, and switching the add-on from shadow mode to live. It is an add-on section, built with the same extension API described under [Extending the panel](/2.x/admin/extending/overview), so it appears only when both `lunarphp/panel` and the add-on are installed.
+
+## Setup
+
+Install the add-on and run its migrations, then publish (or, in local development, link) its compiled assets so the section's pages load:
+
+```bash
+php artisan vendor:publish --tag=panel-all-assets --force
+# or, locally
+php artisan lunar:panel:link
+```
+
+See the [add-on installation](/2.x/addons/search-relevance#installation) for the full steps.
+
+## Permission
+
+Every route and navigation item in the section is gated by one permission handle, seeded by the add-on's migration:
+
+| Handle | Grants access to |
+| --- | --- |
+| `search:manage-relevance` | The Search relevance pages, the settings page, the dashboard widget, the product slot, and the global search source. |
+
+Assign it to a role or a staff member like any other handle; see [Access control](/2.x/admin/access-control). Staff with `admin` set to `true` pass the check automatically.
+
+## Navigation
+
+The section adds a **Search relevance** item to the sidebar and a **Search relevance** entry to the Settings sidebar. Both carry the permission handle above, so staff without it see neither.
+
+## Overview page
+
+Route `panel.search-relevance.index`. The page opens with a date range selector and a row of KPI cards for that range:
+
+| KPI | Meaning |
+| --- | --- |
+| Searches | Logged searches in the range |
+| Click-through rate | Share of searches with at least one click |
+| Search conversion rate | Share of searches that led to a purchase of a clicked product |
+| Zero-result rate | Share of searches the engine returned nothing for |
+| Mean click position | Average position of clicked results; lower is better |
+
+Beside the KPIs sits the **Uplift** card, the same figures the [replay command](/2.x/addons/search-relevance#replay) prints: mean reciprocal rank of the purchased product under the engine order and under the learned order, and the share of purchased searches where the learned order placed the product higher. In `shadow` mode this is the evidence for switching on; in `on` mode it keeps reporting on the searches the ranking changed.
+
+Below are three tables:
+
+- **Top queries**: the most frequent normalised queries with search counts, click-through, and conversion. Each row links to the [query page](#query-page).
+- **Zero-result queries**: queries the engine returned nothing for, ordered by frequency. These are catalog gaps or synonym candidates for a custom normaliser.
+- **Queries with no clicks**: queries that return results nobody chooses. Merchandising opportunities: the results are probably wrong for what shoppers meant.
+
+## Query page
+
+Route `panel.search-relevance.query`, reached from any table row or from the global search palette. It shows one normalised query and what the ranking has learned for it.
+
+The main table lists the learned products in score order, with the **explainability breakdown** per product:
+
+| Column | How to read it |
+| --- | --- |
+| Relative score | 0 to 1, drawn as a bar. The best product for this query is 1; others are relative to it. This is the value the ranker uses. |
+| Clicks, Baskets, Purchases | Raw event counts in the scoring window, before position and recency weighting |
+| Sessions | Distinct shoppers behind those events. A pair needs at least `scoring.min_sessions` before it is scored, so a product missing from this table may simply not have enough shoppers yet. |
+| Last event | When the product was last chosen for this query; the score decays with `scoring.half_life_days` |
+| Engine position | Where the engine typically returns this product for the query. A high relative score at a low engine position is exactly what the ranking corrects; a product at engine position 1 with a low score is one the engine over-ranks. |
+
+A second panel lists the raw query variants that normalise to this query (`running shoe`, `Running Shoes`, `running-shoes`), with counts. If two variants that should be the same query are listed as separate queries, that is a normaliser change; see [custom query normaliser](/2.x/extending/search#custom-query-normaliser).
+
+## Settings page
+
+Route `panel.settings.search-relevance.index`, under **Settings > Search relevance**. It has one control, the mode switch (`off`, `shadow`, `on`), and a read-only summary of the scoring weights, the current retrieval version, and when scoring last ran.
+
+Switching to `on` asks for confirmation, because it changes what every shopper sees. The chosen mode is persisted in the add-on's `search_relevance_settings` table and takes effect immediately; the config value (`lunar.search_relevance.mode`) is only the fallback when nothing has been saved here. See [Modes](/2.x/addons/search-relevance#modes).
+
+### When to switch from shadow to on
+
+Leave the add-on in `shadow` until all of the following hold:
+
+- Storefront tracking is in place and the overview shows a click-through rate, not zero.
+- The scoring job has run (the settings page shows a last run) and the top queries have learned products with more than a handful of sessions.
+- The Uplift card shows the learned order placing the purchased product higher in clearly more searches than it places it lower, over a range of at least a few weeks.
+
+If uplift is flat, the likely causes are too little traffic for `scoring.min_sessions`, tracking missing from part of the storefront, or a normaliser splitting the same query across variants. Switching to `on` without evidence is safe (bucketed reordering cannot move a weak match above a strong one) but pointless.
+
+## Dashboard widget
+
+`Lunar\SearchRelevance\Panel\Widgets\SearchConversionWidget` adds a half-width **Search conversion** widget to the dashboard, showing searches and the search conversion rate for the dashboard's date range. Staff can reorder, hide, and re-add it like any first-party widget, and it is hidden from staff without the permission.
+
+## Product slot
+
+On the product edit page, the section injects a **Search performance** card after the content section (the `products.edit:content:after` zone). It lists the queries the product wins (has a learned score for), with its clicks and purchases per query, so a merchandiser editing a product can see which searches it is expected to answer.
+
+## Global search
+
+Normalised queries are a source in the global search palette (Cmd+K). Typing a shopper query jumps straight to its query page. Results are grouped under the section's own label and gated by the permission.

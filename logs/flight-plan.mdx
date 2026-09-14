@@ -84,6 +84,16 @@ The open source checkout will also be the foundation for a future hosted product
 
 <Badge icon="calendar" color="surface" size="sm">Alpha July/Aug 2026</Badge>
 
+## Search that learns
+
+Search results in most stores are ordered by whatever the engine thinks matches best, and never get better with traffic. Merchants who want ranking that learns from real behaviour pay a hosted search service for it, at prices that scale with their success.
+
+v2 adds a search relevance add-on that gives a large part of that value at a fixed cost. It logs searches and the clicks, cart additions and purchases that follow, scores them nightly, and reorders results per query, on top of whichever engine the store already runs. It's engine-agnostic by construction: Typesense, Meilisearch and the database driver all work, and a custom engine opts in through two small pipeline hooks in the search package. Alongside it, part-number search gets fixed on both Typesense and Meilisearch, so a partial product code returns its family and nothing else.
+
+It ships in shadow mode, learning without changing what shoppers see, with a replay command and a panel section that show the uplift before anything is switched on.
+
+<Badge icon="calendar" color="surface" size="sm">Alpha with the panel</Badge>
+
 ## Lunar Eclipse
 
 Lunar Eclipse extends the platform with the features serious operators ask for: B2B, trade and ERP capabilities, built on top of the open core. It's the main commercial route for Lunar, and it's how we fund the long-term development of everything else on this page.
