@@ -90,6 +90,16 @@ Lunar Eclipse extends the platform with the features serious operators ask for: 
 
 More on Eclipse soon.
 
+## Product bundles
+
+Selling a kit ("camera body + bag + SD card") as one product has never had a clean answer in Lunar: a normal product tracks stock independently of its parts, and a discount is a promotion, not a product.
+
+v2 adds two small seams to core, component order lines and a resolver behind a variant's stock answers, and a first-party `lunarphp/bundles` add-on built on them. A bundle is an ordinary product variant with a component list: stock is derived from the components, the price is fixed or derived from the components with a saving, and the order records one component line per part so fulfilment, stock commitment, and returns work unchanged. Configurable bundles let the customer choose from option groups. The panel gets a bundle editor on the product pages and nests component lines in the order view.
+
+See [Bundles](/2.x/addons/bundles) for the documentation.
+
+<Badge icon="calendar" color="surface" size="sm">Alpha, v2 cycle</Badge>
+
 ---
 
 ## Stay Involved

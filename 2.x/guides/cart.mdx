@@ -458,6 +458,22 @@ class CartController extends Controller
 }
 ```
 
+## Selling Bundles
+
+With the [Bundles add-on](/2.x/addons/bundles) installed, a bundle is added to the cart as its product variant with the same `add()` call as any other product. A fixed bundle needs nothing extra; a configurable bundle passes the customer's choices in the line's `meta`, keyed by the group's `public_id` and listing the chosen components' `public_id`s:
+
+```php
+$cart->add($variant, 1, [
+    'bundle' => [
+        'selections' => [
+            $group->public_id => [$component->public_id],
+        ],
+    ],
+]);
+```
+
+The add-on's validator rejects a selection the bundle cannot satisfy, or one whose components are out of stock, with a `CartException` like any other validator. The cart line's `purchasable` is the bundle variant, so the display code above works unchanged; the parts appear only on the order, as [component lines](/2.x/reference/orders#component-lines). See [Cart and checkout](/2.x/addons/bundles#cart-and-checkout) in the add-on documentation for the full flow.
+
 ## Next Steps
 
 - Review the [Carts reference](/2.x/reference/carts) for the full list of cart and cart line fields, configuration options, and session management.
