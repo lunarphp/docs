@@ -283,6 +283,7 @@ There is no generic "fee" or "extra charge" line primitive. A line's `type` is w
 | id | `bigIncrements` | Primary key |
 | public_id | `ulid` | Stable external identifier |
 | order_id | `foreignId` | |
+| parent_line_id | `foreignId` `nullable` | Set on a component line that belongs to another line (a bundle part); cascades on delete, see [Component lines](#component-lines) |
 | purchasable_type | `string` `nullable` | Polymorphic type for the purchasable item. Empty on shipping lines |
 | purchasable_id | `unsignedBigInteger` `nullable` | Polymorphic ID for the purchasable item. Empty on shipping lines |
 | type | `string` | The line type, from the purchasable's `getType()` (e.g. `physical`, `digital`); always `shipping` for the shipping line |
@@ -311,6 +312,8 @@ There is no generic "fee" or "extra charge" line primitive. A line's `type` is w
 |:-------------|:-----|:--------------|:------------|
 | `order` | BelongsTo | `Lunar\Core\Models\Order` | |
 | `purchasable` | MorphTo | — | The polymorphic purchasable item. `null` on shipping lines |
+| `parent` | BelongsTo | `Lunar\Core\Models\OrderLine` | The line this component line belongs to. `null` on a top-level line, see [Component lines](#component-lines) |
+| `components` | HasMany | `Lunar\Core\Models\OrderLine` | Component lines belonging to this line, ordered by `id` |
 | `fulfilmentLines` | HasMany | `Lunar\Core\Models\FulfilmentLine` | See [Fulfilments](/2.x/reference/fulfilments) |
 | `refundLines` | HasMany | `Lunar\Core\Models\RefundLine` | See [Refunds](#refunds) |
 | `currency` | HasOneThrough | `Lunar\Core\Models\Currency` | Resolved through the order |
@@ -320,12 +323,49 @@ There is no generic "fee" or "extra charge" line primitive. A line's `type` is w
 | Scope | Description |
 |:------|:------------|
 | `withoutFulfilment` | Lines not yet allocated to any fulfilment |
+| `topLevel` | Lines where `parent_line_id` is null, that is, lines that are not components of another line |
 
 ### Other useful methods
 
 ```php
-$line->refundableQuantity(): int; // quantity minus refunded_quantity, floored at 0
+$line->refundableQuantity(): int; // quantity minus refunded_quantity, floored at 0; always 0 for a component line
+$line->isComponent(): bool;       // true when parent_line_id is set
 ```
+
+### Component lines
+
+A component line is an order line that belongs to another order line, linked by `parent_line_id`. The core ships the primitive; the [Bundles add-on](/2.x/addons/bundles) is what creates them today, one per part of a bundle, so that fulfilment, stock commitment, and returns see the parts of a kit while the customer's contract stays on one line.
+
+A component line is a real order line. It has a `purchasable`, `type`, `requires_shipping`, `requires_fulfilment`, `identifier`, and `quantity`, so everything that walks order lines to fulfil, allocate, ship, return, or commit stock treats it like any other line. What it does not carry is money: `unit_price`, `sub_total`, `discount_total`, `tax_total`, and `total` are `0` and `tax_breakdown` is empty. The parent line holds the price, the tax, and the refundable amount; `refundableQuantity()` returns `0` for a component line, so refunds are recorded against the parent.
+
+For reporting, a component line's `meta.allocated_total` holds its share of the parent's `total`, distributed across the parent's components in proportion to their unit prices with `Lunar\Core\Pricing\PriceCalculatorInterface::distribute()`. The shares sum exactly to the parent's total. It never feeds an order total.
+
+```php
+use Lunar\Core\Models\Order;
+
+$order = Order::query()->findOrFail($id);
+
+// Display: top-level lines with their components nested
+$lines = $order->lines()->topLevel()->with('components.purchasable')->get();
+
+foreach ($lines as $line) {
+    $line->format('total');          // the money lives here
+
+    foreach ($line->components as $component) {
+        $component->quantity;                    // parts, not kits
+        $component->meta['allocated_total'];     // reporting share of the parent's total
+    }
+}
+
+$component->parent;          // the line it belongs to
+$component->isComponent();   // true
+```
+
+Deleting a parent line cascades to its component lines. The order creation stages that match order lines to cart lines (`CreateOrderLines`, `CleanUpOrderLines`, `MapDiscountBreakdown`) only consider top-level lines, because a component line is never the image of a cart line.
+
+<Warning>
+`$order->lines`, `$order->productLines`, and the other line relations on `Order` include component lines. Code that iterates them for display or totals should use the `topLevel()` scope, or skip lines where `isComponent()` is `true`, or it will show zero-money rows and count parts as items.
+</Warning>
 
 <Info>
 Shipping lines have no `purchasable` — a shipping option is a data transfer object rather than a model, so shipping lines are stored with no morph. Everything needed to display the line (`description`, `unit_price`, `total`, `meta`) is snapshotted onto the line itself. Guard for `null` when iterating `$order->lines`, or use `$order->productLines` to exclude shipping lines.
