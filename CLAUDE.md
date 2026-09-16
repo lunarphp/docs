@@ -17,7 +17,7 @@ mint update          # Update CLI if dev environment isn't working
 ## Architecture
 
 - **`docs.json`** — Central configuration: navigation, theming, redirects, integrations. All page routing is defined here.
-- **`2.x/`** — Next version docs (v2.x, currently alpha). Maintained on the `2.x` branch; v2 work merges into `2.x`, not `main`.
+- **`2.x/`** — Next version docs (v2.x, currently alpha). Lives on `next` alongside `1.x/`; v2 work targets `next`.
 - **`1.x/`** — Current version docs (v1.x). This is where most edits on `main` happen.
 - **`0.x/`** — Legacy version docs (v0.x). Rarely modified.
 - **`support/`** — Community and Lunar Alliance partner pages.
@@ -44,9 +44,9 @@ Navigation in `docs.json` is organized under `navigation.versions`:
 
 ### Branch workflow
 
-- `main` (kept in sync with `next`) holds the published docs; edits to `1.x/` land there.
-- `2.x` holds the v2 docs while they are in alpha. PRs for v2 content target `2.x`.
-- Merge `main` back into `2.x` periodically to keep `1.x/` content and `docs.json` current.
+- `next` is the working branch and the default for PRs; both `1.x/` and `2.x/` content land there on a `docs/<topic>` branch.
+- `main` holds the published docs and is kept in sync by merging `next` into it.
+- The former `2.x` branch has been merged into `next` and no longer exists; do not target or branch from it.
 
 ## Source Code
 
