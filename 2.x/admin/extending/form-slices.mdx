@@ -169,7 +169,7 @@ The customer form now carries `addon:example-addon:tier`, on the edit page and t
 
 ## The JS side
 
-The add-on edits its slice from a component placed on the page through a [slot](/2.x/admin/extending/slots). Every zone on a form page sits inside the page's form, so the component binds with `useFormSlice`, exported from `@lunarphp/panel`, passing the slice's `key()`:
+The add-on edits its slice from a component placed on the page through a [slot](/2.x/admin/extending/slots). `useFormSlice` and `usePanelForm` ship in `@lunarphp/panel` 0.2.0 and later, so an add-on that uses them depends on `"@lunarphp/panel": "^0.2.0"`. Every zone on a form page sits inside the page's form, so the component binds with `useFormSlice`, exported from `@lunarphp/panel`, passing the slice's `key()`:
 
 ```vue
 <script setup lang="ts">
