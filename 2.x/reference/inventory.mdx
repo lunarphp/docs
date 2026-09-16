@@ -269,7 +269,7 @@ $variant->getTotalInventory();          // sellable quantity, accounting for the
 $variant->canBeFulfilledAtQuantity(3);  // bool
 ```
 
-`getTotalInventory()` reads `stock_available`, adding `backorder` when the variant's `Lunar\Core\Enums\SellingPolicy` is `InStockOrOnBackorder`:
+Both methods delegate to the [`ResolvesInventory` seam](#the-resolvesinventory-seam) below. The default implementation reads `stock_available`, adding `backorder` when the variant's `Lunar\Core\Enums\SellingPolicy` is `InStockOrOnBackorder`:
 
 | Case | Value | `getTotalInventory()` |
 |:-|:-|:-|
@@ -282,6 +282,69 @@ $variant->canBeFulfilledAtQuantity(3);  // bool
 <Info>
 The add-to-cart stock check is advisory: with no reservation taken at add-to-cart, stock can still sell out before an order is placed. `reserveStock()` is the supported way for a checkout to hold stock, optionally time-boxed, and close that window for flows that opt in.
 </Info>
+
+## The `ResolvesInventory` seam
+
+`ProductVariant::getTotalInventory()` and `canBeFulfilledAtQuantity()` do not read the rollup columns themselves. They resolve `Lunar\Core\Contracts\Actions\Products\ResolvesInventory` from the container and read its answer, so a package that derives a variant's availability from somewhere other than the variant's own stock (a bundle from its components, an external warehouse feed) can change the answer for every caller at once: the cart's `CartLineStock` validator, a storefront stock badge, and the admin panel all go through the same two methods.
+
+```php
+namespace Lunar\Core\Contracts\Actions\Products;
+
+use Lunar\Core\DataObjects\VariantInventory;
+use Lunar\Core\Models\ProductVariant;
+
+interface ResolvesInventory
+{
+    public function execute(ProductVariant $variant): VariantInventory;
+}
+```
+
+The answer is a `Lunar\Core\DataObjects\VariantInventory`, a small read-only value:
+
+| Property / method | Type | Description |
+|:-|:-|:-|
+| `available` | `int` | Units that can be sold now |
+| `unlimited` | `bool` | Selling continues regardless of `available` (the `Always` selling policy); defaults to `false` |
+| `allows(int $quantity)` | `bool` | `true` when `unlimited`, or when `$quantity` does not exceed `available` |
+
+`getTotalInventory()` returns `available`; `canBeFulfilledAtQuantity($quantity)` returns `allows($quantity)`.
+
+The default binding, `Lunar\Core\Actions\Products\ResolveInventory`, registered in the core `ActionServiceProvider`, applies the selling-policy table above to the variant's rollup columns. To answer differently for some variants and fall through for the rest, decorate the binding rather than replacing it:
+
+```php
+use Lunar\Core\Contracts\Actions\Products\ResolvesInventory;
+use Lunar\Core\DataObjects\VariantInventory;
+use Lunar\Core\Models\ProductVariant;
+
+class ResolveWarehouseInventory implements ResolvesInventory
+{
+    public function __construct(
+        protected ResolvesInventory $inner,
+        protected WarehouseFeed $feed,
+    ) {}
+
+    public function execute(ProductVariant $variant): VariantInventory
+    {
+        if (! $variant->warehouse_sku) {
+            return $this->inner->execute($variant);
+        }
+
+        return new VariantInventory(available: $this->feed->availableFor($variant->warehouse_sku));
+    }
+}
+```
+
+```php
+// In a service provider's register():
+$this->app->extend(
+    ResolvesInventory::class,
+    fn (ResolvesInventory $inner, $app) => new ResolveWarehouseInventory($inner, $app->make(WarehouseFeed::class)),
+);
+```
+
+Decorators answer other variants through `$this->inner`, never through `$variant->getTotalInventory()`, which would re-enter the chain. The [Bundles add-on](/2.x/addons/bundles#stock) is the reference example: its decorator answers a bundle variant from its components' inventories and falls through for everything else.
+
+The seam covers sellability only. Recording movements, reservations, and commitment stay on the ledger and the order book as described above.
 
 ## Custom purchasables: the `TracksStock` capability
 
@@ -301,7 +364,7 @@ interface TracksStock
 }
 ```
 
-The cart, checkout, and order lifecycle call these two methods polymorphically through `instanceof TracksStock`, skipping any purchasable that does not track stock. `ProductVariant` is the only built-in implementation (via `Lunar\Core\Models\Concerns\HasStock`); a custom stock-tracked purchasable (event seats, a bundle, an external warehouse system) implements `TracksStock` with its own storage, since its stock rarely looks like an integer `on_hand` at a location.
+The cart, checkout, and order lifecycle call these two methods polymorphically through `instanceof TracksStock`, skipping any purchasable that does not track stock. `ProductVariant` is the only built-in implementation (via `Lunar\Core\Models\Concerns\HasStock`); a custom stock-tracked purchasable (event seats, a made-to-order assembly, an external warehouse system) implements `TracksStock` with its own storage, since its stock rarely looks like an integer `on_hand` at a location.
 
 ## Reconciling and expiring reservations
 
