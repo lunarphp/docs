@@ -135,6 +135,7 @@ The package ships one data migration per v1 to v2 schema change, run in dependen
 - **Order status and fulfilment backfill** — replaces the hand-set v1 `orders.status` headline with the derived `payment_status` / `fulfilment_status` rollups and the `closed_at` / `cancelled_at` archive columns, and materializes a whole-order `Fulfilment` record for each historically shipped order. See [Order status mapping](#order-status-mapping).
 - **`AmountOff` discount type split** — converts stored `AmountOff` discount rows into `PercentageOff` or `FixedAmountOff` based on the discount's `data.fixed_value` flag (see the manual action above).
 - **Product association `sort` column backfill.**
+- **Cart totals columns** — adds the persisted totals snapshot columns (`sub_total`, `total`, `revision`, `calculated_at`, and the rest) to `carts` and `cart_lines`. No backfill: every upgraded cart reads as not yet calculated and is filled in by its next `calculate()`.
 
 ### Order status mapping
 
@@ -178,6 +179,7 @@ Rector rewrites `Model::modelClass()` calls to `Model::class`, but a subclass re
 - **Removed config keys and Filament v3/v4 customizations.** Any published `config/lunar/*` files, Filament resources, or Blade views customized against v1 need reviewing against the v2 shape of the equivalent file — the upgrade package does not rewrite published assets. The `lunar.admin.order_count_statuses` key is removed with no replacement (the order navigation badge now counts open orders directly); override `OrderResource::getNavigationBadge()` for a different count.
 - **Replaced extension hooks.** Two v1 admin extension hooks are removed rather than renamed, so Rector cannot rewrite them. A resource extension's `extendTable()` is replaced by a `configureTable(Table $table): Table` hook targeting the bridge table class (for example `Lunar\Filament\Tables\Currency\CurrencyTable`) instead of the resource. A list-page extension's `relationManagers()` is replaced by `getRelations()` on an extension targeting the resource itself. `extendTable()` still works when targeting a relation manager or relation page.
 - **`lunar:migrate:getcandy`.** Removed in v2 with no replacement. Applications still on GetCandy-era data must run it on v1.x before upgrading further.
+- **`Cart::calculate()` may serve persisted totals.** v2 persists cart totals after each calculation and serves them from the row for up to `lunar.cart.totals.ttl` seconds (default 300) when nothing on the cart has changed since. Code that needs a guaranteed-fresh total, such as a payment amount check, should call `recalculate()`. Code that writes cart, line, or address rows through the query builder must call `$cart->invalidateTotals()` afterwards. See [Persisted totals](/2.x/reference/carts#persisted-totals). Relatedly, `Cart::updateLine()` now saves the line through the model, so `CartLine` observers and activity logging fire for quantity updates as they already did for `add()`.
 
 ## Reference
 
