@@ -31,6 +31,7 @@ Lunar\Core\Models\Cart
 | `channel_id` | `foreignId` | |
 | `order_id` | `foreignId` `nullable` | References the order created from this cart |
 | `coupon_code` | `string` `nullable` | |
+| `remember_token` | `string` `nullable` | SHA-256 hash of the guest cart's remember cookie token, hidden from serialization. See [Remembering guest carts](#remembering-guest-carts) |
 | `completed_at` | `dateTime` `nullable` | |
 | `meta` | `jsonb` `nullable` | |
 | `created_at` | `timestamp` | |
@@ -176,8 +177,53 @@ Configuration lives in `packages/core/config/cart_session.php`:
 | `auto_create` | Whether `current()` creates a cart automatically when none exists (default `false`) |
 | `allow_multiple_orders_per_cart` | Whether a cart can be reused after it already has a completed order (default `false`) |
 | `delete_on_forget` | Whether the cart is deleted when `CartSession::forget()` is called (default `true`) |
+| `remember.enabled` | Whether guest carts are restored from a long-lived cookie after the session expires (default `true`) |
+| `remember.cookie` | The name of the remember cookie (default `lunar_cart_remember`) |
+| `remember.lifetime` | How long the remember cookie lasts, in minutes (default `43200`, 30 days) |
 
-When no cart ID is in the session and the visitor is authenticated, `CartSession` looks up the user's latest unmerged, active cart before creating a new one, so a returning logged-in user picks their existing cart back up.
+When no cart ID is in the session, `CartSession` resolves the cart in this order:
+
+1. The [remember cookie](#remembering-guest-carts), for a guest cart.
+2. The authenticated user's latest unmerged, active cart, so a returning logged-in user picks their existing cart back up.
+
+If neither finds a cart, a new one is created (when `auto_create` is enabled or `manager()` is called).
+
+### Remembering guest carts
+
+A guest cart normally lives only as long as the session. To let a store keep a short session lifetime without guests losing their carts, `CartSession` also points a long-lived cookie at the guest cart. When the session has expired, the cookie restores the cart into the new session.
+
+The cookie holds a random 40-character token. Only its SHA-256 hash is stored, in the cart's `remember_token` column, so reading the database does not reveal a working cookie value.
+
+The cookie is managed whenever the session's cart changes:
+
+| Event | Behavior |
+|:------|:---------|
+| A guest cart becomes the session's cart | A token is issued and the cookie is set. If the request's cookie already matches the cart, nothing is written and no cookie is sent. |
+| The cart is restored from the cookie | The same token is sent again with a fresh expiry, and the cart is touched. |
+| The cart is associated with a user (for example on login) | The token is cleared and the cookie is removed. User carts are resolved through the user, never through the cookie. |
+| `CartSession::forget()` is called (for example on logout or after `createOrder()`) | The token is cleared and the cookie is removed. |
+| The cookie no longer matches a restorable cart | The cookie is removed. |
+
+A cart is only restored from the cookie when it has no `user_id`, has not been merged into another cart, and has no placed order. This means that after a user logs out on a shared device, the next visitor cannot pick up that user's cart.
+
+Because the expiry is refreshed on each restore rather than on each request, a guest who returns at least once within `remember.lifetime` keeps their cart, and ordinary requests do not send an extra `Set-Cookie` header. The token is not rotated on restore: parallel requests at the start of a session all carry the same cookie, and rotating it would cause all but one of them to clear it.
+
+The cookie takes its `path`, `domain`, `secure` and `same_site` settings from `config/session.php`, and is always `HttpOnly`. It is excluded from Laravel's `EncryptCookies` middleware, because the value is already a random secret and encrypting it would stop the cart being found on routes that do not run that middleware (for example API routes).
+
+<Tip>
+Keep `remember.lifetime` shorter than `lunar.cart.prune_tables.prune_interval`, and leave `auto_create` set to `false`. With `auto_create` off, crawlers that never add to cart are not given a cart or a cookie.
+</Tip>
+
+To turn the behavior off, set `remember.enabled` to `false`:
+
+```php
+// config/lunar/cart_session.php
+'remember' => [
+    'enabled' => false,
+    'cookie' => 'lunar_cart_remember',
+    'lifetime' => 60 * 24 * 30,
+],
+```
 
 ### Creating a cart directly
 
@@ -217,7 +263,7 @@ CartSession::associate($cart, $user, policy: 'merge');
 CartSession::forget();
 ```
 
-Removes the cart ID from the session. Deletes the cart itself unless `$delete` is passed as `false` or `lunar.cart_session.delete_on_forget` is `false`.
+Removes the cart ID from the session and clears the cart's [remember cookie](#remembering-guest-carts). Deletes the cart itself unless `$delete` is passed as `false` or `lunar.cart_session.delete_on_forget` is `false`.
 
 ## Adding and updating lines
 
@@ -230,7 +276,7 @@ use Lunar\Core\Models\Cart;
 $cart->add($productVariant, quantity: 2, meta: ['gift_wrap' => true]);
 ```
 
-`add()` runs the configured `lunar.cart.validators.add_to_cart` validators (quantity, stock, and channel/customer-group availability by default) before adding or incrementing the line, then refreshes and recalculates the cart. If a line for the same purchasable and meta already exists, its quantity is incremented rather than a new line being created.
+`add()` runs the `Lunar\Core\Enums\StepList::AddToCartValidation` validators (quantity, stock, and channel/customer-group availability by default) before adding or incrementing the line, then refreshes and recalculates the cart. If a line for the same purchasable and meta already exists, its quantity is incremented rather than a new line being created.
 
 ```php
 // Update a line's quantity (and optionally its meta).
@@ -302,9 +348,9 @@ $cart->recalculate();    // force recalculation
 $cart->isCalculated();   // whether the cart and every line already carry a total
 ```
 
-`calculate()` runs the pipeline configured at `lunar.cart.pipelines.cart`, in order:
+`calculate()` runs the `Lunar\Core\Enums\StepList::CartCalculation` step list, in order:
 
-1. `Lunar\Core\Pipelines\Cart\CalculateLines` — runs the `lunar.cart.pipelines.cart_lines` pipeline (`GetUnitPrice`) over each line, and any registered `Lunar\Core\Modifiers\CartLineModifier` classes
+1. `Lunar\Core\Pipelines\Cart\CalculateLines` — for each line, runs the line modifiers' `calculating()` hook, prices the line through the `StepList::CartLinePricing` steps (`GetUnitPrice` by default), sets its subtotal, runs the line modifiers' `subtotalled()` hook, then derives the line's discounted subtotal and total from the subtotal
 2. `Lunar\Core\Pipelines\Cart\ApplyShipping` — resolves and applies the shipping option
 3. `Lunar\Core\Pipelines\Cart\CalculateShippingSubTotal`
 4. `Lunar\Core\Pipelines\Cart\ApplyDiscounts` — matches and applies eligible discounts
@@ -332,7 +378,7 @@ Each stage populates public properties on the cart (and its lines) as `Lunar\Cor
 A `PriceValue` exposes `->value` (the integer minor-unit amount), `->decimal()`, and `->format()`, resolved against the cart's currency. It also supports `add()`, `subtract()`, `multiply()`, and `clampToZero()` for combining amounts in custom pipeline stages.
 
 <Info>
-Custom calculation logic is added as a `Lunar\Core\Modifiers\CartModifier` (cart-level) or `Lunar\Core\Modifiers\CartLineModifier` (line-level), each exposing `calculating()` / `calculated()` hooks (and, for line modifiers, `subtotalled()`). See [Extending Carts](/2.x/extending/carts).
+Registered modifiers run around these steps. `Lunar\Core\Modifiers\CartModifier::calculating()` runs before the first step. After the last step, each line's `Lunar\Core\Modifiers\CartLineModifier::calculated()` hook runs with final totals, followed by `CartModifier::calculated()`. Custom logic is added as a modifier at these fixed points, or as a step at a precise position in a step list. See [Extending Carts](/2.x/extending/carts).
 </Info>
 
 ## Converting a cart to an order
@@ -341,7 +387,7 @@ Custom calculation logic is added as a `Lunar\Core\Modifiers\CartModifier` (cart
 $order = $cart->createOrder();
 ```
 
-`createOrder()` recalculates the cart, runs the `lunar.cart.validators.order_create` validators (`ValidateCartForOrderCreation` by default — quantity, stock, and address/shipping completeness), then delegates to the `CreatesOrder` action contract to create or update the draft order tied to the cart, mark any used discounts as consumed, and return the resulting `Lunar\Core\Models\Order`.
+`createOrder()` recalculates the cart, runs the `StepList::OrderCreateValidation` validators (`ValidateCartForOrderCreation` by default — quantity, stock, and address/shipping completeness), then delegates to the `CreatesOrder` action contract to create or update the draft order tied to the cart, mark any used discounts as consumed, and return the resulting `Lunar\Core\Models\Order`.
 
 ```php
 $cart->canCreateOrder();   // true/false, without throwing
@@ -357,7 +403,9 @@ A cart's `fingerprint()` produces a hash of its lines, user, currency, and coupo
 php artisan lunar:prune:carts
 ```
 
-`Lunar\Core\Console\Commands\PruneCarts` deletes carts (and their lines and addresses) matched by the `lunar.cart.prune_tables.pipelines` pipeline. By default this excludes carts with orders and carts merged into another cart, and only targets carts older than `lunar.cart.prune_tables.prune_interval` days (default 90). Pruning is disabled by default (`lunar.cart.prune_tables.enabled`); schedule the command once enabled.
+`Lunar\Core\Console\Commands\PruneCarts` deletes carts (and their lines and addresses) matched by the `StepList::CartPruning` step list. By default this excludes carts with orders and carts merged into another cart, and only targets carts older than `lunar.cart.prune_tables.prune_interval` days (default 90). Pruning is disabled by default (`lunar.cart.prune_tables.enabled`); schedule the command once enabled.
+
+Restoring a cart from the [remember cookie](#remembering-guest-carts) touches the cart's `updated_at`, so a guest cart that is still being restored is not treated as abandoned.
 
 ## Session-scoped, not a singleton
 

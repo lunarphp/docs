@@ -39,7 +39,7 @@ mint update          # Update CLI if dev environment isn't working
 
 Navigation in `docs.json` is organized under `navigation.versions`:
 - **v2.x (alpha)** has tabs: Getting Started, Guides, Reference, Admin Panel, Add-ons, Support, Flight Plan
-- **v1.x** has tabs: Getting Started, Reference, Admin Panel, Add-ons, Support, Mission Control
+- **v1.x** has tabs: Getting Started, Reference, Admin Panel, Add-ons, Support, Flight Plan
 - **v0.x** has tabs: Getting Started, Reference, Admin Hub
 
 ### Branch workflow

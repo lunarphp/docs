@@ -211,6 +211,10 @@ $pricing = Pricing::for($variant)
     ->get();
 ```
 
+<Tip>
+A storefront that calls `StorefrontSession::useAsDefaultContext()` from a `web` middleware can drop the `using()` call: a bare `Pricing::for($variant)->get()` then prices for the current visitor. Without it, a bare call returns store-default prices. See [Using the session as the default pricing context](/2.x/storefront-utils/storefront-session#using-the-session-as-the-default-pricing-context).
+</Tip>
+
 The `get()` method returns a `Lunar\Core\DataObjects\PricingResponse` with the following properties:
 
 | Property | Type | Description |

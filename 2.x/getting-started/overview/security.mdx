@@ -77,6 +77,8 @@ The Stripe driver handles Strong Customer Authentication (SCA/PSD2) through Stri
 
 Lunar's cart session manager ties carts to the authenticated user when available, preventing cart hijacking. On logout, cart sessions are automatically cleared through the `CartSessionAuthListener`, ensuring abandoned sessions cannot be reused.
 
+Guest carts can be restored after the session expires through a long-lived remember cookie. The cookie is `HttpOnly` and holds a random token; only a SHA-256 hash of the token is stored on the cart. A cart that belongs to a user, has been merged, or has a placed order is never restored from the cookie, and the cookie is removed on login and logout. See [Remembering guest carts](/2.x/reference/carts#remembering-guest-carts).
+
 These behaviors are configurable in `config/lunar/cart_session.php`:
 
 | Option | Description |
@@ -84,6 +86,7 @@ These behaviors are configurable in `config/lunar/cart_session.php`:
 | `session_key` | The session key used to store the cart identifier |
 | `auto_create` | Whether to create a cart automatically when none exists |
 | `delete_on_forget` | Whether to delete cart data from the database on logout |
+| `remember` | Whether guest carts are restored from a remember cookie, and the cookie's name and lifetime |
 
 ## Activity Logging
 

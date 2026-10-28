@@ -238,7 +238,7 @@ See the [Cart guide](/2.x/guides/cart) for the full list of computed properties 
 
 ## Creating the Order
 
-Once the customer is ready to proceed, create the order from the cart. This validates the cart and runs it through the configured creation pipeline, which copies the cart's data (lines, addresses, totals) onto a new `Lunar\Core\Models\Order` and returns it as a draft (with `placed_at` set to `null`).
+Once the customer is ready to proceed, create the order from the cart. This validates the cart and runs it through the order creation steps, which copy the cart's data (lines, addresses, totals) onto a new `Lunar\Core\Models\Order` and returns it as a draft (with `placed_at` set to `null`).
 
 ```php
 use Lunar\Core\Exceptions\Carts\CartException;
@@ -261,9 +261,9 @@ When `createOrder()` is called, Lunar runs through the following steps:
 
 1. Recalculates the cart to ensure totals are up to date
 2. Validates the cart (billing address, shipping address, and shipping option, among other checks)
-3. Runs the order through the `lunar.orders.pipelines.creation` pipeline, which by default: fills the order with the cart's financial data, currency, and channel; creates the order lines; creates the order addresses; creates a shipping line (if a shipping option is set); and maps the cart's discount breakdown onto the order
+3. Runs the order through the `Lunar\Core\Enums\StepList::OrderCreation` step list, which by default: fills the order with the cart's financial data, currency, and channel; creates the order lines; creates the order addresses; creates a shipping line (if a shipping option is set); and maps the cart's discount breakdown onto the order
 
-The pipeline is configurable, so a store can insert or replace steps in `config/lunar/orders.php`.
+A store can insert, remove, or replace steps from a service provider with `Lunar\Core\Facades\Steps`, and hook the start and end of order creation with an order modifier. See [Extending Orders](/2.x/extending/orders#order-creation-steps).
 
 ### Handling Validation Errors
 

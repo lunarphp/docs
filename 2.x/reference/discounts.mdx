@@ -320,7 +320,7 @@ The default validator, `Lunar\Core\Validation\CouponValidator`, checks that the 
 
 Eligibility is narrowed in two stages. First, `getDiscounts()` pre-filters candidate discounts at the database level: when a cart is given, only discounts whose `Discountable` entries (`condition` or `limitation`) match the cart's products or variants, or whose `collections()`/`brands()` pivot `type` is `condition` and matches a collection or brand on a cart line, are loaded at all. Second, each loaded discount's own `apply()` re-checks the full set of conditions (`checkDiscountConditions()`) and, for `PercentageOff`/`FixedAmountOff`, narrows to eligible lines via `TargetsCartLines` (`limitation`/`exclusion` on collections, brands, and `Discountable` entries).
 
-Discounts are applied as one step in the cart calculation pipeline (`lunar.cart.pipelines.calculate`), after lines and shipping are calculated and before tax:
+Discounts are applied as one step in the cart calculation step list (`Lunar\Core\Enums\StepList::CartCalculation`), after lines and shipping are calculated and before tax:
 
 ```
 CalculateLines → ApplyShipping → CalculateShippingSubTotal → ApplyDiscounts → CalculateTax → Calculate
