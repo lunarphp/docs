@@ -276,7 +276,7 @@ use Lunar\Core\Models\Cart;
 $cart->add($productVariant, quantity: 2, meta: ['gift_wrap' => true]);
 ```
 
-`add()` runs the configured `lunar.cart.validators.add_to_cart` validators (quantity, stock, and channel/customer-group availability by default) before adding or incrementing the line, then refreshes and recalculates the cart. If a line for the same purchasable and meta already exists, its quantity is incremented rather than a new line being created.
+`add()` runs the `Lunar\Core\Enums\StepList::AddToCartValidation` validators (quantity, stock, and channel/customer-group availability by default) before adding or incrementing the line, then refreshes and recalculates the cart. If a line for the same purchasable and meta already exists, its quantity is incremented rather than a new line being created.
 
 ```php
 // Update a line's quantity (and optionally its meta).
@@ -348,9 +348,9 @@ $cart->recalculate();    // force recalculation
 $cart->isCalculated();   // whether the cart and every line already carry a total
 ```
 
-`calculate()` runs the pipeline configured at `lunar.cart.pipelines.cart`, in order:
+`calculate()` runs the `Lunar\Core\Enums\StepList::CartCalculation` step list, in order:
 
-1. `Lunar\Core\Pipelines\Cart\CalculateLines` — runs the `lunar.cart.pipelines.cart_lines` pipeline (`GetUnitPrice`) over each line, and any registered `Lunar\Core\Modifiers\CartLineModifier` classes
+1. `Lunar\Core\Pipelines\Cart\CalculateLines` — for each line, runs the line modifiers' `calculating()` hook, prices the line through the `StepList::CartLinePricing` steps (`GetUnitPrice` by default), sets its subtotal, runs the line modifiers' `subtotalled()` hook, then derives the line's discounted subtotal and total from the subtotal
 2. `Lunar\Core\Pipelines\Cart\ApplyShipping` — resolves and applies the shipping option
 3. `Lunar\Core\Pipelines\Cart\CalculateShippingSubTotal`
 4. `Lunar\Core\Pipelines\Cart\ApplyDiscounts` — matches and applies eligible discounts
@@ -378,7 +378,7 @@ Each stage populates public properties on the cart (and its lines) as `Lunar\Cor
 A `PriceValue` exposes `->value` (the integer minor-unit amount), `->decimal()`, and `->format()`, resolved against the cart's currency. It also supports `add()`, `subtract()`, `multiply()`, and `clampToZero()` for combining amounts in custom pipeline stages.
 
 <Info>
-Custom calculation logic is added as a `Lunar\Core\Modifiers\CartModifier` (cart-level) or `Lunar\Core\Modifiers\CartLineModifier` (line-level), each exposing `calculating()` / `calculated()` hooks (and, for line modifiers, `subtotalled()`). See [Extending Carts](/2.x/extending/carts).
+Registered modifiers run around these steps. `Lunar\Core\Modifiers\CartModifier::calculating()` runs before the first step. After the last step, each line's `Lunar\Core\Modifiers\CartLineModifier::calculated()` hook runs with final totals, followed by `CartModifier::calculated()`. Custom logic is added as a modifier at these fixed points, or as a step at a precise position in a step list. See [Extending Carts](/2.x/extending/carts).
 </Info>
 
 ## Converting a cart to an order
@@ -387,7 +387,7 @@ Custom calculation logic is added as a `Lunar\Core\Modifiers\CartModifier` (cart
 $order = $cart->createOrder();
 ```
 
-`createOrder()` recalculates the cart, runs the `lunar.cart.validators.order_create` validators (`ValidateCartForOrderCreation` by default — quantity, stock, and address/shipping completeness), then delegates to the `CreatesOrder` action contract to create or update the draft order tied to the cart, mark any used discounts as consumed, and return the resulting `Lunar\Core\Models\Order`.
+`createOrder()` recalculates the cart, runs the `StepList::OrderCreateValidation` validators (`ValidateCartForOrderCreation` by default — quantity, stock, and address/shipping completeness), then delegates to the `CreatesOrder` action contract to create or update the draft order tied to the cart, mark any used discounts as consumed, and return the resulting `Lunar\Core\Models\Order`.
 
 ```php
 $cart->canCreateOrder();   // true/false, without throwing
@@ -403,7 +403,7 @@ A cart's `fingerprint()` produces a hash of its lines, user, currency, and coupo
 php artisan lunar:prune:carts
 ```
 
-`Lunar\Core\Console\Commands\PruneCarts` deletes carts (and their lines and addresses) matched by the `lunar.cart.prune_tables.pipelines` pipeline. By default this excludes carts with orders and carts merged into another cart, and only targets carts older than `lunar.cart.prune_tables.prune_interval` days (default 90). Pruning is disabled by default (`lunar.cart.prune_tables.enabled`); schedule the command once enabled.
+`Lunar\Core\Console\Commands\PruneCarts` deletes carts (and their lines and addresses) matched by the `StepList::CartPruning` step list. By default this excludes carts with orders and carts merged into another cart, and only targets carts older than `lunar.cart.prune_tables.prune_interval` days (default 90). Pruning is disabled by default (`lunar.cart.prune_tables.enabled`); schedule the command once enabled.
 
 Restoring a cart from the [remember cookie](#remembering-guest-carts) touches the cart's `updated_at`, so a guest cart that is still being restored is not treated as abandoned.
 

@@ -24,7 +24,7 @@ v1 exposed a `Lunar\Facades\StorefrontSession` with `init*()` methods (`initChan
 | Region | `getRegion()` | `?Lunar\Core\Models\Region` | The market this visit belongs to; `null` only when no region is configured |
 | Channel | `getChannel()` | `Lunar\Core\Models\Channel` | Falls back to the region's channel, then the default channel |
 | Currency | `getCurrency()` | `Lunar\Core\Models\Currency` | Falls back to the region's currency, then the default currency |
-| Customer groups | `getCustomerGroups()` | `Illuminate\Support\Collection<Lunar\Core\Models\CustomerGroup>` | Falls back to the default customer group |
+| Customer groups | `getCustomerGroups()` | `Illuminate\Support\Collection<Lunar\Core\Models\CustomerGroup>` | Falls back to the default customer group, which is not persisted to the session |
 | Customer | `getCustomer()` | `?Lunar\Core\Models\Customer` | `null` until set; falls back to the authenticated user's latest customer |
 
 Setting a region also sets the channel and currency from it (a region belongs to a channel and has a default currency), unless overridden afterwards by an explicit `setChannel()` / `setCurrency()` call.
@@ -62,6 +62,8 @@ StorefrontSession::resetCustomerGroups();
 
 Clears the customer groups from the session and resets the collection to empty (the next read re-resolves the default group via `initCustomerGroups()`).
 
+Groups set with `setCustomerGroups()` / `setCustomerGroup()`, or restored from the session, count as chosen and are passed to `context()` as-is. Until groups are chosen (or after a reset), `context()` derives them from the session's customer instead, so a logged-in customer is priced with their own groups.
+
 ### Clearing the session
 
 ```php
@@ -87,10 +89,86 @@ $context = StorefrontSession::context();
 ```php
 use Lunar\Core\Facades\Pricing;
 
-Pricing::using($context)->for($product)->get();
+Pricing::for($product)->using($context)->get();
 ```
 
-`Pricing::using()` applies a context's currency and customer groups in one call, in place of chaining `Pricing::currency(...)->customerGroups(...)`. This is the seam catalogue and browse-time price display use before a cart exists — cart calculation itself does not read the session; it derives currency and customer groups directly from the `Cart` model.
+`Pricing::using()` prices against the whole context (currency, customer groups, customer, region, and channel) in one call, in place of chaining `currency(...)->customerGroups(...)`. Cart calculation does not read the session: it prices each line with `$cart->context()`, built from the cart's own stored values.
+
+## Using the session as the default pricing context
+
+A bare price call, with no context passed, prices against store defaults: the default region, its channel and currency, the default customer group, and no customer. The pricing manager never reads the session or the auth guard itself.
+
+```php
+$variant->pricing()->get(); // store defaults, unless the request nominated the session
+```
+
+`useAsDefaultContext()` makes the session the default for the current request, so bare calls price for the current visitor's currency, region, customer, and customer groups:
+
+```php
+use Lunar\Core\Facades\StorefrontSession;
+
+StorefrontSession::useAsDefaultContext();
+```
+
+The session's `context()` is resolved on each bare `get()`, not when `useAsDefaultContext()` is called, so a login or currency switch earlier in the same request is seen. An explicitly supplied context (`using($context)` or `pricing($context)`) always takes priority over the default.
+
+Call it from a middleware on the `web` group:
+
+```php
+<?php
+
+namespace App\Http\Middleware;
+
+use Closure;
+use Illuminate\Http\Request;
+use Lunar\Core\Facades\StorefrontSession;
+
+class UseSessionStorefrontContext
+{
+    public function handle(Request $request, Closure $next): mixed
+    {
+        StorefrontSession::useAsDefaultContext();
+
+        return $next($request);
+    }
+}
+```
+
+```php
+// bootstrap/app.php
+->withMiddleware(function (Middleware $middleware) {
+    $middleware->web(append: [
+        App\Http\Middleware\UseSessionStorefrontContext::class,
+    ]);
+})
+```
+
+<Warning>
+`useAsDefaultContext()` must run **once per request**. The default it registers is bound `scoped` (`Lunar\Core\Contracts\DefaultStorefrontContext`), so it is discarded when the request or job ends. Calling it from a service provider's `boot()` works only until the first scope flush under Octane, and then silently stops.
+</Warning>
+
+<Warning>
+It must also run for Livewire update requests, or prices change between the initial render and the next component update. Livewire update requests pass through the `web` group, which is why the middleware belongs there. A storefront that applies the middleware per route instead must register it with `Livewire::addPersistentMiddleware()`, since Livewire only re-applies a fixed list of route middleware on updates.
+</Warning>
+
+Lunar ships no middleware for this and registers nothing by default: the `web` group also serves the admin panel and any other routes in the application. A session-less storefront API can register its own resolver instead, through `Lunar\Core\Contracts\DefaultStorefrontContext::resolveUsing()`.
+
+Outside a request (queued jobs, console commands, scheduled tasks) nothing is registered, so bare calls price against store defaults. Pass a context explicitly there: from the model in hand (`$cart->context()`) or one built with `Lunar\Core\Contracts\Actions\Storefront\ResolvesStorefrontContext`.
+
+### Catching missing contexts
+
+`Pricing::preventDefaultContext()` makes `get()` throw `Lunar\Core\Exceptions\MissingStorefrontContextException` when no context was supplied through `using()` or `pricing($context)` and no default resolver is registered for the request. The individual setters (`currency()`, `customerGroups()`) do not count as a context. Enable it outside production from a service provider:
+
+```php
+use Lunar\Core\Facades\Pricing;
+
+public function boot(): void
+{
+    Pricing::preventDefaultContext(! app()->isProduction());
+}
+```
+
+Requests that called `useAsDefaultContext()` are unaffected. What it surfaces is a job, command, or route that prices against store defaults by accident.
 
 ## Session-scoped, not a singleton
 

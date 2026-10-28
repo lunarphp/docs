@@ -82,14 +82,13 @@ A price of `1099` minor units in a currency with `decimal_places = 2` displays a
 
 ## Resolving a price: the Pricing facade
 
-`Lunar\Core\Facades\Pricing` exposes a `Lunar\Core\Managers\PricingManager` that resolves the correct `Price` row for a purchasable given a currency, customer group, and quantity. `get()` resets the manager's `qty` and `customerGroups` afterward, so the facade is safe to reuse across calls.
+`Lunar\Core\Facades\Pricing` exposes a `Lunar\Core\Managers\PricingManager` (bound to the `Lunar\Core\Contracts\PricingManager` contract) that resolves the correct `Price` row for a purchasable given a storefront context and a quantity. The manager holds a `Lunar\Core\DataObjects\StorefrontContext` as its pricing state, and clears all of it (purchasable, quantity, and context) after every `get()`, whether it returns or throws. Nothing carries from one call to the next.
 
 ```php
 use Lunar\Core\Facades\Pricing;
 
 $response = Pricing::for($variant)
-    ->currency($currency)
-    ->customerGroup($customerGroup)
+    ->using($storefrontContext)
     ->qty(5)
     ->get();
 ```
@@ -97,25 +96,44 @@ $response = Pricing::for($variant)
 | Method | Returns | Description |
 |:-------|:--------|:------------|
 | `for($purchasable)` | `PricingManager` | Set the purchasable to price. Required before `get()`. |
-| `user(?Authenticatable $user)` | `PricingManager` | Resolve customer groups from this user's customers. |
-| `guest()` | `PricingManager` | Explicitly price as a guest (no user). |
-| `currency(?Currency $currency)` | `PricingManager` | Set the currency. Defaults to `Currency::getDefault()`. |
-| `qty(int $qty)` | `PricingManager` | Set the quantity, for resolving quantity price breaks. Defaults to `1`. |
-| `customerGroups(?Collection $groups)` | `PricingManager` | Set the customer groups to check against. |
+| `using(StorefrontContext $context)` | `PricingManager` | Price against this context: its currency, customer groups, customer, region, and channel. |
+| `customer(?Customer $customer)` | `PricingManager` | Price for this customer, deriving the context's customer groups from it. `null` prices as a guest. |
+| `currency(?Currency $currency)` | `PricingManager` | Replace the context's currency. |
+| `customerGroups(?Collection $groups)` | `PricingManager` | Replace the context's customer groups. An empty value falls back to the groups of the context's customer, or the default group. |
 | `customerGroup(?CustomerGroup $group)` | `PricingManager` | Shortcut for a single customer group. |
-| `using(StorefrontContext $context)` | `PricingManager` | Apply a resolved storefront context's currency and customer groups. |
+| `qty(int $qty)` | `PricingManager` | Set the quantity, for resolving quantity price breaks. Defaults to `1`. |
+| `user(?Authenticatable $user)` | `PricingManager` | **Deprecated.** Prices with the merged customer groups of the user's customers. Use `using()` or `customer()`. |
+| `guest()` | `PricingManager` | **Deprecated.** Use `customer(null)`. |
 | `get()` | `PricingResponse` | Resolve and return the matched price. |
+
+`currency()`, `customerGroups()`, `customerGroup()` and `customer()` modify the current context. Called before any context is supplied, they start from the default context described below.
 
 A purchasable also exposes this manager directly:
 
 ```php
 $variant->pricing()->qty(5)->get();
 
-// Or primed with a storefront context (currency + customer groups) up front
+// Or primed with a storefront context up front
 $variant->pricing($storefrontContext)->get();
 ```
 
-When no user is set explicitly, `get()` resolves the authenticated user from the auth guard and, if that user has customers, prices against their customer groups instead of the default group.
+### The default context
+
+When `get()` runs with no context supplied, the manager asks `Lunar\Core\Contracts\DefaultStorefrontContext` for one. Unless the request registered a resolver, that is store defaults: the default region, its channel, currency, and language, the default customer group, and no customer. The manager never reads the auth guard or the session.
+
+A storefront makes bare calls price for the current visitor by calling `Lunar\Core\Facades\StorefrontSession::useAsDefaultContext()` once per request, from a middleware on the `web` group. See [Using the session as the default pricing context](/2.x/storefront-utils/storefront-session#using-the-session-as-the-default-pricing-context) for the middleware, and for the Livewire and Octane rules it must follow.
+
+Queued jobs, console commands, and scheduled tasks have no request, so bare calls there price against store defaults. Pass a context explicitly, for example `$variant->pricing($cart->context())->get()`.
+
+### Strict mode
+
+`Pricing::preventDefaultContext()` makes `get()` throw `Lunar\Core\Exceptions\MissingStorefrontContextException` when no context was supplied through `using()` or `pricing($context)` and no default resolver is registered. It is off by default; enable it outside production from a service provider:
+
+```php
+use Lunar\Core\Facades\Pricing;
+
+Pricing::preventDefaultContext(! app()->isProduction());
+```
 
 ### Price breakdowns
 
@@ -134,7 +152,47 @@ Lunar\Core\DataObjects\PricingResponse
 
 Resolution order: a customer-group price at `min_quantity = 1` takes priority over the base price (the cheapest one wins if several of the resolved customer groups have a price), and any price break whose `min_quantity` is at or below the requested `qty` takes priority over both — again, the cheapest qualifying break wins.
 
-`PricingManager::get()` runs its result through the pipelines configured under `lunar.pricing.pipelines`, so a store can add custom pricing logic (e.g. currency conversion, promotional overrides) without replacing the manager.
+### Price matching steps
+
+After matching, `PricingManager::get()` sends the manager through the `Lunar\Core\Enums\StepList::PriceMatching` step list, so a store can add custom pricing logic (such as contract prices, per-region price lists, or promotional overrides) without replacing the manager. The list is empty by default. Register a step from a service provider:
+
+```php
+use App\Pricing\ContractPricing;
+use Lunar\Core\Enums\StepList;
+use Lunar\Core\Facades\Steps;
+
+public function boot(): void
+{
+    Steps::for(StepList::PriceMatching)->append(ContractPricing::class);
+}
+```
+
+A step types against the `Lunar\Core\Contracts\PricingManager` contract and reads the call's state through `getContext()`, `getPurchasable()` and `getQuantity()`. To change the result, it replaces the public `pricing` property (a `Lunar\Core\DataObjects\PricingResponse`):
+
+```php
+<?php
+
+namespace App\Pricing;
+
+use Closure;
+use Lunar\Core\Contracts\PricingManager;
+
+class ContractPricing
+{
+    public function handle(PricingManager $pricing, Closure $next): mixed
+    {
+        $customer = $pricing->getContext()->customer;
+        $region = $pricing->getContext()->region;
+        $purchasable = $pricing->getPurchasable();
+
+        // Look up a contract price and replace $pricing->pricing ...
+
+        return $next($pricing);
+    }
+}
+```
+
+`getContext()` is only meaningful inside `get()`, since the context is cleared once the call returns. The manager's `currency`, `customerGroups` and `user` properties remain readable for existing steps but are read-only; use the setters to change them. See [Registering calculation steps](/2.x/extending/carts#registering-calculation-steps) for the full `Steps` API.
 
 ## Formatting a price
 
@@ -167,6 +225,22 @@ $price->unitDecimal('price');   // per-single-unit decimal value
 ```
 
 If a variant has `unit_quantity = 10` and a price of `10` minor units, `format('price')` returns the pack price while `unitFormat('price')` returns the per-unit price (`price / unit_quantity`).
+
+`OrderLine` has the same pair, dividing by the line's own `unit_quantity`. An order line stores the pack price, so `unitFormat('unit_price')` gives the price of a single unit:
+
+```php
+use Lunar\Core\Models\OrderLine;
+
+/** @var OrderLine $line */
+$line->format('unit_price');        // pack price
+$line->unitFormat('unit_price');    // per-single-unit formatted value
+$line->unitDecimal('unit_price');   // per-single-unit decimal value
+```
+
+```php
+public function unitFormat(string $field, ?string $locale = null, ?int $decimalPlaces = null, bool $trimTrailingZeros = true): ?string;
+public function unitDecimal(string $field, bool $rounding = true): ?float;
+```
 
 ### Tax-aware price accessors
 
@@ -297,7 +371,7 @@ public function formatted(?string $locale = null, int $formatterStyle = NumberFo
 public function unitFormatted(?string $locale = null, int $formatterStyle = NumberFormatter::CURRENCY, ?int $decimalPlaces = null, bool $trimTrailingZeros = true): mixed;
 ```
 
-`format()` and `decimal()` on `FormatsPrices` and `PriceValue` resolve this class through the container on every call, passing `unitQty: 1` — the `unitFormat()` / `unitDecimal()` methods on `Price` resolve it directly with the priceable's real `unit_quantity`.
+`format()` and `decimal()` on `FormatsPrices` and `PriceValue` resolve this class through the container on every call, passing `unitQty: 1` — the `unitFormat()` / `unitDecimal()` methods resolve it with the real unit quantity (the priceable's `unit_quantity` on `Price`, the line's own `unit_quantity` on `OrderLine`).
 
 ### Creating a custom formatter
 
