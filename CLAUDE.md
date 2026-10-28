@@ -17,8 +17,8 @@ mint update          # Update CLI if dev environment isn't working
 ## Architecture
 
 - **`docs.json`** — Central configuration: navigation, theming, redirects, integrations. All page routing is defined here.
-- **`2.x/`** — Next version docs (v2.x, currently alpha). Maintained on the `2.x` branch; v2 work merges into `2.x`, not `main`.
-- **`1.x/`** — Current version docs (v1.x). This is where most edits on `main` happen.
+- **`2.x/`** — Next version docs (v2.x, currently alpha).
+- **`1.x/`** — Current version docs (v1.x).
 - **`0.x/`** — Legacy version docs (v0.x). Rarely modified.
 - **`support/`** — Community and Lunar Alliance partner pages.
 - **`logs/`** — Roadmap (`flight-plan.mdx`) and release announcements.
@@ -44,9 +44,9 @@ Navigation in `docs.json` is organized under `navigation.versions`:
 
 ### Branch workflow
 
-- `main` (kept in sync with `next`) holds the published docs; edits to `1.x/` land there.
-- `2.x` holds the v2 docs while they are in alpha. PRs for v2 content target `2.x`.
-- Merge `main` back into `2.x` periodically to keep `1.x/` content and `docs.json` current.
+- PRs for every version, `1.x/` and `2.x/` alike, target `next`. Title v2 PRs `docs(2.x): …`.
+- `main` holds the published docs. `next` is merged into `main` at release time, so merging a PR into `next` does not put it live.
+- Docs for unreleased code can therefore merge into `next` ahead of the code PRs they describe, as long as that code lands before the next release.
 
 ## Source Code
 
