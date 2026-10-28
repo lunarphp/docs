@@ -43,6 +43,10 @@ class CartController extends Controller
 Cart prices are calculated on demand and are not stored on the cart lines. `current()` accepts a `calculate` argument (`true` by default) that runs the calculation pipeline before returning the cart. To force a recalculation after making changes, call `$cart->recalculate()`.
 </Info>
 
+<Tip>
+A guest's cart survives the session expiring: Lunar restores it from a long-lived remember cookie, so the session lifetime can stay short. See [Remembering guest carts](/2.x/reference/carts#remembering-guest-carts).
+</Tip>
+
 ## Displaying Cart Lines
 
 Each cart line holds a reference to a purchasable item (typically a `Lunar\Core\Models\ProductVariant`) along with the quantity and any custom metadata. After calculation, each line has computed properties for unit price, tax, discounts, and total.
