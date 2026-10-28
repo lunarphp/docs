@@ -256,7 +256,7 @@ php artisan lunar:bundles:reprice
 
 ### Non-default selections at cart time
 
-The materialised rows cover the default selection only. When a customer's selection for a configurable `components` bundle differs from the default, `Lunar\Bundles\Pipelines\CartLine\PriceBundleSelection`, appended to `lunar.cart.pipelines.cart_lines` after `GetUnitPrice`, prices the line from the resolved selection instead: each selected component is priced through the pricing manager for the cart's currency, quantity, and customer groups, the quantity-weighted sum is discounted by `discount_percentage`, and the result replaces the line's `unitPrice` and `unitPriceInclTax`. Fixed bundles, default selections, and `Fixed`-priced bundles never enter the stage.
+The materialised rows cover the default selection only. When a customer's selection for a configurable `components` bundle differs from the default, `Lunar\Bundles\Pipelines\CartLine\PriceBundleSelection`, registered in the `CartLinePricing` step list after `GetUnitPrice`, prices the line from the resolved selection instead: each selected component is priced through the pricing manager with the cart's context (`$cart->context()`, so the cart's currency, customer, and customer groups) at a quantity of one, the quantity-weighted sum is discounted by `discount_percentage`, and the result replaces the line's `unitPrice` and `unitPriceInclTax`. Fixed bundles, default selections, and `Fixed`-priced bundles never enter the stage.
 
 ### Tax and discounts
 
@@ -357,17 +357,17 @@ $cart->add($kit, 1, [
 
 ### Validation
 
-`Lunar\Bundles\Validation\CartLine\BundleSelection` is appended to `lunar.cart.validators.add_to_cart` and `update_cart_line`. For a bundle line it resolves the selection and, if that throws `InvalidBundleSelection`, fails validation with the exception's message under the `cart` key, surfacing as a `Lunar\Core\Exceptions\Carts\CartException` like any other cart validator. It then checks every selected component with `canBeFulfilledAtQuantity(quantity per kit x line quantity)`, so the cart-time stock check sees the actual selection rather than the best case the inventory seam reports, failing with `Bundle component ":identifier" is not available at this quantity.` when a part is short. Ordinary variants pass straight through.
+`Lunar\Bundles\Validation\CartLine\BundleSelection` is appended to the `AddToCartValidation` and `UpdateCartLineValidation` step lists. For a bundle line it resolves the selection and, if that throws `InvalidBundleSelection`, fails validation with the exception's message under the `cart` key, surfacing as a `Lunar\Core\Exceptions\Carts\CartException` like any other cart validator. It then checks every selected component with `canBeFulfilledAtQuantity(quantity per kit x line quantity)`, so the cart-time stock check sees the actual selection rather than the best case the inventory seam reports, failing with `Bundle component ":identifier" is not available at this quantity.` when a part is short. Ordinary variants pass straight through.
 
 The core `CartLineStock` validator runs too, against the bundle variant's derived inventory. See [Validators](/2.x/extending/carts#validators) for how a storefront reports these errors.
 
 ## How the order records a bundle
 
-When the order is created, `Lunar\Bundles\Pipelines\Order\Creation\CreateBundleComponentLines`, appended to `lunar.orders.pipelines.creation` after `MapDiscountBreakdown`, gives every bundle line its component lines:
+When the order is created, `Lunar\Bundles\Pipelines\Order\Creation\CreateBundleComponentLines`, appended to the `OrderCreation` step list after `MapDiscountBreakdown`, gives every bundle line its component lines:
 
 1. The **parent line** (the image of the cart line) is stamped `type = 'bundle'` and `requires_fulfilment = false`. It keeps its `requires_shipping` value, so shipping is still required at the order level, and it keeps every money column: `unit_price`, `sub_total`, `discount_total`, `tax_breakdown`, `tax_total`, and `total`. `meta.bundle` stays as the cart line wrote it, so the order records which selection was sold.
 2. The selection is resolved from the parent's `meta`, and **one component line per selected component** is created with `parent_line_id` set to the parent: `purchasable` is the component variant; `type`, `requires_shipping`, `requires_fulfilment`, `description`, `option`, `identifier`, and `unit_quantity` are snapshotted from it; `quantity` is the component's quantity per kit multiplied by the parent's quantity; every money column is `0` and `tax_breakdown` is empty.
-3. Each component line's `meta.allocated_total` receives a share of the parent's `total`, distributed in proportion to the components' current unit prices with the price calculator's `distribute()`, so the shares are exact to the minor unit. This is for revenue-per-SKU reporting only and never feeds a total.
+3. Each component line's `meta.allocated_total` receives a share of the parent's `total`, distributed in proportion to the components' current unit prices (priced with the order's cart context) with the price calculator's `distribute()`, so the shares are exact to the minor unit. This is for revenue-per-SKU reporting only and never feeds a total.
 
 The stage is idempotent: re-running order creation for a draft order (`orderIdToUpdate`) replaces the component lines.
 
@@ -461,6 +461,15 @@ public function register(): void
 
 The decorator answers component variants through the inner action, never through the variant's own `getTotalInventory()`, which would re-enter the chain.
 
-### Pipeline and validator order
+### Step and validator order
 
-The service provider appends `BundleSelection` to `lunar.cart.validators.add_to_cart` and `update_cart_line`, `PriceBundleSelection` to `lunar.cart.pipelines.cart_lines`, and `CreateBundleComponentLines` to `lunar.orders.pipelines.creation`, unless they are already listed. A host that sets those lists explicitly in `config/lunar/cart.php` or `config/lunar/orders.php` controls their position; `PriceBundleSelection` must run after `GetUnitPrice`, and `CreateBundleComponentLines` after `MapDiscountBreakdown`.
+The service provider registers its steps with the `Lunar\Core\Facades\Steps` step lists (see [Registering calculation steps](/2.x/extending/carts#registering-calculation-steps)):
+
+```php
+Steps::for(StepList::AddToCartValidation)->append(BundleSelection::class);
+Steps::for(StepList::UpdateCartLineValidation)->append(BundleSelection::class);
+Steps::for(StepList::CartLinePricing)->after(GetUnitPrice::class, PriceBundleSelection::class);
+Steps::for(StepList::OrderCreation)->append(CreateBundleComponentLines::class);
+```
+
+`PriceBundleSelection` must run after `GetUnitPrice`, whose price it replaces, and `CreateBundleComponentLines` after `MapDiscountBreakdown`. A host moves or removes them with the same calls from its own service provider; `php artisan lunar:steps` shows where they sit once the add-on is installed.
