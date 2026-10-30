@@ -468,7 +468,7 @@ The key factor for an order is whether the `placed_at` column is populated. Ever
 
 ## Order Notifications
 
-Lunar allows specifying which Laravel mailers and notifications should be available when updating an order's status. These are configured in `config/lunar/orders.php`:
+Lunar allows specifying which Laravel mailers should be available when updating an order's status. These are configured in `config/lunar/orders.php`:
 
 ```php
 'statuses' => [
@@ -492,6 +492,10 @@ Lunar stores a render of the sent email in the activity log, providing a clear h
 <Tip>
 These email notifications are not sent automatically when updating the status programmatically outside of the admin panel.
 </Tip>
+
+<Warning>
+The `notifications` key is present in the default config but is not currently read anywhere in Lunar — defining notifications here has no effect. Only `mailers` are dispatched. If you need to notify someone (staff, customer, a Slack channel, etc.) when an order's status changes outside the admin panel, listen for the update yourself, for example by observing the `Order` model's `updated` event and checking `$order->wasChanged('status')`.
+</Warning>
 
 ### Mailer Template
 
